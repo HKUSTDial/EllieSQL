@@ -1,0 +1,21 @@
+# 忽略日志文件
+*.log
+
+# 忽略操作系统特定的文件
+.DS_Store
+Thumbs.db
+
+# 忽略临时文件
+*.tmp
+*.swp
+
+# 忽略IDE配置文件
+/.idea/
+/.vscode/
+*.iml
+
+# 忽略pycache
+__pycache__/
+
+# 忽略config文件
+config/
