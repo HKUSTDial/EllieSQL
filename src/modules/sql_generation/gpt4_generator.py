@@ -5,8 +5,16 @@ from ...core.llm import LLMBase
 class GPT4SQLGenerator(SQLGeneratorBase):
     """使用GPT-4生成SQL的实现"""
     
-    def __init__(self, llm: LLMBase):
+    def __init__(self, 
+                llm: LLMBase, 
+                model: str = "gpt-3.5-turbo-0613",
+                temperature: float = 0.0,
+                max_tokens: int = 1000):
+        super().__init__("GPT4SQLGenerator")
         self.llm = llm
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         
     async def generate_sql(self, query: str, linked_schema: Dict) -> str:
         """
@@ -40,8 +48,17 @@ class GPT4SQLGenerator(SQLGeneratorBase):
         ]
         
         # 调用LLM
-        result = await self.llm.call_llm(messages, "gpt4")
-        return result["response"].strip()
+        result = await self.llm.call_llm(
+            messages, 
+            self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            module_name=self.name
+        )
+        
+        sql = result["response"].strip()
+        self.log_io({"query": query, "linked_schema": linked_schema}, sql)
+        return sql
         
     def _format_schema(self, schema: Dict) -> str:
         """格式化schema信息"""

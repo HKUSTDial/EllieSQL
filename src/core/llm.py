@@ -12,8 +12,9 @@ class LLMMetrics:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.model_tokens = {}
+        self.module_stats = {}  # 新增：按模块统计
 
-    def log_call(self, model: str, input_tokens: int, output_tokens: int):
+    def log_call(self, model: str, input_tokens: int, output_tokens: int, module_name: str = None):
         """记录一次LLM调用"""
         self.total_calls += 1
         self.total_input_tokens += input_tokens
@@ -26,6 +27,18 @@ class LLMMetrics:
         self.model_calls[model] += 1
         self.model_tokens[model]["input"] += input_tokens
         self.model_tokens[model]["output"] += output_tokens
+        
+        # 按模块统计
+        if module_name:
+            if module_name not in self.module_stats:
+                self.module_stats[module_name] = {
+                    "calls": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0
+                }
+            self.module_stats[module_name]["calls"] += 1
+            self.module_stats[module_name]["input_tokens"] += input_tokens
+            self.module_stats[module_name]["output_tokens"] += output_tokens
 
 class LLMBase:
     """LLM调用的基础类"""
@@ -37,34 +50,32 @@ class LLMBase:
             base_url=self.config["api"]["base_url"]
         )
         self.metrics = LLMMetrics()
-        
-    def _get_model_name(self, model_key: str) -> str:
-        """获取实际的模型名称"""
-        return self.config["models"][model_key]["model_name"]
 
     async def call_llm(self, 
                      messages: List[Dict[str, str]], 
                      model: str,
-                     temperature: Optional[float] = None) -> Dict[str, Any]:
+                     temperature: float = 0.0,
+                     max_tokens: int = 1000,
+                     module_name: str = None) -> Dict[str, Any]:
         """
         调用LLM API
         
         Args:
             messages: 消息列表，格式为[{"role": "user", "content": "xxx"}, ...]
-            model: 模型配置中的key（如"gpt4"或"gpt35"）
+            model: 模型名称（如"gpt-4"或"gpt-3.5-turbo"）
             temperature: 温度参数
+            max_tokens: 最大token数
+            module_name: 调用模块的名称，用于统计
             
         Returns:
             Dict[str, Any]: API响应结果
         """
-        model_name = self._get_model_name(model)
-        
         # 调用API
         response = await self.client.chat.completions.create(
-            model=model_name,
+            model=model,
             messages=messages,
-            temperature=temperature if temperature is not None else self.config["models"][model]["temperature"],
-            max_tokens=self.config["models"][model]["max_tokens"]
+            temperature=temperature,
+            max_tokens=max_tokens
         )
         
         # 从response中获取token统计
@@ -72,7 +83,7 @@ class LLMBase:
         output_tokens = response.usage.completion_tokens
         
         # 记录metrics
-        self.metrics.log_call(model, input_tokens, output_tokens)
+        self.metrics.log_call(model, input_tokens, output_tokens, module_name)
         
         return {
             "response": response.choices[0].message.content,

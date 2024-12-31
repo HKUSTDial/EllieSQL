@@ -5,8 +5,16 @@ from ...core.llm import LLMBase
 class BasicSchemaLinker(SchemaLinkerBase):
     """基本的Schema Linking实现"""
     
-    def __init__(self, llm: LLMBase):
+    def __init__(self, 
+                llm: LLMBase, 
+                model: str = "gpt-3.5-turbo-0613",
+                temperature: float = 0.0,
+                max_tokens: int = 1000):
+        super().__init__("BasicSchemaLinker")
         self.llm = llm
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         
     async def link_schema(self, query: str, database_schema: Dict) -> Dict:
         """
@@ -45,13 +53,21 @@ class BasicSchemaLinker(SchemaLinkerBase):
         ]
         
         # 调用LLM
-        result = await self.llm.call_llm(messages, "gpt35")
-        linked_schema = eval(result["response"])  # 注意：实际使用时需要更安全的JSON解析
+        result = await self.llm.call_llm(
+            messages, 
+            self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            module_name=self.name
+        )
         
-        return {
+        output = {
             "original_schema": database_schema,
-            "linked_schema": linked_schema
+            "linked_schema": eval(result["response"])
         }
+        
+        self.log_io({"query": query, "schema": database_schema}, output)
+        return output
         
     def _format_schema(self, schema: Dict) -> str:
         """格式化schema信息"""

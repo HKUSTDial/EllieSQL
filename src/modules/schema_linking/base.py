@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
+from ..base import ModuleBase
 
-class SchemaLinkerBase(ABC):
+class SchemaLinkerBase(ModuleBase):
     """Schema Linking模块的基类"""
+    
+    def __init__(self, name: str = "SchemaLinker"):
+        super().__init__(name)
     
     @abstractmethod
     async def link_schema(self, 

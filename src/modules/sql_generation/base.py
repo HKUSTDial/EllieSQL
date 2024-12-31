@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
+from ..base import ModuleBase
 
-class SQLGeneratorBase(ABC):
+class SQLGeneratorBase(ModuleBase):
+    def __init__(self, name: str = "SQLGenerator"):
+        super().__init__(name)
     """SQL生成模块的基类"""
     
     @abstractmethod
