@@ -1,6 +1,7 @@
 from typing import Dict, List
 from .base import SchemaLinkerBase
 from ...core.llm import LLMBase
+from .prompts.basic_prompts import SCHEMA_LINKING_SYSTEM, SCHEMA_LINKING_USER
 
 class BasicSchemaLinker(SchemaLinkerBase):
     """基本的Schema Linking实现"""
@@ -36,20 +37,11 @@ class BasicSchemaLinker(SchemaLinkerBase):
         # 构建提示词
         schema_str = self._format_schema(database_schema)
         messages = [
-            {"role": "system", "content": "你是一个SQL专家，帮助识别自然语言查询中涉及的数据库表和列。"},
-            {"role": "user", "content": f"""
-数据库Schema如下:
-{schema_str}
-
-用户查询: {query}
-
-请识别查询中涉及的表和列，以JSON格式返回:
-{{
-    "tables": ["涉及的表名1", "表名2", ...],
-    "columns": ["涉及的列名1", "列名2", ...]
-}}
-只返回JSON，不要其他解释。
-"""}
+            {"role": "system", "content": SCHEMA_LINKING_SYSTEM},
+            {"role": "user", "content": SCHEMA_LINKING_USER.format(
+                schema_str=schema_str,
+                query=query
+            )}
         ]
         
         # 调用LLM

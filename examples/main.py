@@ -1,7 +1,7 @@
 import asyncio
 from src.core.llm import LLMBase
 from src.modules.schema_linking.basic_linker import BasicSchemaLinker
-from src.modules.sql_generation.gpt4_generator import GPT4SQLGenerator
+from src.modules.sql_generation.gpt_generator import GPTSQLGenerator
 from src.modules.post_processing.reflection import ReflectionPostProcessor
 from src.pipeline import ElephantSQLPipeline
 
@@ -17,7 +17,7 @@ async def main():
         max_tokens=1000
     )
     
-    sql_generator = GPT4SQLGenerator(
+    sql_generator = GPTSQLGenerator(
         llm, 
         model="gpt-3.5-turbo-0613",
         temperature=0.0,
@@ -59,7 +59,8 @@ async def main():
     result = await pipeline.process(query, schema)
     
     # 打印结果
-    print("最终SQL:", result["final_sql"])
+    print("最终SQL:", result["processed_sql"])
+    print("result:", result)
     print("\nLLM调用统计:")
     print(f"总调用次数: {llm.metrics.total_calls}")
     print(f"每个模型调用次数: {llm.metrics.model_calls}")
