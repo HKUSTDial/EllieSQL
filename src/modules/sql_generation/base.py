@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from ..base import ModuleBase
 
 class SQLGeneratorBase(ModuleBase):
@@ -22,3 +22,17 @@ class SQLGeneratorBase(ModuleBase):
             str: 生成的SQL语句
         """
         pass 
+    
+    async def generate_sql_with_retry(self, 
+                                   query: str, 
+                                   schema_linking_output: Dict,
+                                   query_id: str = None) -> Tuple[str, str]:
+        """使用重试机制生成SQL"""
+        return await self.execute_with_retry(
+            func=self.generate_sql,
+            extract_method='sql',
+            error_msg="SQL生成失败",
+            query=query,
+            schema_linking_output=schema_linking_output,
+            query_id=query_id
+        ) 

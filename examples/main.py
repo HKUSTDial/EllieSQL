@@ -43,17 +43,17 @@ async def main():
         "tables": [
             {
                 "name": "students",
-                "columns": ["id", "name", "age", "class_id"]
+                "columns": ["id", "name", "age", "class_id", "gender", "birthday", "email", "phone"]
             },
             {
                 "name": "classes",
-                "columns": ["id", "name", "teacher_id"]
+                "columns": ["id", "name", "teacher_id", "location"]
             }
         ]
     }
     
     # 示例查询
-    query = "找出所有18岁以上的学生及其所在班级的名称"
+    query = "找出所有18岁以上的学生的姓名和性别及其所在班级的名称"
     
     # 处理查询
     result = await pipeline.process(query, schema)

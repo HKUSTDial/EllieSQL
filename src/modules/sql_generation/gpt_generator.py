@@ -44,19 +44,16 @@ class GPTSQLGenerator(SQLGeneratorBase):
             schema_linking_output = prev_result["output"]
         
         # 从linked_schema中提取表和列信息
-        tables = schema_linking_output["linked_schema"]["tables"]
-        columns = schema_linking_output["linked_schema"]["columns"]
-        schema = schema_linking_output["original_schema"]
+        linked_tables = schema_linking_output["linked_schema"]["tables"]
         
-        # 构建完整的schema字符串
-        # schema_str = self._format_schema(schema)
-        
+        # 构建提示词
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
-                # schema_str=schema_str,
-                tables=", ".join(tables),
-                columns=", ".join(columns),
+                tables="\n".join([
+                    f"表 '{t['table']}' 的相关列: {', '.join(t['columns'])}"
+                    for t in linked_tables
+                ]),
                 query=query
             )}
         ]
@@ -70,7 +67,8 @@ class GPTSQLGenerator(SQLGeneratorBase):
         )
         
         raw_output = result["response"]
-        extracted_sql = self._extract_sql(raw_output)
+        # extracted_sql = self._extract_sql(raw_output)
+        extracted_sql = self.extractor.extract_sql(raw_output)
         
         # 保存中间结果
         self.save_intermediate(
@@ -106,8 +104,3 @@ class GPTSQLGenerator(SQLGeneratorBase):
             result.append("")
         return "\n".join(result) 
         
-    def _extract_sql(self, text: str) -> str:
-        """从文本中提取SQL代码块"""
-        sql_pattern = r"```sql\s*(.*?)\s*```"
-        matches = re.findall(sql_pattern, text, re.DOTALL)
-        return matches[0].strip() if matches else text.strip() 

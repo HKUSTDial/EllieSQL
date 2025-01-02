@@ -21,5 +21,6 @@ __pycache__/
 config/
 
 # 忽略中间结果
-intermediate_results/
+intermediate_results/**.json
+intermediate_results/**.jsonl
 

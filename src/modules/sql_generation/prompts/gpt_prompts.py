@@ -24,8 +24,7 @@ SQL_GENERATION_SYSTEM = """你是一个SQL专家，根据用户的自然语言�
 
 SQL_GENERATION_USER = """
 根据Schema Linking识别出的相关表和列:
-相关表: {tables}
-相关列: {columns}
+{tables}
 
 用户查询: {query}
 

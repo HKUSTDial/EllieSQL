@@ -44,7 +44,8 @@ class ReflectionPostProcessor(PostProcessorBase):
         )
         
         raw_output = result["response"]
-        processed_sql = self._extract_sql(raw_output)
+        # processed_sql = self._extract_sql(raw_output)
+        processed_sql = self.extractor.extract_sql(raw_output)
         
         # 保存中间结果
         self.save_intermediate(
@@ -68,8 +69,3 @@ class ReflectionPostProcessor(PostProcessorBase):
         self.log_io({"original_sql": sql, "messages": messages}, processed_sql)
         return raw_output
         
-    def _extract_sql(self, text: str) -> str:
-        """从文本中提取SQL代码块"""
-        sql_pattern = r"```sql\s*(.*?)\s*```"
-        matches = re.findall(sql_pattern, text, re.DOTALL)
-        return matches[0].strip() if matches else text.strip() 

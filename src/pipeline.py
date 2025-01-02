@@ -1,10 +1,9 @@
-from typing import Dict, Any, Tuple, Optional
-import re
+from typing import Dict, Any
+from datetime import datetime
 from src.core.llm import LLMBase
 from src.modules.schema_linking.base import SchemaLinkerBase
 from src.modules.sql_generation.base import SQLGeneratorBase
 from src.modules.post_processing.base import PostProcessorBase
-from datetime import datetime
 
 class ElephantSQLPipeline:
     """ElephantSQL系统的主要pipeline"""
@@ -12,91 +11,49 @@ class ElephantSQLPipeline:
     def __init__(self,
                  schema_linker: SchemaLinkerBase,
                  sql_generator: SQLGeneratorBase,
-                 post_processor: PostProcessorBase,
-                 max_retries: int = 5):
-        """
-        初始化pipeline
-        
-        Args:
-            schema_linker: Schema linking模块实例
-            sql_generator: SQL生成模块实例
-            post_processor: 后处理模块实例
-            max_retries: SQL生成最大重试次数
-        """
+                 post_processor: PostProcessorBase):
         self.schema_linker = schema_linker
         self.sql_generator = sql_generator
         self.post_processor = post_processor
-        self.max_retries = max_retries
-        
-    def _extract_sql(self, text: str) -> Optional[str]:
-        """
-        从文本中提取SQL代码块
-        
-        Args:
-            text: 包含SQL的文本
-            
-        Returns:
-            Optional[str]: 提取出的SQL语句，如果没有找到则返回None
-        """
-        sql_pattern = r"```sql\s*(.*?)\s*```"
-        matches = re.findall(sql_pattern, text, re.DOTALL)
-        return matches[0].strip() if matches else text.strip()
-        
-    async def _generate_sql_with_retry(self, 
-                                    query: str, 
-                                    linked_schema: Dict,
-                                    query_id: str) -> Tuple[str, str]:
-        """
-        使用重试机制生成SQL
-        
-        Args:
-            query: 用户查询
-            linked_schema: 链接后的schema
-            query_id: 查询ID
-            
-        Returns:
-            Tuple[str, str]: (原始输出, 提取的SQL)
-        """
-        for attempt in range(self.max_retries):
-            raw_output = await self.sql_generator.generate_sql(query, linked_schema, query_id)
-            sql = self._extract_sql(raw_output)
-            if sql:
-                return raw_output, sql
-        raise ValueError(f"无法在{self.max_retries}次尝试中生成有效的SQL")
         
     async def process(self, 
                     query: str, 
                     database_schema: Dict,
                     query_id: str = None) -> Dict[str, Any]:
+        """处理用户查询"""
         if query_id is None:
             query_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             
-        # 1. Schema Linking: 返回包含原始schema和linked schema的json
-        schema_linking_output = await self.schema_linker.link_schema(
+        # 1. Schema Linking with retry
+        raw_linking_output, extracted_schema = await self.schema_linker.link_schema_with_retry(
             query, 
             database_schema,
             query_id=query_id
         )
-        # original_schema = schema_linking_output["original_schema"]
-        # linked_schema = schema_linking_output["linked_schema"]
+        
+        schema_linking_output = {
+            "original_schema": database_schema,
+            "linked_schema": extracted_schema
+        }
         
         # 2. SQL Generation with retry
-        raw_sql_output, extracted_sql = await self._generate_sql_with_retry(
+        raw_sql_output, extracted_sql = await self.sql_generator.generate_sql_with_retry(
             query,
             schema_linking_output,
             query_id=query_id
         )
         
-        # 3. Post Processing
-        raw_postprocessing_output = await self.post_processor.process_sql(
+        # 3. Post Processing with retry
+        raw_postprocessing_output, processed_sql = await self.post_processor.process_sql_with_retry(
             extracted_sql,
             query_id=query_id
         )
-        processed_sql = self._extract_sql(raw_postprocessing_output)
         
         return {
             "query_id": query_id,
             "query": query,
+            "raw_linking_output": raw_linking_output,
+            "extracted_schema": extracted_schema,
             "raw_sql_output": raw_sql_output,
             "extracted_sql": extracted_sql,
             "raw_postprocessing_output": raw_postprocessing_output,
