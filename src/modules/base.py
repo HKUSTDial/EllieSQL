@@ -5,9 +5,9 @@ from abc import ABC, abstractmethod
 
 class ModuleBase(ABC):
     """所有模块的基类"""
-    def __init__(self, name: str, max_retries: int = 5):
+    def __init__(self, name: str, max_retries: int = 5, pipeline_id: str = None):
         self.name = name
-        self.intermediate = IntermediateResult(name)
+        self.intermediate = IntermediateResult(name, pipeline_id)
         self.max_retries = max_retries
         self.extractor = TextExtractor()
         

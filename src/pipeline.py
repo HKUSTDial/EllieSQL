@@ -4,6 +4,7 @@ from src.core.llm import LLMBase
 from src.modules.schema_linking.base import SchemaLinkerBase
 from src.modules.sql_generation.base import SQLGeneratorBase
 from src.modules.post_processing.base import PostProcessorBase
+from src.core.intermediate import IntermediateResult
 
 class ElephantSQLPipeline:
     """ElephantSQL系统的主要pipeline"""
@@ -12,6 +13,13 @@ class ElephantSQLPipeline:
                  schema_linker: SchemaLinkerBase,
                  sql_generator: SQLGeneratorBase,
                  post_processor: PostProcessorBase):
+        self.pipeline_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 为每个模块设置pipeline_id
+        schema_linker.intermediate = IntermediateResult(schema_linker.name, self.pipeline_id)
+        sql_generator.intermediate = IntermediateResult(sql_generator.name, self.pipeline_id)
+        post_processor.intermediate = IntermediateResult(post_processor.name, self.pipeline_id)
+        
         self.schema_linker = schema_linker
         self.sql_generator = sql_generator
         self.post_processor = post_processor

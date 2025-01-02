@@ -6,71 +6,141 @@ from datetime import datetime
 class IntermediateResult:
     """处理模块中间结果的基类"""
     
-    def __init__(self, module_name: str):
+    def __init__(self, module_name: str, pipeline_id: str = None):
+        """
+        初始化中间结果处理器
+        
+        Args:
+            module_name: 模块名称
+            pipeline_id: pipeline的唯一标识，如果为None则使用时间戳
+        """
         self.module_name = module_name
-        self.results_dir = f"intermediate_results/{module_name}"
-        os.makedirs(self.results_dir, exist_ok=True)
+        self.pipeline_id = pipeline_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 创建目录结构
+        self.base_dir = "results/intermediate_results"
+        self.pipeline_dir = os.path.join(self.base_dir, self.pipeline_id)
+        os.makedirs(self.pipeline_dir, exist_ok=True)
+        
+        # 中间结果文件路径
+        self.result_file = os.path.join(self.pipeline_dir, f"{module_name}.jsonl")
+        
+        # Pipeline统计文件
+        self.stats_file = os.path.join(self.pipeline_dir, "stats.json")
         
     def save_result(self, 
                    input_data: Dict[str, Any],
                    output_data: Dict[str, Any],
                    model_info: Dict[str, Any],
                    query_id: str = None) -> str:
-        """
-        保存中间结果
-        
-        Args:
-            input_data: 输入数据
-            output_data: 输出数据
-            model_info: 模型调用信息，包含:
-                {
-                    "model": "模型名称",
-                    "input_tokens": 输入token数,
-                    "output_tokens": 输出token数,
-                    "total_tokens": 总token数
-                }
-            query_id: 查询ID，如果为None则使用时间戳
-            
-        Returns:
-            str: 结果文件路径
-        """
-        if query_id is None:
-            query_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
+        """保存中间结果和更新统计信息"""
+        # 保存中间结果
         result = {
-            "query_id": query_id,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "query_id": query_id or "unknown",
             "input": input_data,
             "output": output_data,
             "model_info": model_info
         }
         
-        filepath = os.path.join(self.results_dir, f"{query_id}.jsonl")
-        with open(filepath, "a", encoding="utf-8") as f:
+        with open(self.result_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
             
-        return filepath
+        # 更新统计信息
+        self._update_stats(model_info)
+        
+        return self.result_file
         
     def load_previous_result(self, 
                            query_id: str,
                            previous_module: str) -> Dict[str, Any]:
-        """
-        加载上一个模块的结果
-        
-        Args:
-            query_id: 查询ID
-            previous_module: 上一个模块的名称
+        """加载上一个模块的结果"""
+        prev_file = os.path.join(self.pipeline_dir, f"{previous_module}.jsonl")
+        if not os.path.exists(prev_file):
+            raise FileNotFoundError(f"找不到上一个模块的结果文件: {prev_file}")
             
-        Returns:
-            Dict[str, Any]: 上一个模块的最后一条结果
-        """
-        filepath = f"intermediate_results/{previous_module}/{query_id}.jsonl"
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"找不到上一个模块的结果文件: {filepath}")
-            
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(prev_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
             if not lines:
-                raise ValueError(f"结果文件为空: {filepath}")
+                raise ValueError(f"结果文件为空: {prev_file}")
             # 返回最后一条结果
-            return json.loads(lines[-1]) 
+            return json.loads(lines[-1])
+            
+    def _update_stats(self, model_info: Dict[str, Any]):
+        """更新API调用统计"""
+        stats = self._load_json(self.stats_file, {
+            "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_calls": 0,
+            "total_cost": {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            },
+            "models": {},
+            "modules": {}
+        })
+        
+        # 更新总调用次数和总消耗
+        stats["total_calls"] += 1
+        stats["total_cost"]["input_tokens"] += model_info["input_tokens"]
+        stats["total_cost"]["output_tokens"] += model_info["output_tokens"]
+        stats["total_cost"]["total_tokens"] += (model_info["input_tokens"] + 
+                                              model_info["output_tokens"])
+        
+        # 更新模型统计
+        model_name = model_info["model"]
+        if model_name not in stats["models"]:
+            stats["models"][model_name] = {
+                "calls": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            }
+            
+        model_stats = stats["models"][model_name]
+        model_stats["calls"] += 1
+        model_stats["input_tokens"] += model_info["input_tokens"]
+        model_stats["output_tokens"] += model_info["output_tokens"]
+        model_stats["total_tokens"] += model_info["input_tokens"] + model_info["output_tokens"]
+        
+        # 更新模块统计
+        if self.module_name not in stats["modules"]:
+            stats["modules"][self.module_name] = {
+                "calls": 0,
+                "models": {}
+            }
+            
+        module_stats = stats["modules"][self.module_name]
+        module_stats["calls"] += 1
+        
+        if model_name not in module_stats["models"]:
+            module_stats["models"][model_name] = {
+                "calls": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            }
+            
+        model_module_stats = module_stats["models"][model_name]
+        model_module_stats["calls"] += 1
+        model_module_stats["input_tokens"] += model_info["input_tokens"]
+        model_module_stats["output_tokens"] += model_info["output_tokens"]
+        model_module_stats["total_tokens"] += (model_info["input_tokens"] + 
+                                             model_info["output_tokens"])
+        
+        # 更新最后修改时间
+        stats["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        self._save_json(self.stats_file, stats)
+        
+    def _load_json(self, file_path: str, default: Dict) -> Dict:
+        """加载JSON文件，如果文件不存在则返回默认值"""
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return default
+        
+    def _save_json(self, file_path: str, data: Dict):
+        """保存JSON文件"""
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2) 
