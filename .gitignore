@@ -19,3 +19,7 @@ __pycache__/
 
 # 忽略config文件
 config/
+
+# 忽略中间结果
+intermediate_results/
+

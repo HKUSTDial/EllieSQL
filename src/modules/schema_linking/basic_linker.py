@@ -17,7 +17,7 @@ class BasicSchemaLinker(SchemaLinkerBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    async def link_schema(self, query: str, database_schema: Dict) -> Dict:
+    async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> Dict:
         """
         基于简单提示词的schema linking
         
@@ -58,7 +58,20 @@ class BasicSchemaLinker(SchemaLinkerBase):
             "linked_schema": eval(result["response"])
         }
         
-        self.log_io({"query": query, "schema": database_schema}, output)
+        # 保存中间结果
+        self.save_intermediate(
+            input_data={"query": query, "schema": database_schema},
+            output_data=output,
+            model_info={
+                "model": self.model,
+                "input_tokens": result["input_tokens"],
+                "output_tokens": result["output_tokens"],
+                "total_tokens": result["total_tokens"]
+            },
+            query_id=query_id
+        )
+        
+        self.log_io({"query": query, "schema": database_schema, "messages": messages}, output)
         return output
         
     def _format_schema(self, schema: Dict) -> str:

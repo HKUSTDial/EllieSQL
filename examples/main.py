@@ -13,21 +13,21 @@ async def main():
     schema_linker = BasicSchemaLinker(
         llm, 
         model="gpt-3.5-turbo-0613",
-        temperature=0.0,
+        temperature=0.5,
         max_tokens=1000
     )
     
     sql_generator = GPTSQLGenerator(
         llm, 
         model="gpt-3.5-turbo-0613",
-        temperature=0.0,
+        temperature=0.5,
         max_tokens=1000
     )
     
     post_processor = ReflectionPostProcessor(
         llm, 
         model="gpt-3.5-turbo-0613",
-        temperature=0.0,
+        temperature=0.5,
         max_tokens=1000
     )
     

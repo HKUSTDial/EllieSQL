@@ -10,23 +10,23 @@ SQL_GENERATION_SYSTEM = """你是一个SQL专家，根据用户的自然语言�
 """
 
 # SQL_GENERATION_USER = """
-# 数据库Schema:
+# 完整的数据库Schema:
 # {schema_str}
 
-# 数据库中相关的表和列（Linked Schema）:
-# 表: {tables}
-# 列: {columns}
+# 根据Schema Linking识别出的相关表和列:
+# 相关表: {tables}
+# 相关列: {columns}
 
 # 用户查询: {query}
 
-# 生成SQL:""" 
+# 请生成SQL语句:""" 
 
 
 SQL_GENERATION_USER = """
-数据库中相关的表和列（Linked Schema）:
-表: {tables}
-列: {columns}
+根据Schema Linking识别出的相关表和列:
+相关表: {tables}
+相关列: {columns}
 
 用户查询: {query}
 
-生成SQL:""" 
+请生成SQL语句:""" 

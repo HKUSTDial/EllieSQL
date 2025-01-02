@@ -4,6 +4,7 @@ from src.core.llm import LLMBase
 from src.modules.schema_linking.base import SchemaLinkerBase
 from src.modules.sql_generation.base import SQLGeneratorBase
 from src.modules.post_processing.base import PostProcessorBase
+from datetime import datetime
 
 class ElephantSQLPipeline:
     """ElephantSQL系统的主要pipeline"""
@@ -39,21 +40,25 @@ class ElephantSQLPipeline:
         """
         sql_pattern = r"```sql\s*(.*?)\s*```"
         matches = re.findall(sql_pattern, text, re.DOTALL)
-        return matches[0].strip() if matches else None
+        return matches[0].strip() if matches else text.strip()
         
-    async def _generate_sql_with_retry(self, query: str, linked_schema: Dict) -> Tuple[str, str]:
+    async def _generate_sql_with_retry(self, 
+                                    query: str, 
+                                    linked_schema: Dict,
+                                    query_id: str) -> Tuple[str, str]:
         """
         使用重试机制生成SQL
         
         Args:
             query: 用户查询
             linked_schema: 链接后的schema
+            query_id: 查询ID
             
         Returns:
             Tuple[str, str]: (原始输出, 提取的SQL)
         """
         for attempt in range(self.max_retries):
-            raw_output = await self.sql_generator.generate_sql(query, linked_schema)
+            raw_output = await self.sql_generator.generate_sql(query, linked_schema, query_id)
             sql = self._extract_sql(raw_output)
             if sql:
                 return raw_output, sql
@@ -61,33 +66,39 @@ class ElephantSQLPipeline:
         
     async def process(self, 
                     query: str, 
-                    database_schema: Dict) -> Dict[str, Any]:
-        """
-        处理用户查询
-        
-        Args:
-            query: 用户的自然语言查询
-            database_schema: 数据库schema信息
+                    database_schema: Dict,
+                    query_id: str = None) -> Dict[str, Any]:
+        if query_id is None:
+            query_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             
-        Returns:
-            Dict[str, Any]: 包含处理结果的字典
-        """
-        # 1. Schema Linking
-        linked_schema = await self.schema_linker.link_schema(query, database_schema)
+        # 1. Schema Linking: 返回包含原始schema和linked schema的json
+        schema_linking_output = await self.schema_linker.link_schema(
+            query, 
+            database_schema,
+            query_id=query_id
+        )
+        # original_schema = schema_linking_output["original_schema"]
+        # linked_schema = schema_linking_output["linked_schema"]
         
         # 2. SQL Generation with retry
-        raw_sql_generation_output, extracted_generated_sql = await self._generate_sql_with_retry(query, linked_schema)
+        raw_sql_output, extracted_sql = await self._generate_sql_with_retry(
+            query,
+            schema_linking_output,
+            query_id=query_id
+        )
         
         # 3. Post Processing
-        raw_postprocessing_output = await self.post_processor.process_sql(extracted_generated_sql)
-        processed_sql = self._extract_sql(raw_postprocessing_output) or raw_postprocessing_output
+        raw_postprocessing_output = await self.post_processor.process_sql(
+            extracted_sql,
+            query_id=query_id
+        )
+        processed_sql = self._extract_sql(raw_postprocessing_output)
         
         return {
+            "query_id": query_id,
             "query": query,
-            "original_schema": linked_schema["original_schema"],
-            "linked_schema": linked_schema["linked_schema"],
-            "sql_generation_output": raw_sql_generation_output,
-            "generated_sql": extracted_generated_sql,
-            "postprocessing_output": raw_postprocessing_output,
+            "raw_sql_output": raw_sql_output,
+            "extracted_sql": extracted_sql,
+            "raw_postprocessing_output": raw_postprocessing_output,
             "processed_sql": processed_sql
         } 

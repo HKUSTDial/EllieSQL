@@ -2,6 +2,7 @@ from typing import Dict, List
 from .base import PostProcessorBase
 from ...core.llm import LLMBase
 from .prompts.reflection_prompts import REFLECTION_SYSTEM, REFLECTION_USER
+import re
 
 class ReflectionPostProcessor(PostProcessorBase):
     """使用自反思机制的SQL后处理器"""
@@ -17,19 +18,23 @@ class ReflectionPostProcessor(PostProcessorBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    async def process_sql(self, sql: str) -> str:
+    async def process_sql(self, sql: str, query_id: str) -> str:
         """
         对生成的SQL进行自反思检查和优化
         
         Args:
             sql: 原始SQL语句
+            query_id: 查询ID，用于关联中间结果
         """
+        # 加载SQL生成的结果
+        prev_result = self.load_previous(query_id, "GPTSQLGenerator")
+        original_query = prev_result["input"]["query"]
+        
         messages = [
             {"role": "system", "content": REFLECTION_SYSTEM},
             {"role": "user", "content": REFLECTION_USER.format(sql=sql)}
         ]
         
-        # 调用LLM
         result = await self.llm.call_llm(
             messages, 
             self.model,
@@ -38,6 +43,33 @@ class ReflectionPostProcessor(PostProcessorBase):
             module_name=self.name
         )
         
-        processed_sql = result["response"].strip()
-        self.log_io({"original_sql": sql}, processed_sql)
-        return processed_sql 
+        raw_output = result["response"]
+        processed_sql = self._extract_sql(raw_output)
+        
+        # 保存中间结果
+        self.save_intermediate(
+            input_data={
+                "original_query": original_query,
+                "original_sql": sql
+            },
+            output_data={
+                "raw_output": raw_output,
+                "processed_sql": processed_sql
+            },
+            model_info={
+                "model": self.model,
+                "input_tokens": result["input_tokens"],
+                "output_tokens": result["output_tokens"],
+                "total_tokens": result["total_tokens"]
+            },
+            query_id=query_id
+        )
+        
+        self.log_io({"original_sql": sql, "messages": messages}, processed_sql)
+        return raw_output
+        
+    def _extract_sql(self, text: str) -> str:
+        """从文本中提取SQL代码块"""
+        sql_pattern = r"```sql\s*(.*?)\s*```"
+        matches = re.findall(sql_pattern, text, re.DOTALL)
+        return matches[0].strip() if matches else text.strip() 
