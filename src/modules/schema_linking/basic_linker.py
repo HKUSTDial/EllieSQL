@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from .base import SchemaLinkerBase
 from ...core.llm import LLMBase
 from .prompts.basic_prompts import SCHEMA_LINKING_SYSTEM, SCHEMA_LINKING_USER
@@ -29,11 +29,13 @@ class BasicSchemaLinker(SchemaLinkerBase):
         Returns:
             str: 原始输出，包含JSON格式的schema linking结果
         """
-        schema_str = self._format_schema(database_schema)
+        database, schema_str, foreign_keys_str = self._format_schema(database_schema)
         messages = [
             {"role": "system", "content": SCHEMA_LINKING_SYSTEM},
             {"role": "user", "content": SCHEMA_LINKING_USER.format(
+                database=database,
                 schema_str=schema_str,
+                foreign_keys_str=foreign_keys_str,
                 query=query
             )}
         ]
@@ -71,11 +73,31 @@ class BasicSchemaLinker(SchemaLinkerBase):
         self.log_io({"query": query, "schema": database_schema, "messages": messages}, raw_output)
         return raw_output
         
-    def _format_schema(self, schema: Dict) -> str:
-        """格式化schema信息，清晰展示表和列的归属关系"""
-        result = []
+    def _format_schema(self, schema: Dict) -> Tuple[str, str, str]:
+        """
+        格式化schema信息，包括表结构和外键关系
+        
+        Returns:
+            Tuple[str, str, str]: (数据库名称, 表结构字符串, 外键关系字符串)
+        """
+        # 格式化表结构
+        tables_str = []
         for table in schema["tables"]:
-            result.append(f"表名: {table['name']}")
-            result.append(f"该表的列: {', '.join(table['columns'])}")
-            result.append("")
-        return "\n".join(result) 
+            tables_str.append(f"表名: {table['table']}")
+            tables_str.append(f"列: {', '.join(table['columns'])}")
+            tables_str.append(f"主键: {', '.join(table['primary_keys'])}")
+            tables_str.append("")
+            
+        # 格式化外键关系
+        fk_str = []
+        for fk in schema.get("foreign_keys", []):
+            fk_str.append(
+                f"{fk['table'][0]}.{fk['column'][0]} = "
+                f"{fk['table'][1]}.{fk['column'][1]}"
+            )
+            
+        return (
+            schema.get("database", "unknown"),
+            "\n".join(tables_str),
+            "\n".join(fk_str)
+        ) 

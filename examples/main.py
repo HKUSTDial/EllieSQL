@@ -39,21 +39,68 @@ async def main():
     )
     
     # 示例schema
+    # schema = {
+    #     "tables": [
+    #         {
+    #             "name": "students",
+    #             "columns": ["id", "name", "age", "class_id", "gender", "birthday", "email", "phone"]
+    #         },
+    #         {
+    #             "name": "classes",
+    #             "columns": ["id", "name", "teacher_id", "location"]
+    #         }
+    #     ]
+    # }
     schema = {
+        "database": "body_builder",
         "tables": [
-            {
-                "name": "students",
-                "columns": ["id", "name", "age", "class_id", "gender", "birthday", "email", "phone"]
-            },
-            {
-                "name": "classes",
-                "columns": ["id", "name", "teacher_id", "location"]
-            }
-        ]
+        {
+            "table": "body_builder",
+            "columns": [
+            "Body_Builder_ID",
+            "People_ID",
+            "Snatch",
+            "Clean_Jerk",
+            "Total"
+            ],
+            "primary_keys": [
+            "Body_Builder_ID"
+            ]
+        },
+        {
+            "table": "people",
+            "columns": [
+            "People_ID",
+            "Name",
+            "Height",
+            "Weight",
+            "Birth_Date",
+            "Birth_Place"
+            ],
+            "primary_keys": [
+            "People_ID"
+            ]
+        }
+        ],
+        "foreign_keys": [
+        {
+            "table": [
+            "body_builder",
+            "people"
+            ],
+            "column": [
+            "People_ID",
+            "People_ID"
+            ]
+        }
+        ],
+        "foreign_key_count": 1,
+        "table_count": 2,
+        "total_column_count": 11
     }
     
     # 示例查询
-    query = "找出所有18岁以上的学生的姓名和性别及其所在班级的名称"
+    query = "找出体重超过100kg的人他们的姓名和身高以及Body_Builder_ID"
     
     # 处理查询
     result = await pipeline.process(query, schema)

@@ -5,7 +5,7 @@ SQL_GENERATION_SYSTEM = """你是一个SQL专家，根据用户的自然语言�
 1. 只返回SQL语句，不要有任何解释
 2. 使用标准SQL语法
 3. 确保SQL语句的表名和列名与schema完全匹配
-4. 使用适当的JOIN操作连接表
+4. 使用提供的外键信息正确连接表
 5. 生成的SQL语句必须使用```sql```包裹
 """
 
@@ -26,6 +26,14 @@ SQL_GENERATION_USER = """
 根据Schema Linking识别出的相关表和列:
 {tables}
 
+表之间的关系:
+{relations}
+
 用户查询: {query}
 
-请生成SQL语句:""" 
+请生成SQL语句，注意：
+1. 使用提供的外键正确连接表
+2. 确保JOIN条件与外键关系一致
+3. 如果需要连接多个表，使用正确的JOIN顺序
+
+请生成SQL:""" 

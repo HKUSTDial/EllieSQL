@@ -18,6 +18,34 @@ class GPTSQLGenerator(SQLGeneratorBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
+    def _format_table_info(self, table: Dict) -> str:
+        """格式化单个表的信息"""
+        info = [f"表 '{table['table']}'："]
+        info.append(f"  相关列: {', '.join(table['columns'])}")
+        
+        if "primary_keys" in table:
+            info.append(f"  主键: {', '.join(table['primary_keys'])}")
+            
+        if "foreign_keys" in table and table["foreign_keys"]:
+            info.append("  外键关系:")
+            for fk in table["foreign_keys"]:
+                info.append(f"    - {table['table']}.{fk['column']} -> "
+                          f"{fk['referenced_table']}.{fk['referenced_column']}")
+                
+        return "\n".join(info)
+    
+    def _format_relations(self, linked_tables: List[Dict]) -> str:
+        """格式化表之间的关系信息"""
+        relations = []
+        for table in linked_tables:
+            if "foreign_keys" in table and table["foreign_keys"]:
+                for fk in table["foreign_keys"]:
+                    relations.append(
+                        f"- {table['table']}.{fk['column']} = "
+                        f"{fk['referenced_table']}.{fk['referenced_column']}"
+                    )
+        return "\n".join(relations) if relations else "无需表连接"
+        
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str) -> str:
         """
         使用GPT模型生成SQL
@@ -51,13 +79,15 @@ class GPTSQLGenerator(SQLGeneratorBase):
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
                 tables="\n".join([
-                    f"表 '{t['table']}' 的相关列: {', '.join(t['columns'])}"
-                    for t in linked_tables
+                    self._format_table_info(t) for t in linked_tables
                 ]),
+                relations=self._format_relations(linked_tables),
                 query=query
             )}
         ]
         
+        print('\n'+messages[0]['content']+'\n')
+        print('\n'+messages[1]['content']+'\n')
         result = await self.llm.call_llm(
             messages,
             self.model,
