@@ -25,3 +25,6 @@ results/intermediate_results/
 
 # 忽略日志文件
 logs/
+
+# 忽略data的json
+data/*.json
