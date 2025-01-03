@@ -26,7 +26,10 @@ class IntermediateResult:
         self.result_file = os.path.join(self.pipeline_dir, f"{module_name}.jsonl")
         
         # Pipeline统计文件
-        self.stats_file = os.path.join(self.pipeline_dir, "stats.json")
+        self.stats_file = os.path.join(self.pipeline_dir, "api_stats.json")
+        
+        # SQL结果文件
+        self.sql_results_file = os.path.join(self.pipeline_dir, "generated_sql_results.jsonl")
         
     def save_result(self, 
                    input_data: Dict[str, Any],
@@ -144,3 +147,15 @@ class IntermediateResult:
         """保存JSON文件"""
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2) 
+        
+    def save_sql_result(self, query_id: str, source: str, sql: str):
+        """保存SQL结果到JSONL文件"""
+        result = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "question_id": query_id,
+            "source": source,
+            "generated_sql": sql
+        }
+        
+        with open(self.sql_results_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(result, ensure_ascii=False) + "\n") 

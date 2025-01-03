@@ -1,5 +1,7 @@
 from typing import Dict, Any
 from datetime import datetime
+import json
+import os
 from src.core.llm import LLMBase
 from src.modules.schema_linking.base import SchemaLinkerBase
 from src.modules.sql_generation.base import SQLGeneratorBase
@@ -24,14 +26,26 @@ class ElephantSQLPipeline:
         self.sql_generator = sql_generator
         self.post_processor = post_processor
         
+        # 创建pipeline级别的中间结果处理器
+        self.intermediate = IntermediateResult("pipeline", self.pipeline_id)
+        
     async def process(self, 
                     query: str, 
                     database_schema: Dict,
-                    query_id: str = None) -> Dict[str, Any]:
-        """处理用户查询"""
-        if query_id is None:
-            query_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    query_id: str,
+                    source: str = "") -> Dict[str, Any]:
+        """
+        处理用户查询
+        
+        Args:
+            query: 用户查询
+            database_schema: 数据库schema
+            query_id: 问题ID，用于关联中间结果
+            source: 数据来源（如'spider'或'bird'）
             
+        Returns:
+            Dict[str, Any]: 处理结果
+        """
         # 1. Schema Linking with retry
         raw_linking_output, extracted_schema = await self.schema_linker.link_schema_with_retry(
             query, 
@@ -56,6 +70,9 @@ class ElephantSQLPipeline:
             extracted_sql,
             query_id=query_id
         )
+        
+        # 提取并保存pipeline生成的SQL结果
+        self.intermediate.save_sql_result(query_id, source, processed_sql)
         
         return {
             "query_id": query_id,
