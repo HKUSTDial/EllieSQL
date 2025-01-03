@@ -18,21 +18,21 @@ async def main():
     
     schema_linker = BasicSchemaLinker(
         llm, 
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o",
         temperature=0.5,
         max_tokens=1000
     )
     
     sql_generator = GPTSQLGenerator(
         llm, 
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o",
         temperature=0.5,
         max_tokens=1000
     )
     
     post_processor = ReflectionPostProcessor(
         llm, 
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o",
         temperature=0.5,
         max_tokens=1000
     )
@@ -51,10 +51,10 @@ async def main():
     bird_dev_schemas_data = load_json(bird_dev_schemas_file)
 
     # 加载合并的demo数据
-    merge_devs_demo_file = "./data/merge_dev_demo.json"
-    merge_devs_demo_data = load_json(merge_devs_demo_file)
+    merge_dev_demo_file = "./data/merge_dev_demo.json"
+    merge_dev_demo_data = load_json(merge_dev_demo_file)
 
-    for item in merge_devs_demo_data:
+    for item in merge_dev_demo_data:
         # 获取问题ID
         question_id = item.get("question_id", "")  # 使用原始问题ID
         if not question_id:

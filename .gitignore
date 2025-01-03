@@ -26,5 +26,6 @@ results/intermediate_results/
 # 忽略日志文件
 logs/
 
-# 忽略data的json
+# 忽略data的json 和databases
 data/*.json
+data/merged_databases/**
