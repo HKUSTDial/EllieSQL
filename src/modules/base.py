@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, Tuple, Callable
 from ..core.intermediate import IntermediateResult
 from ..core.utils import TextExtractor
 from abc import ABC, abstractmethod
+from loguru import logger
 
 class ModuleBase(ABC):
     """所有模块的基类"""
@@ -10,14 +11,31 @@ class ModuleBase(ABC):
         self.intermediate = IntermediateResult(name, pipeline_id)
         self.max_retries = max_retries
         self.extractor = TextExtractor()
+        self.logger = None  # 将由pipeline设置
         
     def log_io(self, input_data: Any, output_data: Any):
-        """打印模块的输入输出"""
-        print(f"\n{'-'*50}")
-        print(f"Module: {self.name}")
-        print(f"Input: {input_data}")
-        print(f"Output: {output_data}")
-        print(f"{'-'*50}\n")
+        """记录模块的输入输出，一级key单独成行"""
+        if self.logger:
+            self.logger.debug("-"*70)
+            self.logger.debug("Module Input:")
+            
+            # 处理输入数据
+            if isinstance(input_data, dict):
+                for key, value in input_data.items():
+                    self.logger.debug(f"  {key}: {value}")
+            else:
+                self.logger.debug(f"  {input_data}")
+            
+            self.logger.debug("-"*70)    
+            self.logger.debug("\nModule Output:")
+            # 处理输出数据
+            if isinstance(output_data, dict):
+                for key, value in output_data.items():
+                    self.logger.debug(f"  {key}: {value}")
+            else:
+                self.logger.info(f"  {output_data}")
+                
+            self.logger.info("="*70)
         
     def save_intermediate(self, 
                         input_data: Dict[str, Any],

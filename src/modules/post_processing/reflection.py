@@ -44,7 +44,6 @@ class ReflectionPostProcessor(PostProcessorBase):
         )
         
         raw_output = result["response"]
-        # processed_sql = self._extract_sql(raw_output)
         processed_sql = self.extractor.extract_sql(raw_output)
         
         # 保存中间结果

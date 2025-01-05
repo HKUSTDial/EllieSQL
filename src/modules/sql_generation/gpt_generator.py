@@ -86,8 +86,8 @@ class GPTSQLGenerator(SQLGeneratorBase):
             )}
         ]
         
-        print('\n'+messages[0]['content']+'\n')
-        print('\n'+messages[1]['content']+'\n')
+        # print('\n'+messages[0]['content']+'\n')
+        # print('\n'+messages[1]['content']+'\n')
         result = await self.llm.call_llm(
             messages,
             self.model,
@@ -97,7 +97,6 @@ class GPTSQLGenerator(SQLGeneratorBase):
         )
         
         raw_output = result["response"]
-        # extracted_sql = self._extract_sql(raw_output)
         extracted_sql = self.extractor.extract_sql(raw_output)
         
         # 保存中间结果

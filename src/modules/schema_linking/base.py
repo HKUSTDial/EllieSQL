@@ -87,10 +87,8 @@ class SchemaLinkerBase(ModuleBase):
         # 补充主键和外键信息
         enriched_schema = self.enrich_schema_info(extracted_schema, database_schema)
         
-        # 输出enrich后的schema以便检查
-        print("\n" + "="*50)
-        print("Enriched Schema:")
-        print(json.dumps(enriched_schema, indent=2, ensure_ascii=False))
-        print("="*50 + "\n")
+        # 记录enriched schema
+        self.logger.debug("Enriched Schema:")
+        self.logger.debug(json.dumps(enriched_schema, indent=2, ensure_ascii=False))
         
         return raw_output, enriched_schema 
