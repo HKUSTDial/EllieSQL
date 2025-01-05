@@ -9,6 +9,7 @@ from src.modules.sql_generation.base import SQLGeneratorBase
 from src.modules.post_processing.base import PostProcessorBase
 from src.core.intermediate import IntermediateResult
 from src.core.logger import LoggerManager
+from src.core.schema.manager import SchemaManager
 
 class ElephantSQLPipeline:
     """ElephantSQL系统的主要pipeline"""
@@ -43,6 +44,8 @@ class ElephantSQLPipeline:
         # 添加统计日志记录器
         self.stats_logger = self.logger_manager.get_logger("statistics")
         
+        self.schema_manager = SchemaManager()
+        
     def load_json(self, file_path: str) -> Dict:
         """加载JSON文件"""
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -66,24 +69,29 @@ class ElephantSQLPipeline:
         for item in merge_dev_demo_data:
             question_id = item.get("question_id", "")
             if not question_id:
-                print("警告：问题缺少ID")
+                self.logger.warning("问题缺少ID")
                 continue
                 
             source = item.get("source", "")
-            schema_file = f"./data/{source}_schemas.json"
-            schema_data = self.load_json(schema_file)
-
             db_id = item.get("db_id", "")
-            schema = {}
-            for i in schema_data:
-                if i.get("database") == db_id:
-                    schema = i
-                    break
-
+            
+            # 构建数据库路径
+            # 例如: ./data/merged_databases/spider_dev_academic/academic.sqlite
+            db_folder = f"{source}_{db_id}"  # 例如: spider_dev_academic
+            db_file = f"{db_id}.sqlite"      # 例如: academic.sqlite
+            db_path = f"./data/merged_databases/{db_folder}/{db_file}"
+            
+            try:
+                schema = self.schema_manager.get_schema(db_id, db_path)
+            except Exception as e:
+                self.logger.error(f"加载数据库schema失败: {db_path}")
+                self.logger.error(f"错误信息: {str(e)}")
+                continue
+            
             queries.append({
                 "query_id": question_id,
                 "query": item.get("question"),
-                "database_schema": schema,
+                "database_schema": schema.to_dict(),  # 转换为字典格式
                 "source": source
             })
             
@@ -117,10 +125,8 @@ class ElephantSQLPipeline:
                 stats = json.load(f)
                 
             # 命令行只输出简要统计
-            self.logger.warning("\nAPI调用总览:")
-            self.logger.warning(f"总调用次数: {stats['total_calls']}")
-            self.logger.warning(f"总输入tokens: {stats['total_cost']['input_tokens']}")
-            self.logger.warning(f"总输出tokens: {stats['total_cost']['output_tokens']}\n")
+            self.logger.warning(f"LLM API总调用次数: {stats['total_calls']}")
+            self.logger.warning(f"总输入tokens: {stats['total_cost']['input_tokens']}; 总输出tokens: {stats['total_cost']['output_tokens']}")
             
             # 详细统计信息写入统计日志
             self.stats_logger.info("="*50)
@@ -135,7 +141,7 @@ class ElephantSQLPipeline:
                 self.stats_logger.info(f"  输出tokens: {model_stats['output_tokens']}")
                 self.stats_logger.info(f"  总tokens: {model_stats['total_tokens']}")
             
-            self.stats_logger.info("\n按模块统计:")
+            self.stats_logger.info("按模块统计:")
             for module, module_stats in stats['modules'].items():
                 self.stats_logger.info(f"{module}:")
                 self.stats_logger.info(f"  总调用次数: {module_stats['calls']}")
@@ -143,7 +149,7 @@ class ElephantSQLPipeline:
                     self.stats_logger.info(f"  {model}:")
                     self.stats_logger.info(f"    调用次数: {model_stats['calls']}")
                     self.stats_logger.info(f"    总tokens: {model_stats['total_tokens']}")
-            self.stats_logger.info("\n" + "="*50)
+            self.stats_logger.info("="*50)
         
     async def process_batch(self, 
                          queries: List[Dict],
@@ -167,7 +173,18 @@ class ElephantSQLPipeline:
                     database_schema: Dict,
                     query_id: str,
                     source: str = "") -> Dict[str, Any]:
-        """处理单个查询"""
+        """
+        处理单个查询
+        
+        Args:
+            query: 用户查询
+            database_schema: 数据库schema
+            query_id: 查询ID
+            source: 查询来源
+            
+        Returns:
+            Dict[str, Any]: 处理结果
+        """
         # 在每个示例开始时添加分隔符
         for module in [self.schema_linker, self.sql_generator, self.post_processor]:
             module.logger.info("="*70)

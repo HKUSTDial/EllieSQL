@@ -92,3 +92,29 @@ class SchemaLinkerBase(ModuleBase):
         self.logger.debug(json.dumps(enriched_schema, indent=2, ensure_ascii=False))
         
         return raw_output, enriched_schema 
+    
+    def _format_basic_schema(self, schema: Dict) -> str:
+        """基础schema格式化方法"""
+        result = []
+        
+        # 添加数据库名称
+        result.append(f"数据库: {schema['database']}\n")
+        
+        # 格式化表结构
+        for table in schema['tables']:
+            result.append(f"表名: {table['table']}")
+            result.append(f"列: {', '.join(table['columns'])}")
+            if table['primary_keys']:
+                result.append(f"主键: {', '.join(table['primary_keys'])}")
+            result.append("")
+            
+        # 格式化外键关系
+        if schema.get('foreign_keys'):
+            result.append("外键关系:")
+            for fk in schema['foreign_keys']:
+                result.append(
+                    f"  {fk['table'][0]}.{fk['column'][0]} = "
+                    f"{fk['table'][1]}.{fk['column'][1]}"
+                )
+                
+        return "\n".join(result) 
