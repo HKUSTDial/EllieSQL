@@ -34,6 +34,10 @@ class ElephantSQLPipeline:
         post_processor.intermediate = IntermediateResult(post_processor.name, self.pipeline_id)
         post_processor.logger = self.logger_manager.get_logger(post_processor.name)
         
+        # 设置模块间的关联
+        sql_generator.set_previous_module(schema_linker)
+        post_processor.set_previous_module(sql_generator)
+        
         self.schema_linker = schema_linker
         self.sql_generator = sql_generator
         self.post_processor = post_processor

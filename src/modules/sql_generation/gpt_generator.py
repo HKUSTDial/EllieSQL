@@ -68,7 +68,7 @@ class GPTSQLGenerator(SQLGeneratorBase):
         """
         # 加载schema linking的结果
         if not schema_linking_output:
-            prev_result = self.load_previous(query_id, "BasicSchemaLinker")
+            prev_result = self.load_previous_result(query_id)
             schema_linking_output = prev_result["output"]
         
         # 从linked_schema中提取表和列信息

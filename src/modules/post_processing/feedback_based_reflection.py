@@ -1,11 +1,11 @@
+import re
 from typing import Dict, List
 from .base import PostProcessorBase
 from ...core.llm import LLMBase
-from .prompts.reflection_prompts import REFLECTION_SYSTEM, FEEDBACK_BASED_REFLECTION_USER
-import re
-
 from ...core.sql_execute import *
 from ...core.utils import load_json, load_jsonl
+from .prompts.reflection_prompts import REFLECTION_SYSTEM, FEEDBACK_BASED_REFLECTION_USER
+
 
 class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
     """基于执行结果的使用自反思机制的SQL后处理器，使用SQL运行信息"""
@@ -31,10 +31,10 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
         """
         # 加载SQL生成的结果
         
-        prev_result = self.load_previous(query_id, "GPTSQLGenerator")
+        prev_result = self.load_previous_result(query_id)
         original_query = prev_result["input"]["query"]
 
-        merge_dev_demo_file = "./data/sampled_merged.json"
+        merge_dev_demo_file = "./data/merge_dev_demo.json"
         merge_dev_demo_data = load_json(merge_dev_demo_file)
 
         for item in merge_dev_demo_data:
@@ -45,13 +45,6 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
                 db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
                 #执行sql并且返回结果：能运行、超时、或报错
                 ex_result = execute_sql_with_timeout(db_path, sql)
-                # if ex_result.result is None:
-                #     if ex_result.result_type == SQLExecutionResultType.TIMEOUT:
-                #         print(f"generated SQL 运行超时。错误信息如下：{ex_result.error_message}")
-                #     elif ex_result.result_type == SQLExecutionResultType.ERROR:
-                #         print(f"generated SQL 运行出现报错。错误信息如下：{ex_result.error_message}")
-                #     elif ex_result.result_type == SQLExecutionResultType.ERROR:
-                #         print(f"generated SQL 运行成功但结果为空。")
         
                 messages = [
                     {"role": "system", "content": REFLECTION_SYSTEM},

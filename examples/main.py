@@ -1,44 +1,32 @@
 import asyncio
 from src.core.llm import LLMBase
 from src.modules.schema_linking.basic_linker import BasicSchemaLinker
+from src.modules.schema_linking.enhanced_linker import EnhancedSchemaLinker
 from src.modules.sql_generation.gpt_generator import GPTSQLGenerator
 from src.modules.post_processing.reflection import ReflectionPostProcessor
+from src.modules.post_processing.feedback_based_reflection import FeedbackBasedReflectionPostProcessor
 from src.pipeline import ElephantSQLPipeline
 
 async def main():
     # 初始化LLM和模块
     llm = LLMBase()
     
-    schema_linker = BasicSchemaLinker(
-        llm, 
-        model="gpt-3.5-turbo-0613",
-        temperature=0.5,
-        max_tokens=1000
-    )
+    # 创建不同的pipeline组合
+    # pipeline1 = ElephantSQLPipeline(
+    #     schema_linker=BasicSchemaLinker(llm),
+    #     sql_generator=GPTSQLGenerator(llm),
+    #     post_processor=ReflectionPostProcessor(llm)
+    # )
     
-    sql_generator = GPTSQLGenerator(
-        llm, 
-        model="gpt-3.5-turbo-0613",
-        temperature=0.5,
-        max_tokens=1000
-    )
-    
-    post_processor = ReflectionPostProcessor(
-        llm, 
-        model="gpt-3.5-turbo-0613",
-        temperature=0.5,
-        max_tokens=1000
-    )
-    
-    # 创建并运行pipeline
-    pipeline = ElephantSQLPipeline(
-        schema_linker=schema_linker,
-        sql_generator=sql_generator,
-        post_processor=post_processor
+    pipeline2 = ElephantSQLPipeline(
+        schema_linker=EnhancedSchemaLinker(llm),  # 使用增强版schema linker
+        sql_generator=GPTSQLGenerator(llm),
+        post_processor=FeedbackBasedReflectionPostProcessor(llm)  # 使用不同的后处理器
     )
     
     # 运行pipeline
-    await pipeline.run_pipeline(data_file="./data/merge_dev_demo.json")
+    # await pipeline1.run_pipeline(data_file="./data/merge_dev_demo.json")
+    await pipeline2.run_pipeline(data_file="./data/merge_dev_demo.json")
 
 if __name__ == "__main__":
     asyncio.run(main()) 

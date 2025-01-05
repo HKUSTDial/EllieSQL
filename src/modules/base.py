@@ -12,6 +12,7 @@ class ModuleBase(ABC):
         self.max_retries = max_retries
         self.extractor = TextExtractor()
         self.logger = None  # 将由pipeline设置
+        self._previous_module = None  # 添加前置模块引用
         
     def log_io(self, input_data: Any, output_data: Any):
         """记录模块的输入输出，一级key单独成行"""
@@ -48,15 +49,6 @@ class ModuleBase(ABC):
             output_data=output_data,
             model_info=model_info,
             query_id=query_id
-        )
-        
-    def load_previous(self, 
-                     query_id: str,
-                     previous_module: str) -> Dict[str, Any]:
-        """加载上一个模块的结果"""
-        return self.intermediate.load_previous_result(
-            query_id=query_id,
-            previous_module=previous_module
         )
         
     async def execute_with_retry(self,
@@ -96,3 +88,27 @@ class ModuleBase(ABC):
                 
         error_message = f"[!] {error_msg} 在{self.max_retries}次尝试后失败。最后一次错误: {str(last_error)}"
         raise ValueError(error_message)
+        
+    def set_previous_module(self, module: 'ModuleBase'):
+        """设置前置模块"""
+        self._previous_module = module
+        
+    def load_previous_result(self, query_id: str) -> Dict:
+        """
+        加载前置模块的中间结果
+        
+        Args:
+            query_id: 查询ID
+            
+        Returns:
+            Dict: 前置模块的处理结果
+            
+        Raises:
+            ValueError: 当没有设置前置模块时抛出
+        """
+        if not self._previous_module:
+            raise ValueError(f"Module {self.name} has no previous module set")
+        return self.intermediate.load_previous_result(
+            query_id=query_id,
+            previous_module=self._previous_module.name
+        )

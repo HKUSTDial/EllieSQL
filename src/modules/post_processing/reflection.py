@@ -18,7 +18,7 @@ class ReflectionPostProcessor(PostProcessorBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    async def process_sql(self, sql: str, query_id: str) -> str:
+    async def process_sql(self, sql: str, query_id: str = None) -> str:
         """
         对生成的SQL进行自反思检查和优化
         
@@ -26,8 +26,9 @@ class ReflectionPostProcessor(PostProcessorBase):
             sql: 原始SQL语句
             query_id: 查询ID，用于关联中间结果
         """
+            
         # 加载SQL生成的结果
-        prev_result = self.load_previous(query_id, "GPTSQLGenerator")
+        prev_result = self.load_previous_result(query_id)
         original_query = prev_result["input"]["query"]
         
         messages = [
