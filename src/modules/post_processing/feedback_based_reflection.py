@@ -48,7 +48,7 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
         
                 messages = [
                     {"role": "system", "content": REFLECTION_SYSTEM},
-                    {"role": "user", "content": FEEDBACK_BASED_REFLECTION_USER.format(sql=sql, ex_result=ex_result, question = question)}
+                    {"role": "user", "content": FEEDBACK_BASED_REFLECTION_USER.format(sql = sql, result_type = ex_result.result_type, result = ex_result.result, error_message = ex_result.error_message , question = question)}
                 ]
                 
                 result = await self.llm.call_llm(

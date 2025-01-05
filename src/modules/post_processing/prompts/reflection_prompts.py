@@ -16,7 +16,9 @@ REFLECTION_USER = """请检查和优化以下SQL:
 FEEDBACK_BASED_REFLECTION_USER = """请基于SQL运行结果和自然语言表述，检查和优化以下SQL，确保SQL正确反映了自然语言表述的意图:
 {sql} \n
 SQL的运行结果为：
-{ex_result} \n
+result_type: {result_type} \n
+result: {result} \n
+error_message: {error_message} \n
 原始自然语言表述为：
 {question}
 """ 
