@@ -1,6 +1,30 @@
 from typing import Dict, Optional
 import re
 
+import json
+
+def load_json(file_path):
+    """
+    load json file.
+    Args: file_path
+    Returns: file_data
+    """ 
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return json.load(file)
+# 加载JSONL文件
+def load_jsonl(file_path):
+    """
+    load jsonl file.
+    Args: file_path
+    Returns: file_data
+    """ 
+    data = []
+    with open(file_path, 'r', encoding='utf-8') as file:
+        for line in file:
+            # 解析每一行的 JSON 对象
+            data.append(json.loads(line.strip()))
+    return data
+
 class TextExtractor:
     """文本提取工具类"""
     
