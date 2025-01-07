@@ -23,17 +23,11 @@ SQL_GENERATION_SYSTEM = """你是一个SQL专家，根据用户的自然语言�
 
 
 SQL_GENERATION_USER = """
-根据Schema Linking识别出的相关表和列:
-{tables}
+数据库Schema信息如下:
 
-表之间的关系:
-{relations}
+{schema}
 
 用户查询: {query}
 
-请生成SQL语句，注意：
-1. 使用提供的外键正确连接表
-2. 确保JOIN条件与外键关系一致
-3. 如果需要连接多个表，使用正确的JOIN顺序
-
-请生成SQL:""" 
+请生成对应的SQL查询语句。SQL必须使用```sql```代码块包裹。
+""" 

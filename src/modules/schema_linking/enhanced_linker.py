@@ -17,8 +17,8 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    def _format_enhanced_schema(self, schema: Dict) -> str:
-        """格式化增强的schema信息"""
+    def _format_enriched_db_schema(self, schema: Dict) -> str:
+        """格式化增强的schema信息，用于提示词"""
         result = []
         
         # 添加数据库名称
@@ -64,10 +64,50 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
                 )
                 
         return "\n".join(result)
+
+    def _format_linked_schema(self, linked_schema: Dict) -> str:
+        """格式化linked schema为SQL生成模块使用的格式"""
+        result = []
+        
+        # 格式化每个表的信息
+        for table in linked_schema["tables"]:
+            table_name = table["table"]
+            columns = table.get("columns", [])
+            
+            # 添加表信息
+            result.append(f"表: {table_name}")
+            if columns:
+                result.append(f"列: {', '.join(columns)}")
+            
+            # 添加主键信息
+            if "primary_keys" in table:
+                result.append(f"主键: {', '.join(table['primary_keys'])}")
+            
+            # 添加外键信息
+            if "foreign_keys" in table:
+                for fk in table["foreign_keys"]:
+                    result.append(
+                        f"外键: {fk['column']} -> "
+                        f"{fk['referenced_table']}.{fk['referenced_column']}"
+                    )
+            
+            result.append("")  # 添加空行分隔
+            
+        return "\n".join(result)
         
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:
-        """执行schema linking"""
-        schema_str = self._format_enhanced_schema(database_schema)
+        """
+        执行schema linking
+        
+        Args:
+            query: 用户的自然语言查询
+            database_schema: 数据库schema信息
+            query_id: 查询的唯一标识符
+            
+        Returns:
+            str: 链接后的schema信息
+        """
+        schema_str = self._format_enriched_db_schema(database_schema)
         
         # 记录格式化后的schema以便检查
         self.logger.debug("格式化后的Schema信息:")
@@ -90,19 +130,23 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         )
         
         raw_output = result["response"]
-        extracted_schema = self.extractor.extract_schema_json(raw_output)
+        extracted_linked_schema = self.extractor.extract_schema_json(raw_output)
+        
+        # 格式化linked schema为SQL生成模块使用的格式
+        formatted_linked_schema = self._format_linked_schema(extracted_linked_schema)
         
         # 保存中间结果
         self.save_intermediate(
             input_data={
                 "query": query, 
-                "database_schema": database_schema,
-                "formatted_schema": schema_str,  # 保存格式化后的schema
-                "messages": messages
+                # "database_schema": database_schema,
+                # "formatted_schema": schema_str,
+                # "messages": messages
             },
             output_data={
                 "raw_output": raw_output,
-                "extracted_schema": extracted_schema
+                "extracted_linked_schema": extracted_linked_schema,
+                "formatted_linked_schema": formatted_linked_schema  # 添加格式化后的schema
             },
             model_info={
                 "model": self.model,

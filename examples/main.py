@@ -13,15 +13,15 @@ async def main():
     
     # 创建不同的pipeline组合
     # pipeline1 = ElephantSQLPipeline(
-    #     schema_linker=BasicSchemaLinker(llm),
-    #     sql_generator=GPTSQLGenerator(llm),
-    #     post_processor=ReflectionPostProcessor(llm)
+    #     schema_linker=BasicSchemaLinker(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),
+    #     sql_generator=GPTSQLGenerator(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),
+    #     post_processor=ReflectionPostProcessor(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000)
     # )
     
     pipeline2 = ElephantSQLPipeline(
-        schema_linker=EnhancedSchemaLinker(llm),  # 使用增强版schema linker
-        sql_generator=GPTSQLGenerator(llm),
-        post_processor=FeedbackBasedReflectionPostProcessor(llm)  # 使用不同的后处理器
+        schema_linker=EnhancedSchemaLinker(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),  # 使用增强版schema linker
+        sql_generator=GPTSQLGenerator(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),
+        post_processor=FeedbackBasedReflectionPostProcessor(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000)  # 使用不同的后处理器
     )
     
     # 运行pipeline
