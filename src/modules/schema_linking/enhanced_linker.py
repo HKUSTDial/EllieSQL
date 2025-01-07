@@ -73,11 +73,39 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         for table in linked_schema["tables"]:
             table_name = table["table"]
             columns = table.get("columns", [])
+            columns_info = table.get("columns_info", {})
             
             # 添加表信息
             result.append(f"表: {table_name}")
+            
+            # 添加列信息（包含补充信息）
             if columns:
-                result.append(f"列: {', '.join(columns)}")
+                result.append("列:")
+                for col in columns:
+                    col_info = columns_info.get(col, {})
+                    col_desc = []
+                    
+                    # 添加列的类型
+                    col_type = col_info.get("type", "")
+                    if col_type:
+                        col_desc.append(f"类型: {col_type}")
+                    
+                    # 添加其他补充信息
+                    if col_info.get("expanded_name"):
+                        col_desc.append(f"含义: {col_info['expanded_name']}")
+                    if col_info.get("description"):
+                        col_desc.append(f"描述: {col_info['description']}")
+                    if col_info.get("data_format"):
+                        col_desc.append(f"格式: {col_info['data_format']}")
+                    if col_info.get("value_description"):
+                        col_desc.append(f"值描述: {col_info['value_description']}")
+                    if col_info.get("value_examples"):
+                        col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
+                    
+                    if col_desc:
+                        result.append(f"  - {col}: {' | '.join(col_desc)}")
+                    else:
+                        result.append(f"  - {col}")
             
             # 添加主键信息
             if "primary_keys" in table:
@@ -85,16 +113,195 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             
             # 添加外键信息
             if "foreign_keys" in table:
+                result.append("外键关系:")
                 for fk in table["foreign_keys"]:
                     result.append(
-                        f"外键: {fk['column']} -> "
+                        f"  - {fk['column']} -> "
                         f"{fk['referenced_table']}.{fk['referenced_column']}"
                     )
             
             result.append("")  # 添加空行分隔
             
         return "\n".join(result)
+
+    def _validate_linked_schema(self, linked_schema: Dict, database_schema: Dict) -> bool:
+        """
+        验证linked schema中的表和列是否都在原始schema中存在
         
+        Args:
+            linked_schema: Schema Linking生成的schema
+            database_schema: 原始数据库schema
+            
+        Returns:
+            bool: 验证是否通过
+        """
+        try:
+            # 创建原始schema的表和列的集合，用于快速查找
+            db_tables = {table["table"]: set(table["columns"].keys()) 
+                        for table in database_schema["tables"]}
+            
+            # 验证每个linked table
+            for table in linked_schema["tables"]:
+                table_name = table["table"]
+                
+                # 验证表是否存在
+                if table_name not in db_tables:
+                    self.logger.warning(f"表 '{table_name}' 在原始schema中不存在")
+                    return False
+                
+                # 验证列是否存在于对应的表中
+                for col in table["columns"]:
+                    if col not in db_tables[table_name]:
+                        self.logger.warning(
+                            f"列 '{col}' 在表 '{table_name}' 中不存在"
+                        )
+                        return False
+                        
+                # 验证主键（如果有）
+                if "primary_keys" in table:
+                    for pk in table["primary_keys"]:
+                        if pk not in db_tables[table_name]:
+                            self.logger.warning(
+                                f"主键 '{pk}' 在表 '{table_name}' 中不存在"
+                            )
+                            return False
+                            
+                # 验证外键（如果有）
+                if "foreign_keys" in table:
+                    for fk in table["foreign_keys"]:
+                        # 验证外键列是否存在
+                        if fk["column"] not in db_tables[table_name]:
+                            self.logger.warning(
+                                f"外键列 '{fk['column']}' 在表 '{table_name}' 中不存在"
+                            )
+                            return False
+                        
+                        # 验证引用的表和列是否存在
+                        ref_table = fk["referenced_table"]
+                        ref_column = fk["referenced_column"]
+                        
+                        if ref_table not in db_tables:
+                            self.logger.warning(
+                                f"引用的表 '{ref_table}' 在原始schema中不存在"
+                            )
+                            return False
+                            
+                        if ref_column not in db_tables[ref_table]:
+                            self.logger.warning(
+                                f"引用的列 '{ref_column}' 在表 '{ref_table}' 中不存在"
+                            )
+                            return False
+                        
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"验证linked schema时发生错误: {str(e)}")
+            return False 
+
+    def _enhance_linked_schema(self, linked_schema: Dict, database_schema: Dict) -> Dict:
+        """
+        增强linked schema，添加必要的主键、外键信息和补充信息
+        1. 为每个相关的表添加必要的主键列
+        2. 处理表之间的外键关系
+        3. 为所有列添加补充信息
+
+        Args:
+            linked_schema: Schema Linking生成的schema
+            database_schema: 原始数据库schema
+            
+        Returns:
+            Dict: 增强后的schema
+        """
+        # 创建数据库表信息的映射，方便查找
+        db_tables = {table["table"]: table for table in database_schema["tables"]}
+        
+        # 获取所有涉及的表名
+        linked_table_names = [table["table"] for table in linked_schema["tables"]]
+        
+        # 第一步：为每个表添加必要的列（主键和外键）
+        for table in linked_schema["tables"]:
+            table_name = table["table"]
+            db_table = db_tables[table_name]
+            
+            # 1.1 添加主键列
+            if db_table["primary_keys"]:
+                if "primary_keys" not in table:
+                    table["primary_keys"] = db_table["primary_keys"]
+                
+                # 确保主键列在columns中
+                for pk in db_table["primary_keys"]:
+                    if pk not in table["columns"]:
+                        table["columns"].append(pk)
+                        self.logger.info(f"为表 '{table_name}' 添加主键列 '{pk}'")
+            
+        # 1.2 处理表之间的外键关系
+        if len(linked_table_names) > 1:  # 只有当涉及多个表时才处理外键
+            for fk in database_schema.get("foreign_keys", []):
+                src_table = fk["table"][0]
+                dst_table = fk["table"][1]
+                src_col = fk["column"][0]
+                dst_col = fk["column"][1]
+                
+                # 只处理涉及的表之间的外键关系
+                if src_table in linked_table_names and dst_table in linked_table_names:
+                    # 找到源表和目标表在linked_schema中的对象
+                    src_table_obj = next(t for t in linked_schema["tables"] if t["table"] == src_table)
+                    dst_table_obj = next(t for t in linked_schema["tables"] if t["table"] == dst_table)
+                    
+                    # 确保外键列在columns中
+                    for table_obj, col_name in [(src_table_obj, src_col), (dst_table_obj, dst_col)]:
+                        if col_name not in table_obj["columns"]:
+                            table_obj["columns"].append(col_name)
+                            table_name = table_obj["table"]
+                            if table_obj == src_table_obj:
+                                self.logger.info(f"为表 '{src_table}' 添加外键列 '{src_col}'")
+                            else:
+                                self.logger.info(f"为表 '{dst_table}' 添加被引用列 '{dst_col}'")
+                    
+                    # 添加外键关系信息
+                    if "foreign_keys" not in src_table_obj:
+                        src_table_obj["foreign_keys"] = []
+                        
+                    # 检查是否已存在相同的外键关系
+                    fk_exists = any(
+                        fk["column"] == src_col and 
+                        fk["referenced_table"] == dst_table and 
+                        fk["referenced_column"] == dst_col 
+                        for fk in src_table_obj.get("foreign_keys", [])
+                    )
+                    
+                    if not fk_exists:
+                        src_table_obj["foreign_keys"].append({
+                            "column": src_col,
+                            "referenced_table": dst_table,
+                            "referenced_column": dst_col
+                        })
+                        self.logger.info(
+                            f"添加外键关系: {src_table}.{src_col} -> {dst_table}.{dst_col}"
+                        )
+        
+        # 第二步：为所有列添加补充信息
+        for table in linked_schema["tables"]:
+            table_name = table["table"]
+            db_table = db_tables[table_name]
+            
+            # 为所有列添加补充信息
+            columns_info = {}
+            for col in table["columns"]:  # 现在包含了所有列（原有的、主键和外键）
+                if col in db_table["columns"]:
+                    col_info = db_table["columns"][col]
+                    columns_info[col] = {
+                        "type": col_info["type"],
+                        "expanded_name": col_info.get("expanded_name", ""),
+                        "description": col_info.get("description", ""),
+                        "data_format": col_info.get("data_format", ""),
+                        "value_description": col_info.get("value_description", ""),
+                        "value_examples": col_info.get("value_examples", [])
+                    }
+            table["columns_info"] = columns_info
+        
+        return linked_schema
+    
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """
         执行schema linking
@@ -132,9 +339,20 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         raw_output = result["response"]
         extracted_linked_schema = self.extractor.extract_schema_json(raw_output)
         
-        # 格式化linked schema为SQL生成模块使用的格式
-        formatted_linked_schema = self._format_linked_schema(extracted_linked_schema)
+        # 验证extracted schema
+        if not extracted_linked_schema or not self._validate_linked_schema(extracted_linked_schema, database_schema):
+            raise ValueError("Schema linking结果验证失败：包含不存在的表或列")
         
+        print("****before enhance*****\n", extracted_linked_schema, "\n*********")
+
+        # 增强schema信息
+        enhanced_linked_schema = self._enhance_linked_schema(extracted_linked_schema, database_schema)
+        print("****after enhance*****\n", enhanced_linked_schema, "\n*********")
+        
+        # 格式化linked schema为SQL生成模块使用的格式
+        formatted_linked_schema = self._format_linked_schema(enhanced_linked_schema)
+        print("****after format*****\n", formatted_linked_schema, "\n*********")
+
         # 保存中间结果
         self.save_intermediate(
             input_data={
@@ -146,7 +364,8 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             output_data={
                 "raw_output": raw_output,
                 "extracted_linked_schema": extracted_linked_schema,
-                "formatted_linked_schema": formatted_linked_schema  # 添加格式化后的schema
+                "enhanced_linked_schema": enhanced_linked_schema,  # 添加增强后的schema
+                "formatted_linked_schema": formatted_linked_schema
             },
             model_info={
                 "model": self.model,
