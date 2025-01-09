@@ -42,13 +42,30 @@ class ModuleBase(ABC):
                         input_data: Dict[str, Any],
                         output_data: Dict[str, Any],
                         model_info: Dict[str, Any],
-                        query_id: Optional[str] = None) -> str:
-        """保存中间结果"""
+                        query_id: Optional[str] = None,
+                        module_name: Optional[str] = None) -> str:
+        """
+        保存中间结果
+        
+        Args:
+            input_data: 输入数据
+            output_data: 输出数据
+            model_info: 模型信息
+            query_id: 查询ID
+            module_name: 可选的模块名称，如果不指定则使用默认模块名
+            
+        Returns:
+            str: 保存的文件路径
+        """
+        # 使用指定的模块名或默认模块名
+        save_name = module_name if module_name else self.name
+        
         return self.intermediate.save_result(
             input_data=input_data,
             output_data=output_data,
             model_info=model_info,
-            query_id=query_id
+            query_id=query_id,
+            module_name=save_name
         )
         
     async def execute_with_retry(self,
@@ -93,22 +110,27 @@ class ModuleBase(ABC):
         """设置前置模块"""
         self._previous_module = module
         
-    def load_previous_result(self, query_id: str) -> Dict:
+    def load_previous_result(self, query_id: str, module_name: Optional[str] = None) -> Dict:
         """
         加载前置模块的中间结果
         
         Args:
             query_id: 查询ID
+            module_name: 可选的模块名称，如果不指定则使用前置模块的默认名称
             
         Returns:
             Dict: 前置模块的处理结果
             
         Raises:
-            ValueError: 当没有设置前置模块时抛出
+            ValueError: 当没有设置前置模块且未指定module_name时抛出
         """
-        if not self._previous_module:
-            raise ValueError(f"Module {self.name} has no previous module set")
+        if not module_name and not self._previous_module:
+            raise ValueError(f"Module {self.name} has no previous module set and no module_name specified")
+        
+        # 使用指定的模块名或前置模块的默认名称
+        load_name = module_name if module_name else self._previous_module.name
+        
         return self.intermediate.load_previous_result(
             query_id=query_id,
-            previous_module=self._previous_module.name
+            previous_module=load_name
         )

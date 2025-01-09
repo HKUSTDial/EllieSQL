@@ -35,8 +35,27 @@ class IntermediateResult:
                    input_data: Dict[str, Any],
                    output_data: Dict[str, Any],
                    model_info: Dict[str, Any],
-                   query_id: str = None) -> str:
-        """保存中间结果和更新统计信息"""
+                   query_id: str = None,
+                   module_name: str = None) -> str:
+        """
+        保存中间结果和更新统计信息
+        
+        Args:
+            input_data: 输入数据
+            output_data: 输出数据
+            model_info: 模型信息
+            query_id: 查询ID
+            module_name: 可选的模块名称，如果不指定则使用默认模块名
+        
+        Returns:
+            str: 保存的文件路径
+        """
+        # 使用指定的模块名或默认模块名
+        save_name = module_name if module_name else self.module_name
+        
+        # 中间结果文件路径
+        result_file = os.path.join(self.pipeline_dir, f"{save_name}.jsonl")
+        
         # 保存中间结果
         result = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -46,13 +65,13 @@ class IntermediateResult:
             "model_info": model_info
         }
         
-        with open(self.result_file, "a", encoding="utf-8") as f:
+        with open(result_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
             
         # 更新统计信息
         self._update_stats(model_info)
         
-        return self.result_file
+        return result_file
         
     def load_previous_result(self, 
                            query_id: str,
