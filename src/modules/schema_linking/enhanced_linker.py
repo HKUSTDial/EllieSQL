@@ -343,15 +343,15 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         if not extracted_linked_schema or not self._validate_linked_schema(extracted_linked_schema, database_schema):
             raise ValueError("Schema linking结果验证失败：包含不存在的表或列")
         
-        print("****before enhance*****\n", extracted_linked_schema, "\n*********")
-
+        # print("****before enhance*****\n", extracted_linked_schema, "\n*********")
+        
         # 增强schema信息
         enhanced_linked_schema = self._enhance_linked_schema(extracted_linked_schema, database_schema)
-        print("****after enhance*****\n", enhanced_linked_schema, "\n*********")
+        # print("****after enhance*****\n", enhanced_linked_schema, "\n*********")
         
         # 格式化linked schema为SQL生成模块使用的格式
         formatted_linked_schema = self._format_linked_schema(enhanced_linked_schema)
-        print("****after format*****\n", formatted_linked_schema, "\n*********")
+        # print("****after format*****\n", formatted_linked_schema, "\n*********")
 
         # 保存中间结果
         self.save_intermediate(

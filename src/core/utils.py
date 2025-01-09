@@ -6,15 +6,17 @@ import json
 def load_json(file_path):
     """
     load json file.
+
     Args: file_path
     Returns: file_data
     """ 
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
-# 加载JSONL文件
+
 def load_jsonl(file_path):
     """
     load jsonl file.
+    
     Args: file_path
     Returns: file_data
     """ 
