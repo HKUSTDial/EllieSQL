@@ -16,6 +16,10 @@ class LLMMetrics:
 
     def log_call(self, model: str, input_tokens: int, output_tokens: int, module_name: str = None):
         """记录一次LLM调用"""
+        # 如果model为none，不记录统计信息
+        if model.lower() == "none":
+            return
+            
         self.total_calls += 1
         self.total_input_tokens += input_tokens
         self.total_output_tokens += output_tokens
@@ -62,7 +66,7 @@ class LLMBase:
         
         Args:
             messages: 消息列表，格式为[{"role": "user", "content": "xxx"}, ...]
-            model: 模型名称（如"gpt-4"或"gpt-3.5-turbo"）
+            model: 模型名称，如"gpt-4"或"gpt-3.5-turbo"
             temperature: 温度参数
             max_tokens: 最大token数
             module_name: 调用模块的名称，用于统计
