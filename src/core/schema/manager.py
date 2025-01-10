@@ -131,3 +131,126 @@ class SchemaManager:
         """清除缓存"""
         with self._lock:
             self._schema_cache.clear() 
+    
+    def format_enriched_db_schema(self, schema: Dict) -> str:
+        """
+        格式化增强的数据库schema信息，用于SQL生成模块的提示词
+        
+        Args:
+            schema: 数据库schema字典
+            
+        Returns:
+            str: 格式化后的schema字符串
+        """
+        result = []
+        
+        # 添加数据库名称
+        result.append(f"数据库: {schema['database']}\n")
+        
+        # 格式化每个表的信息
+        for table in schema['tables']:
+            result.append(f"表名: {table['table']}")
+            
+            # 添加列信息
+            result.append("列:")
+            for col_name, col_info in table['columns'].items():
+                col_desc = []
+                if col_info['expanded_name']:
+                    col_desc.append(f"含义: {col_info['expanded_name']}")
+                if col_info['description']:
+                    col_desc.append(f"描述: {col_info['description']}")
+                if col_info['data_format']:
+                    col_desc.append(f"格式: {col_info['data_format']}")
+                if col_info['value_description']:
+                    col_desc.append(f"值描述: {col_info['value_description']}")
+                if col_info['value_examples']:
+                    col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
+                    
+                if col_desc:
+                    result.append(f"  - {col_name} ({col_info['type']}): {' | '.join(col_desc)}")
+                else:
+                    result.append(f"  - {col_name} ({col_info['type']})")
+                    
+            # 添加主键信息
+            if table['primary_keys']:
+                result.append(f"主键: {', '.join(table['primary_keys'])}")
+                
+            result.append("")  # 添加空行分隔
+            
+        # 添加外键关系
+        if schema.get('foreign_keys'):
+            result.append("外键关系:")
+            for fk in schema['foreign_keys']:
+                result.append(
+                    f"  {fk['table'][0]}.{fk['column'][0]} = "
+                    f"{fk['table'][1]}.{fk['column'][1]}"
+                )
+                
+        return "\n".join(result)
+    
+    def format_linked_schema(self, linked_schema: Dict) -> str:
+        """
+        格式化linked schema为SQL生成模块使用的格式，用于SQL生成模块的提示词
+        
+        Args:
+            linked_schema: Schema Linking后的schema
+            
+        Returns:
+            str: 格式化后的schema字符串
+        """
+        result = []
+        
+        # 格式化每个表的信息
+        for table in linked_schema["tables"]:
+            table_name = table["table"]
+            columns = table.get("columns", [])
+            columns_info = table.get("columns_info", {})
+            
+            # 添加表信息
+            result.append(f"表: {table_name}")
+            
+            # 添加列信息（包含补充信息）
+            if columns:
+                result.append("列:")
+                for col in columns:
+                    col_info = columns_info.get(col, {})
+                    col_desc = []
+                    
+                    # 添加列的类型
+                    col_type = col_info.get("type", "")
+                    if col_type:
+                        col_desc.append(f"类型: {col_type}")
+                    
+                    # 添加其他补充信息
+                    if col_info.get("expanded_name"):
+                        col_desc.append(f"含义: {col_info['expanded_name']}")
+                    if col_info.get("description"):
+                        col_desc.append(f"描述: {col_info['description']}")
+                    if col_info.get("data_format"):
+                        col_desc.append(f"格式: {col_info['data_format']}")
+                    if col_info.get("value_description"):
+                        col_desc.append(f"值描述: {col_info['value_description']}")
+                    if col_info.get("value_examples"):
+                        col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
+                    
+                    if col_desc:
+                        result.append(f"  - {col}: {' | '.join(col_desc)}")
+                    else:
+                        result.append(f"  - {col}")
+            
+            # 添加主键信息
+            if "primary_keys" in table:
+                result.append(f"主键: {', '.join(table['primary_keys'])}")
+            
+            # 添加外键信息
+            if "foreign_keys" in table:
+                result.append("外键关系:")
+                for fk in table["foreign_keys"]:
+                    result.append(
+                        f"  - {fk['column']} -> "
+                        f"{fk['referenced_table']}.{fk['referenced_column']}"
+                    )
+            
+            result.append("")  # 添加空行分隔
+            
+        return "\n".join(result) 
