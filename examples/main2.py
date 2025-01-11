@@ -11,21 +11,21 @@ async def main():
     
     schema_linker = EnhancedSchemaLinker(
         llm, 
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o-mini-2024-07-18",
         temperature=0.5,
         max_tokens=1000
     )
     
     sql_generator = GPTSQLGenerator(
         llm, 
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o-mini-2024-07-18",
         temperature=0.5,
         max_tokens=1000
     )
     
     post_processor = ReflectionPostProcessor(
         llm, 
-        model="gpt-3.5-turbo-0613",
+        model="gpt-4o-mini-2024-07-18",
         temperature=0.5,
         max_tokens=1000
     )
@@ -38,7 +38,7 @@ async def main():
     )
     
     # 运行pipeline
-    await pipeline.run_pipeline(data_file="./data/merge_dev_demo.json")
+    await pipeline.run_pipeline(data_file="./data/sampled_merged.json")
 
 if __name__ == "__main__":
     asyncio.run(main()) 

@@ -1,21 +1,40 @@
 import re
 from typing import Dict, List
-from .base import PostProcessorBase
-from ...core.llm import LLMBase
-from ...core.sql_execute import *
-from ...core.utils import load_json, load_jsonl
-from .prompts.reflection_prompts import REFLECTION_SYSTEM, FEEDBACK_BASED_REFLECTION_USER
+from ..base import PostProcessorBase
+from ....core.llm import LLMBase
+from ....core.sql_execute import *
+from ....core.utils import load_json, load_jsonl
+from ..prompts.refiner_prompts import REFINER_SYSTEM, REFINER_USER
 
 
-class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
-    """基于执行结果的使用自反思机制的SQL后处理器，使用SQL运行信息"""
+from ..base import ModuleBase
+from typing import Any, Dict, Optional, Tuple, Callable
+
+class RefinerBase(ModuleBase):
+    """后处理模块的基类"""
+    
+    async def process_sql_with_retry(self, 
+                                  sql: str,
+                                  query_id: str = None) -> Tuple[str, str]:
+        """使用重试机制处理SQL"""
+        return await self.execute_with_retry(
+            func=self.process_sql,
+            extract_method='sql',
+            error_msg="SQL Refiner失败",
+            sql=sql,
+            query_id=query_id
+        ) 
+
+
+class FeedbackBasedRefiner(RefinerBase):
+    """基于执行结果的使用自反思机制的SQL Refiner，使用SQL运行信息和DB Schema"""
     
     def __init__(self, 
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.0,
-                max_tokens: int = 1000):
-        super().__init__("FeedbackBasedReflectionPostProcessor")
+                max_tokens: int = 5000):
+        super().__init__("FeedbackBasedRefiner")
         self.llm = llm
         self.model = model
         self.temperature = temperature
@@ -46,9 +65,24 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
                 #执行sql并且返回结果：能运行、超时、或报错
                 ex_result = execute_sql_with_timeout(db_path, sql)
 
+                # 获取schema
+                # 在任何需要获取schema的地方
+                from src.core.schema.manager import SchemaManager
+                # 获取schema manager实例
+                schema_manager = SchemaManager()
+                # 获取格式化的schema字符串
+                formatted_schema = schema_manager.get_formatted_enriched_schema(db_id,source)
+                # print(formatted_schema) 
+        
                 messages = [
-                    {"role": "system", "content": REFLECTION_SYSTEM},
-                    {"role": "user", "content": FEEDBACK_BASED_REFLECTION_USER.format(sql = sql, result_type = ex_result.result_type, result = ex_result.result, error_message = ex_result.error_message , question = question)}
+                    {"role": "system", "content": REFINER_SYSTEM},
+                    {"role": "user", "content": REFINER_USER.format(sql = sql, 
+                                                                    result_type = ex_result.result_type, 
+                                                                    result = ex_result.result, 
+                                                                    error_message = ex_result.error_message , 
+                                                                    question = question,
+                                                                    db_schema = formatted_schema
+                                                                    )}
                 ]
                 
                 result = await self.llm.call_llm(

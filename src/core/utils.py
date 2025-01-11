@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 import re
 
 import json
@@ -29,6 +29,18 @@ def load_jsonl(file_path):
 
 class TextExtractor:
     """文本提取工具类"""
+    @staticmethod
+    def extract_sub_questions(text: str) -> List[str]:
+        """
+        Extracts sub-questions from the LLM response, assuming each sub-question is enclosed in <<>>.
+        
+        :param text: The response text from the model containing sub-questions
+        :return: A list of sub-questions
+        """
+        # Regular expression to find text enclosed in <<>>
+        pattern = r"<<(.*?)>>"
+        sub_questions = re.findall(pattern, text, re.DOTALL)
+        return sub_questions
     
     @staticmethod
     def extract_sql(text: str) -> str:
