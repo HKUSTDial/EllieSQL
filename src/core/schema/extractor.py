@@ -1,30 +1,95 @@
 import sqlite3
-from typing import List, Dict, Tuple
+import pandas as pd
+import chardet
+from typing import List, Dict, Tuple, Any
 from pathlib import Path
 from .schema import ColumnSchema, TableSchema, DatabaseSchema
-from .utils import load_database_description, get_column_examples
 
 class SchemaExtractor:
     """从SQLite数据库提取schema信息"""
     
     @staticmethod
-    def extract_from_db(db_path: str, db_id: str) -> DatabaseSchema:
+    def _load_database_description(db_folder: Path) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
-        从数据库文件提取schema
+        加载数据库描述信息
         
         Args:
-            db_path: 数据库文件路径
-            db_id: 数据库ID
+            db_folder: 数据库文件夹路径
             
         Returns:
-            DatabaseSchema: 提取的schema信息
+            Dict: 数据库描述信息
         """
+        description_dir = db_folder / "database_description"
+        if not description_dir.exists():
+            return {}
+            
+        database_description = {}
+        for csv_file in description_dir.glob("*.csv"):
+            table_name = csv_file.stem.lower()
+            
+            # 检测文件编码
+            encoding = chardet.detect(csv_file.read_bytes())["encoding"]
+            
+            try:
+                df = pd.read_csv(csv_file, encoding=encoding)
+                table_description = {}
+                
+                for _, row in df.iterrows():
+                    if pd.isna(row.get("original_column_name", "")):
+                        continue
+                        
+                    col_name = row["original_column_name"].strip().lower()
+                    table_description[col_name] = {
+                        "expanded_name": row.get("column_name", "").strip() if pd.notna(row.get("column_name", "")) else "",
+                        "description": row.get("column_description", "").strip() if pd.notna(row.get("column_description", "")) else "",
+                        "value_description": row.get("value_description", "").strip() if pd.notna(row.get("value_description", "")) else "",
+                        "data_format": row.get("data_format", "").strip() if pd.notna(row.get("data_format", "")) else ""
+                    }
+                    
+                database_description[table_name] = table_description
+            except Exception as e:
+                print(f"Warning: Failed to load description file {csv_file}: {str(e)}")
+                continue
+                
+        return database_description
+    
+    @staticmethod
+    def _get_column_examples(conn: sqlite3.Connection, 
+                          table: str, 
+                          column: str, 
+                          max_examples: int = 3) -> List[str]:
+        """
+        获取列的示例值
+        
+        Args:
+            conn: 数据库连接
+            table: 表名
+            column: 列名
+            max_examples: 最大示例数量
+            
+        Returns:
+            List[str]: 示例值列表
+        """
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT DISTINCT `{column}` FROM `{table}` "
+                f"WHERE `{column}` IS NOT NULL AND `{column}` != '' "
+                f"LIMIT {max_examples}"
+            )
+            return [str(row[0]) for row in cursor.fetchall()]
+        except:
+            return []
+    
+    @staticmethod
+    def extract_from_db(db_path: str, db_id: str) -> DatabaseSchema:
+        """从数据库文件提取schema"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
         # 加载补充描述信息
         db_folder = Path(db_path).parent
-        descriptions = load_database_description(db_folder)
+        descriptions = SchemaExtractor._load_database_description(db_folder)
         
         # 获取所有表名
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -33,6 +98,7 @@ class SchemaExtractor:
         tables = {}
         all_foreign_keys = []
         
+        # 处理每个表
         for table_name in table_names:
             # 获取表结构
             cursor.execute(f"PRAGMA table_info(`{table_name}`)")
@@ -80,7 +146,7 @@ class SchemaExtractor:
                 
                 # 获取示例值
                 if column.type.upper() != "BLOB":
-                    column.value_examples = get_column_examples(conn, table_name, col_name)
+                    column.value_examples = SchemaExtractor._get_column_examples(conn, table_name, col_name)
             
             tables[table_name] = TableSchema(
                 name=table_name,
