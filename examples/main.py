@@ -5,6 +5,7 @@ from src.modules.schema_linking.enhanced_linker import EnhancedSchemaLinker
 from src.modules.sql_generation.gpt_generator import GPTSQLGenerator
 from src.modules.post_processing.reflection import ReflectionPostProcessor
 from src.modules.post_processing.feedback_based_reflection import FeedbackBasedReflectionPostProcessor
+from src.modules.post_processing.skip_post_processing import SkipPostProcessor
 from src.pipeline import ElephantSQLPipeline
 
 async def main():
@@ -13,15 +14,35 @@ async def main():
     
     # 创建不同的pipeline组合
     # pipeline1 = ElephantSQLPipeline(
-    #     schema_linker=BasicSchemaLinker(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),
-    #     sql_generator=GPTSQLGenerator(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),
-    #     post_processor=ReflectionPostProcessor(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000)
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000),
+    #     sql_generator=GPTSQLGenerator(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000),
+    #     post_processor=FeedbackBasedReflectionPostProcessor(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000)
     # )
     
     pipeline2 = ElephantSQLPipeline(
-        schema_linker=EnhancedSchemaLinker(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),  # 使用增强版schema linker
-        sql_generator=GPTSQLGenerator(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000),
-        post_processor=FeedbackBasedReflectionPostProcessor(llm, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000)  # 使用不同的后处理器
+        schema_linker=EnhancedSchemaLinker(
+            llm, 
+            model="gpt-3.5-turbo", 
+            temperature=0.5, 
+            max_tokens=1000),
+        sql_generator=GPTSQLGenerator(
+            llm, 
+            model="gpt-3.5-turbo", 
+            temperature=0.5, 
+            max_tokens=1000),
+        post_processor=SkipPostProcessor()
     )
     
     # 运行pipeline

@@ -89,7 +89,11 @@ class IntermediateResult:
             return json.loads(lines[-1])
             
     def _update_stats(self, model_info: Dict[str, Any]):
-        """更新API调用统计"""
+        """更新API调用统计信息"""
+        # 如果model为none，不更新统计信息
+        if model_info.get("model", "").lower() == "none":
+            return
+        
         stats = self._load_json(self.stats_file, {
             "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "total_calls": 0,
@@ -152,7 +156,6 @@ class IntermediateResult:
         
         # 更新最后修改时间
         stats["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
         self._save_json(self.stats_file, stats)
         
     def _load_json(self, file_path: str, default: Dict) -> Dict:

@@ -2,6 +2,7 @@ from typing import Dict
 from .base import SchemaLinkerBase
 from ...core.llm import LLMBase
 from .prompts.schema_prompts import ENHANCED_SCHEMA_SYSTEM, BASE_SCHEMA_USER
+from ...core.schema.manager import SchemaManager
 
 class EnhancedSchemaLinker(SchemaLinkerBase):
     """使用增强schema信息的Schema Linker"""
@@ -16,114 +17,8 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.schema_manager = SchemaManager()
         
-    def _format_enriched_db_schema(self, schema: Dict) -> str:
-        """格式化增强的schema信息，用于提示词"""
-        result = []
-        
-        # 添加数据库名称
-        result.append(f"数据库: {schema['database']}\n")
-        
-        # 格式化每个表的信息
-        for table in schema['tables']:
-            result.append(f"表名: {table['table']}")
-            
-            # 添加列信息
-            result.append("列:")
-            for col_name, col_info in table['columns'].items():
-                col_desc = []
-                if col_info['expanded_name']:
-                    col_desc.append(f"含义: {col_info['expanded_name']}")
-                if col_info['description']:
-                    col_desc.append(f"描述: {col_info['description']}")
-                if col_info['data_format']:
-                    col_desc.append(f"格式: {col_info['data_format']}")
-                if col_info['value_description']:
-                    col_desc.append(f"值描述: {col_info['value_description']}")
-                if col_info['value_examples']:
-                    col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
-                    
-                if col_desc:
-                    result.append(f"  - {col_name} ({col_info['type']}): {' | '.join(col_desc)}")
-                else:
-                    result.append(f"  - {col_name} ({col_info['type']})")
-                    
-            # 添加主键信息
-            if table['primary_keys']:
-                result.append(f"主键: {', '.join(table['primary_keys'])}")
-                
-            result.append("")  # 添加空行分隔
-            
-        # 添加外键关系
-        if schema.get('foreign_keys'):
-            result.append("外键关系:")
-            for fk in schema['foreign_keys']:
-                result.append(
-                    f"  {fk['table'][0]}.{fk['column'][0]} = "
-                    f"{fk['table'][1]}.{fk['column'][1]}"
-                )
-                
-        return "\n".join(result)
-
-    def _format_linked_schema(self, linked_schema: Dict) -> str:
-        """格式化linked schema为SQL生成模块使用的格式"""
-        result = []
-        
-        # 格式化每个表的信息
-        for table in linked_schema["tables"]:
-            table_name = table["table"]
-            columns = table.get("columns", [])
-            columns_info = table.get("columns_info", {})
-            
-            # 添加表信息
-            result.append(f"表: {table_name}")
-            
-            # 添加列信息（包含补充信息）
-            if columns:
-                result.append("列:")
-                for col in columns:
-                    col_info = columns_info.get(col, {})
-                    col_desc = []
-                    
-                    # 添加列的类型
-                    col_type = col_info.get("type", "")
-                    if col_type:
-                        col_desc.append(f"类型: {col_type}")
-                    
-                    # 添加其他补充信息
-                    if col_info.get("expanded_name"):
-                        col_desc.append(f"含义: {col_info['expanded_name']}")
-                    if col_info.get("description"):
-                        col_desc.append(f"描述: {col_info['description']}")
-                    if col_info.get("data_format"):
-                        col_desc.append(f"格式: {col_info['data_format']}")
-                    if col_info.get("value_description"):
-                        col_desc.append(f"值描述: {col_info['value_description']}")
-                    if col_info.get("value_examples"):
-                        col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
-                    
-                    if col_desc:
-                        result.append(f"  - {col}: {' | '.join(col_desc)}")
-                    else:
-                        result.append(f"  - {col}")
-            
-            # 添加主键信息
-            if "primary_keys" in table:
-                result.append(f"主键: {', '.join(table['primary_keys'])}")
-            
-            # 添加外键信息
-            if "foreign_keys" in table:
-                result.append("外键关系:")
-                for fk in table["foreign_keys"]:
-                    result.append(
-                        f"  - {fk['column']} -> "
-                        f"{fk['referenced_table']}.{fk['referenced_column']}"
-                    )
-            
-            result.append("")  # 添加空行分隔
-            
-        return "\n".join(result)
-
     def _validate_linked_schema(self, linked_schema: Dict, database_schema: Dict) -> bool:
         """
         验证linked schema中的表和列是否都在原始schema中存在
@@ -196,8 +91,8 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             
         except Exception as e:
             self.logger.error(f"验证linked schema时发生错误: {str(e)}")
-            return False 
-
+            return False
+            
     def _enhance_linked_schema(self, linked_schema: Dict, database_schema: Dict) -> Dict:
         """
         增强linked schema，添加必要的主键、外键信息和补充信息
@@ -314,7 +209,8 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         Returns:
             str: 链接后的schema信息
         """
-        schema_str = self._format_enriched_db_schema(database_schema)
+        # 使用schema manager的格式化方法
+        schema_str = self.schema_manager.format_enriched_db_schema(database_schema)
         
         # 记录格式化后的schema以便检查
         self.logger.debug("格式化后的Schema信息:")
@@ -349,8 +245,8 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         enhanced_linked_schema = self._enhance_linked_schema(extracted_linked_schema, database_schema)
         # print("****after enhance*****\n", enhanced_linked_schema, "\n*********")
         
-        # 格式化linked schema为SQL生成模块使用的格式
-        formatted_linked_schema = self._format_linked_schema(enhanced_linked_schema)
+        # 格式化linked schema
+        formatted_linked_schema = self.schema_manager.format_linked_schema(enhanced_linked_schema)
         # print("****after format*****\n", formatted_linked_schema, "\n*********")
 
         # 保存中间结果
