@@ -3,6 +3,7 @@ from src.core.llm import LLMBase
 from src.modules.schema_linking.basic_linker import BasicSchemaLinker
 from src.modules.schema_linking.enhanced_linker import EnhancedSchemaLinker
 from src.modules.sql_generation.gpt_generator import GPTSQLGenerator
+from src.modules.sql_generation.enhanced_generator import EnhancedSQLGenerator
 from src.modules.post_processing.reflection import ReflectionPostProcessor
 from src.modules.post_processing.feedback_based_reflection import FeedbackBasedReflectionPostProcessor
 from src.modules.post_processing.skip_post_processing import SkipPostProcessor
@@ -31,15 +32,30 @@ async def main():
     #         max_tokens=1000)
     # )
     
-    pipeline2 = ElephantSQLPipeline(
+    # pipeline2 = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000),
+    #     sql_generator=GPTSQLGenerator(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000),
+    #     post_processor=SkipPostProcessor()
+    # )
+    
+
+    pipeline3 = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
             llm, 
-            model="gpt-3.5-turbo", 
+            model="gpt-4o-mini-2024-07-18", 
             temperature=0.5, 
             max_tokens=1000),
-        sql_generator=GPTSQLGenerator(
+        sql_generator=EnhancedSQLGenerator(
             llm, 
-            model="gpt-3.5-turbo", 
+            model="gpt-4o-mini-2024-07-18", 
             temperature=0.5, 
             max_tokens=1000),
         post_processor=SkipPostProcessor()
@@ -47,7 +63,7 @@ async def main():
     
     # 运行pipeline
     # await pipeline1.run_pipeline(data_file="./data/merge_dev_demo.json")
-    await pipeline2.run_pipeline(data_file="./data/merge_dev_demo.json")
+    await pipeline3.run_pipeline(data_file="./data/merge_dev_demo.json")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
