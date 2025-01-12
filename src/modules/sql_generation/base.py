@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from ..base import ModuleBase
 
 class SQLGeneratorBase(ModuleBase):
@@ -10,7 +10,8 @@ class SQLGeneratorBase(ModuleBase):
     @abstractmethod
     async def generate_sql(self,
                         query: str,
-                        linked_schema: Dict) -> str:
+                        linked_schema: Dict,
+                        module_name: Optional[str] = None) -> str:
         """
         根据自然语言查询和链接后的schema生成SQL
         

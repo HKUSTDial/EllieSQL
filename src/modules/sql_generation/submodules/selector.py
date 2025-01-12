@@ -130,5 +130,5 @@ class DirectSelector(SelectorBase):
                 )
                 
                 self.log_io({"original_sql": sql, "messages": messages}, processed_sql)
-                return raw_output
+                return processed_sql
         

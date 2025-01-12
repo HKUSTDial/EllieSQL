@@ -43,18 +43,7 @@ class FeedbackBasedRefiner(RefinerBase):
         self.max_tokens = max_tokens
         
     async def process_sql(self, sql: str, query_id: str) -> str:
-        """
-        对生成的SQL进行运行、自反思检查和优化
-        
-        Args:
-            sql: 原始SQL语句
-            query_id: 查询ID，用于关联中间结果
-        """
-        # 加载SQL生成的结果
-        
-        # prev_result = self.load_previous_result(query_id)
-        # original_query = prev_result["input"]["query"]
-
+        """对生成的SQL进行运行、自反思检查和优化"""
         merge_dev_demo_file = "./data/merge_dev_demo.json"
         merge_dev_demo_data = load_json(merge_dev_demo_file)
 
@@ -92,11 +81,11 @@ class FeedbackBasedRefiner(RefinerBase):
                     self.model,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    module_name=self.name
+                    module_name="EnhancedSQLGenerator"  # 使用生成器的模块名，这样统计会计入生成器
                 )
                 
                 raw_output = result["response"]
-                #processed_sql = self.extractor.extract_sql(raw_output)
+                # processed_sql = self.extractor.extract_sql(raw_output)
                 
                 # # 保存中间结果
                 # self.save_intermediate(
