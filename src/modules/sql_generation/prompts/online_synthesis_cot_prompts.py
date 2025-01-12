@@ -1,4 +1,4 @@
-"""SQL生成模块的prompt模板"""
+"""Prompt template for the SQL generation module"""
 
 SQL_GENERATION_SYSTEM = """
 You are a SQLite SQL expert. 

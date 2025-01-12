@@ -1,12 +1,12 @@
-"""SQL生成模块的prompt模板"""
+"""Prompt template for the SQL generation module"""
 
-SQL_GENERATION_SYSTEM = """你是一个SQL专家，根据用户的自然语言查询生成准确的SQL语句。
-遵循以下规则：
-1. 只返回SQL语句，不要有任何解释
-2. 使用标准SQL语法
-3. 确保SQL语句的表名和列名与schema完全匹配
-4. 使用提供的外键信息正确连接表
-5. 生成的SQL语句必须使用```sql```包裹
+SQL_GENERATION_SYSTEM = """You are a SQLite expert. Generate accurate SQL statements based on the user's natural language query.
+Follow these rules:
+Return only the SQL statement, without any explanation.
+Use standard SQL syntax.
+Ensure the table and column names in the SQL statement exactly match the schema.
+Correctly join tables using the provided foreign key information.
+Outputted SQL must be surrounded by ```sql``` code block.
 """
 
 # SQL_GENERATION_USER = """
@@ -23,11 +23,11 @@ SQL_GENERATION_SYSTEM = """你是一个SQL专家，根据用户的自然语言�
 
 
 SQL_GENERATION_USER = """
-数据库Schema信息如下:
-
+Given the database schema:
 {schema}
 
-用户查询: {query}
+User question: 
+{query}
 
-请生成对应的SQL查询语句。SQL必须使用```sql```代码块包裹。
+Please generate the corresponding SQL query. SQL must be surrounded by ```sql``` code block.
 """ 

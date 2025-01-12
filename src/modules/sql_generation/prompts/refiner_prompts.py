@@ -1,4 +1,4 @@
-"""SQL refiner模块的prompt"""
+"""SQL refiner module's prompt"""
 
 REFINER_SYSTEM = """
 You are a SQLite expert. 
@@ -14,10 +14,10 @@ However, executing this SQL has resulted in an error, and you need to fix it bas
 Utilize your knowledge of SQLite to generate the correct SQL.
 If there is no problem, directly return the original SQL.
 
-Database schema：
+Database schema:
 {db_schema}
 
-The question is：
+The question is:
 {question} 
 
 SQL:

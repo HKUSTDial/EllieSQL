@@ -12,57 +12,57 @@ Outputted SQL must be surrounded by ```sql``` code block.
 DIVIDE_PROMPT = """
 ### Example:
 ## Given the database schema:
-数据库: debit_card_specializing
+Database: debit_card_specializing
 
-表名: customers
-列:
-  - CustomerID (INTEGER): 描述: identification of the customer | 示例值: 3, 5, 6
-  - Segment (TEXT): 含义: client segment | 描述: client segment | 示例值: SME, LAM, KAM
-  - Currency (TEXT): 描述: Currency | 示例值: EUR, CZK
-主键: CustomerID
+Table name: customers
+Columns:
+  - CustomerID (INTEGER): Description: identification of the customer | Value examples: 3, 5, 6
+  - Segment (TEXT): Meaning: client segment | Description: client segment | Value examples: SME, LAM, KAM
+  - Currency (TEXT): Description: Currency | Value examples: EUR, CZK
+Primary key: CustomerID
 
-表名: gasstations
-列:
-  - GasStationID (INTEGER): 含义: Gas Station ID | 描述: Gas Station ID | 示例值: 44, 45, 46
-  - ChainID (INTEGER): 含义: Chain ID | 描述: Chain ID | 示例值: 13, 6, 23
-  - Country (TEXT): 示例值: CZE, SVK
-  - Segment (TEXT): 含义: chain segment | 描述: chain segment | 示例值: Value for money, Premium, Other
-主键: GasStationID
+Table name: gasstations
+Columns:
+  - GasStationID (INTEGER): Meaning: Gas Station ID | Description: Gas Station ID | Value examples: 44, 45, 46
+  - ChainID (INTEGER): Meaning: Chain ID | Description: Chain ID | Value examples: 13, 6, 23
+  - Country (TEXT): Value examples: CZE, SVK
+  - Segment (TEXT): Meaning: chain segment | Description: chain segment | Value examples: Value for money, Premium, Other
+Primary key: GasStationID
 
-表名: products
-列:
-  - ProductID (INTEGER): 含义: Product ID | 描述: Product ID | 示例值: 1, 2, 3
-  - Description (TEXT): 描述: Description | 示例值: Rucní zadání, Nafta, Special
-主键: ProductID
+Table name: products
+Columns:
+  - ProductID (INTEGER): Meaning: Product ID | Description: Product ID | Value examples: 1, 2, 3
+  - Description (TEXT): Description: Description | Value examples: Rucní zadání, Nafta, Special
+Primary key: ProductID
 
-表名: transactions_1k
-列:
-  - TransactionID (INTEGER): 含义: Transaction ID | 描述: Transaction ID | 示例值: 1, 2, 3
-  - Date (DATE): 描述: Date | 示例值: 2012-08-24, 2012-08-23, 2012-08-25
-  - Time (TEXT): 描述: Time | 示例值: 09:41:00, 10:03:00, 13:53:00
-  - CustomerID (INTEGER): 含义: Customer ID | 描述: Customer ID | 示例值: 31543, 46707, 7654
-  - CardID (INTEGER): 含义: Card ID | 描述: Card ID | 示例值: 486621, 550134, 684220
-  - GasStationID (INTEGER): 含义: Gas Station ID | 描述: Gas Station ID | 示例值: 3704, 656, 741
-  - ProductID (INTEGER): 含义: Product ID | 描述: Product ID | 示例值: 2, 23, 5
-  - Amount (INTEGER): 描述: Amount | 示例值: 28, 18, 1
-  - Price (REAL): 描述: Price | 值描述: commonsense evidence:
+Table name: transactions_1k
+Columns:
+  - TransactionID (INTEGER): Meaning: Transaction ID | Description: Transaction ID | Value examples: 1, 2, 3
+  - Date (DATE): Description: Date | Value examples: 2012-08-24, 2012-08-23, 2012-08-25
+  - Time (TEXT): Description: Time | Value examples: 09:41:00, 10:03:00, 13:53:00
+  - CustomerID (INTEGER): Meaning: Customer ID | Description: Customer ID | Value examples: 31543, 46707, 7654
+  - CardID (INTEGER): Meaning: Card ID | Description: Card ID | Value examples: 486621, 550134, 684220
+  - GasStationID (INTEGER): Meaning: Gas Station ID | Description: Gas Station ID | Value examples: 3704, 656, 741
+  - ProductID (INTEGER): Meaning: Product ID | Description: Product ID | Value examples: 2, 23, 5
+  - Amount (INTEGER): Description: Amount | Value examples: 28, 18, 1
+  - Price (REAL): Description: Price | Value description: commonsense evidence:
 
-total price = Amount x Price | 示例值: 672.64, 430.72, 121.99
-主键: TransactionID
+total price = Amount x Price | Value examples: 672.64, 430.72, 121.99
+Primary key: TransactionID
 
-表名: sqlite_sequence
-列:
-  - name (): 示例值: transactions_1k
-  - seq (): 示例值: 1000
+Table name: sqlite_sequence
+Columns:
+  - name (): Value examples: transactions_1k
+  - seq (): Value examples: 1000
 
-表名: yearmonth
-列:
-  - CustomerID (INTEGER): 含义: Customer ID | 描述: Customer ID | 示例值: 39, 63, 172
-  - Date (TEXT): 描述: Date | 示例值: 201112, 201201, 201202
-  - Consumption (REAL): 描述: consumption | 示例值: 528.3, 1598.28, 1931.36
-主键: CustomerID, Date
+Table name: yearmonth
+Columns:
+  - CustomerID (INTEGER): Meaning: Customer ID | Description: Customer ID | Value examples: 39, 63, 172
+  - Date (TEXT): Description: Date | Value examples: 201112, 201201, 201202
+  - Consumption (REAL): Description: consumption | Value examples: 528.3, 1598.28, 1931.36
+Primary key: CustomerID, Date
 
-外键关系:
+Foreign keys:
   yearmonth.CustomerID = customers.None
   yearmonth.CustomerID = customers.None
 

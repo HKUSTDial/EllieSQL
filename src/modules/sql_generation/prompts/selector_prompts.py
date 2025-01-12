@@ -1,4 +1,4 @@
-"""SQL selector 模块的 prompt"""
+"""SQL selector module's prompt"""
 
 SELECTOR_SYSTEM = """
 You are a SQLite expert. 

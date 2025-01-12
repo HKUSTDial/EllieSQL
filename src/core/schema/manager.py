@@ -58,26 +58,26 @@ class SchemaManager:
             result = []
             
             # 添加数据库名称
-            result.append(f"数据库: {schema_dict['database']}\n")
+            result.append(f"Database: {schema_dict['database']}\n")
             
             # 格式化每个表的信息
             for table in schema_dict['tables']:
-                result.append(f"表名: {table['table']}")
+                result.append(f"Table name: {table['table']}")
                 
                 # 添加列信息
-                result.append("列:")
+                result.append("Columns:")
                 for col_name, col_info in table['columns'].items():
                     col_desc = []
                     if col_info['expanded_name']:
-                        col_desc.append(f"含义: {col_info['expanded_name']}")
+                        col_desc.append(f"Meaning: {col_info['expanded_name']}")
                     if col_info['description']:
-                        col_desc.append(f"描述: {col_info['description']}")
+                        col_desc.append(f"Description: {col_info['description']}")
                     if col_info['data_format']:
-                        col_desc.append(f"格式: {col_info['data_format']}")
+                        col_desc.append(f"Format: {col_info['data_format']}")
                     if col_info['value_description']:
-                        col_desc.append(f"值描述: {col_info['value_description']}")
+                        col_desc.append(f"Value description: {col_info['value_description']}")
                     if col_info['value_examples']:
-                        col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
+                        col_desc.append(f"Value examples: {', '.join(col_info['value_examples'])}")
                         
                     if col_desc:
                         result.append(f"  - {col_name} ({col_info['type']}): {' | '.join(col_desc)}")
@@ -86,13 +86,13 @@ class SchemaManager:
                         
                 # 添加主键信息
                 if table['primary_keys']:
-                    result.append(f"主键: {', '.join(table['primary_keys'])}")
+                    result.append(f"Primary key: {', '.join(table['primary_keys'])}")
                     
                 result.append("")  # 添加空行分隔
                 
             # 添加外键关系
             if schema_dict.get('foreign_keys'):
-                result.append("外键关系:")
+                result.append("Foreign keys:")
                 for fk in schema_dict['foreign_keys']:
                     result.append(
                         f"  {fk['table'][0]}.{fk['column'][0]} = "
@@ -102,7 +102,7 @@ class SchemaManager:
             return "\n".join(result)
             
         except Exception as e:
-            raise ValueError(f"获取schema失败: {str(e)}")
+            raise ValueError(f"Access schema failure: {str(e)}")
     
     def get_db_schema_by_id_source(self, db_id: str, source: str) -> Dict:
         """
@@ -125,7 +125,7 @@ class SchemaManager:
             schema = self.get_schema(db_id, db_path)
             return schema.to_dict()
         except Exception as e:
-            raise ValueError(f"获取schema失败: {str(e)}")
+            raise ValueError(f"Access schema failure: {str(e)}")
     
     def clear_cache(self):
         """清除缓存"""
@@ -145,26 +145,26 @@ class SchemaManager:
         result = []
         
         # 添加数据库名称
-        result.append(f"数据库: {schema['database']}\n")
+        result.append(f"Database: {schema['database']}\n")
         
         # 格式化每个表的信息
         for table in schema['tables']:
-            result.append(f"表名: {table['table']}")
+            result.append(f"Table name: {table['table']}")
             
             # 添加列信息
-            result.append("列:")
+            result.append("Columns:")
             for col_name, col_info in table['columns'].items():
                 col_desc = []
                 if col_info['expanded_name']:
-                    col_desc.append(f"含义: {col_info['expanded_name']}")
+                    col_desc.append(f"Meaning: {col_info['expanded_name']}")
                 if col_info['description']:
-                    col_desc.append(f"描述: {col_info['description']}")
+                    col_desc.append(f"Description: {col_info['description']}")
                 if col_info['data_format']:
-                    col_desc.append(f"格式: {col_info['data_format']}")
+                    col_desc.append(f"Format: {col_info['data_format']}")
                 if col_info['value_description']:
-                    col_desc.append(f"值描述: {col_info['value_description']}")
+                    col_desc.append(f"Value description: {col_info['value_description']}")
                 if col_info['value_examples']:
-                    col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
+                    col_desc.append(f"Value examples: {', '.join(col_info['value_examples'])}")
                     
                 if col_desc:
                     result.append(f"  - {col_name} ({col_info['type']}): {' | '.join(col_desc)}")
@@ -173,13 +173,13 @@ class SchemaManager:
                     
             # 添加主键信息
             if table['primary_keys']:
-                result.append(f"主键: {', '.join(table['primary_keys'])}")
+                result.append(f"Primary key: {', '.join(table['primary_keys'])}")
                 
             result.append("")  # 添加空行分隔
             
         # 添加外键关系
         if schema.get('foreign_keys'):
-            result.append("外键关系:")
+            result.append("Foreign keys:")
             for fk in schema['foreign_keys']:
                 result.append(
                     f"  {fk['table'][0]}.{fk['column'][0]} = "
@@ -207,11 +207,11 @@ class SchemaManager:
             columns_info = table.get("columns_info", {})
             
             # 添加表信息
-            result.append(f"表: {table_name}")
+            result.append(f"Table: {table_name}")
             
             # 添加列信息（包含补充信息）
             if columns:
-                result.append("列:")
+                result.append("Columns:")
                 for col in columns:
                     col_info = columns_info.get(col, {})
                     col_desc = []
@@ -219,19 +219,19 @@ class SchemaManager:
                     # 添加列的类型
                     col_type = col_info.get("type", "")
                     if col_type:
-                        col_desc.append(f"类型: {col_type}")
+                        col_desc.append(f"Type: {col_type}")
                     
                     # 添加其他补充信息
                     if col_info.get("expanded_name"):
-                        col_desc.append(f"含义: {col_info['expanded_name']}")
+                        col_desc.append(f"Meaning: {col_info['expanded_name']}")
                     if col_info.get("description"):
-                        col_desc.append(f"描述: {col_info['description']}")
+                        col_desc.append(f"Description: {col_info['description']}")
                     if col_info.get("data_format"):
-                        col_desc.append(f"格式: {col_info['data_format']}")
+                        col_desc.append(f"Format: {col_info['data_format']}")
                     if col_info.get("value_description"):
-                        col_desc.append(f"值描述: {col_info['value_description']}")
+                        col_desc.append(f"Value description: {col_info['value_description']}")
                     if col_info.get("value_examples"):
-                        col_desc.append(f"示例值: {', '.join(col_info['value_examples'])}")
+                        col_desc.append(f"Value examples: {', '.join(col_info['value_examples'])}")
                     
                     if col_desc:
                         result.append(f"  - {col}: {' | '.join(col_desc)}")
@@ -244,7 +244,7 @@ class SchemaManager:
             
             # 添加外键信息
             if "foreign_keys" in table:
-                result.append("外键关系:")
+                result.append("Foreign keys:")
                 for fk in table["foreign_keys"]:
                     result.append(
                         f"  - {fk['column']} -> "
