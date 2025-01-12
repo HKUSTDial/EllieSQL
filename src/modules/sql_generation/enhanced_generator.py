@@ -190,7 +190,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
             "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
-        
+
         # 保存中间结果，包含每个步骤的统计
         self.save_intermediate(
             input_data={
@@ -224,5 +224,5 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             output_data=raw_output
         )
         
-        return refine_result
+        return extracted_sql
         

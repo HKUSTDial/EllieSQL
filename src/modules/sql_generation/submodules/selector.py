@@ -1,10 +1,10 @@
 import re
 from typing import Dict, List
-from ..base import PostProcessorBase
 from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
 from ..prompts.selector_prompts import SELECTOR_SYSTEM, SELECTOR_USER, CANDIDATE_FORMAT
+from src.core.schema.manager import SchemaManager
 
 
 from ..base import ModuleBase
@@ -34,7 +34,7 @@ class DirectSelector(SelectorBase):
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.0,
                 max_tokens: int = 5000):
-        super().__init__("FeedbackBasedRefiner")
+        super().__init__("DirectSelector")
         self.llm = llm
         self.model = model
         self.temperature = temperature
@@ -45,14 +45,9 @@ class DirectSelector(SelectorBase):
         对生成的多个SQL进行选择，选择一个
         
         Args:
-            sql: 原始SQL语句
+            sql_list: 候选SQL列表
             query_id: 查询ID，用于关联中间结果
         """
-        # 加载SQL生成的结果
-        
-        prev_result = self.load_previous_result(query_id)
-        original_query = prev_result["input"]["query"]
-
         merge_dev_demo_file = "./data/merge_dev_demo.json"
         merge_dev_demo_data = load_json(merge_dev_demo_file)
 
@@ -63,7 +58,8 @@ class DirectSelector(SelectorBase):
                 evidence = item.get("evidence")
                 question = item.get("question", "")
                 db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
-                #执行(多个)sql并且返回结果：能运行、超时、或报错
+                
+                # 执行(多个)sql并且返回结果
                 candidate_num = len(sql_list)
                 ex_results = []
                 for sql in sql_list:
@@ -71,32 +67,28 @@ class DirectSelector(SelectorBase):
                     ex_results.append(ex_result)
 
                 # 获取schema
-                # 在任何需要获取schema的地方
-                from src.core.schema.manager import SchemaManager
-                # 获取schema manager实例
                 schema_manager = SchemaManager()
-                # 获取格式化的schema字符串
                 formatted_schema = schema_manager.get_formatted_enriched_schema(db_id,source)
 
                 user_content = SELECTOR_USER.format(
-                                                    candidate_num = candidate_num,
-                                                    db_schema = formatted_schema,
-                                                    evidence = evidence,
-                                                    question = question
-                                                    )
+                    candidate_num=candidate_num,
+                    db_schema=formatted_schema,
+                    evidence=evidence,
+                    question=question
+                )
                 
-                for i in range (candidate_num):
+                for i in range(candidate_num):
                     user_content += CANDIDATE_FORMAT.format(
-                        i = i,
-                        isql = sql_list[i],
-                        iresult_type = ex_results[i].result_type, 
-                        iresult = ex_results[i].result, 
-                        ierror_message = ex_results[i].error_message
-                        )
+                        i=i,
+                        isql=sql_list[i],
+                        iresult_type=str(ex_results[i].result_type),
+                        iresult=ex_results[i].result, 
+                        ierror_message=ex_results[i].error_message
+                    )
                      
                 messages = [
                     {"role": "system", "content": SELECTOR_SYSTEM},
-                    {"role": "user", "content":  user_content}
+                    {"role": "user", "content": user_content}
                 ]
                 
                 result = await self.llm.call_llm(
@@ -108,17 +100,26 @@ class DirectSelector(SelectorBase):
                 )
                 
                 raw_output = result["response"]
-                processed_sql = self.extractor.extract_sql(raw_output)
+                selected_sql = self.extractor.extract_sql(raw_output)
                 
                 # 保存中间结果
                 self.save_intermediate(
                     input_data={
-                        "original_query": original_query,
-                        "original_sql": sql
+                        "question": question,
+                        "candidate_sqls": sql_list,
+                        "execution_results": [
+                            {
+                                "sql": sql,
+                                "result_type": str(ex_result.result_type),
+                                "result": ex_result.result,
+                                "error_message": ex_result.error_message
+                            }
+                            for sql, ex_result in zip(sql_list, ex_results)
+                        ]
                     },
                     output_data={
                         "raw_output": raw_output,
-                        "processed_sql": processed_sql
+                        "selected_sql": selected_sql
                     },
                     model_info={
                         "model": self.model,
@@ -129,6 +130,6 @@ class DirectSelector(SelectorBase):
                     query_id=query_id
                 )
                 
-                self.log_io({"original_sql": sql, "messages": messages}, processed_sql)
-                return processed_sql
+                self.log_io({"candidates": sql_list, "messages": messages}, selected_sql)
+                return selected_sql
         
