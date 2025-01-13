@@ -41,61 +41,61 @@ async def main():
     #     )
     # )
     
-    pipeline2 = ElephantSQLPipeline(
-        schema_linker=EnhancedSchemaLinker(
-            llm, 
-            model="gpt-3.5-turbo", 
-            temperature=0.5, 
-            max_tokens=1000,
-            max_retries=10
-        ),
-        sql_generator=GPTSQLGenerator(
-            llm, 
-            model="gpt-3.5-turbo", 
-            temperature=0.5, 
-            max_tokens=1000,
-            max_retries=10
-        ),
-        post_processor=SkipPostProcessor()
-    )
+    # pipeline2 = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000,
+    #         max_retries=10
+    #     ),
+    #     sql_generator=GPTSQLGenerator(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000,
+    #         max_retries=10
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
     
 
     # pipeline3 = ElephantSQLPipeline(
     #     schema_linker=EnhancedSchemaLinker(
     #         llm, 
-    #         model="gpt-3.5-turbo", 
+    #         model="gpt-4o-mini-2024-07-18", 
     #         temperature=0.5, 
-    #         max_tokens=10000,
+    #         max_tokens=5000,
     #         max_retries=3
     #     ),
     #     sql_generator=EnhancedSQLGenerator(
     #         llm, 
-    #         model="gpt-3.5-turbo", 
+    #         model="gpt-4o-mini-2024-07-18", 
     #         temperature=0.5, 
-    #         max_tokens=10000,
+    #         max_tokens=5000,
     #         max_retries=3
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
 
-    # pipeline4 = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.5, 
-    #         max_tokens=10000,
-    #         max_retries=3
-    #     ),
-    #     sql_generator=EnsembleGenerator(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.5, 
-    #         max_tokens=10000,
-    #         n_candidates=2,
-    #         max_retries=3
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
+    pipeline4 = ElephantSQLPipeline(
+        schema_linker=EnhancedSchemaLinker(
+            llm, 
+            model="gpt-4o-mini-2024-07-18", 
+            temperature=0.5, 
+            max_tokens=5000,
+            max_retries=3
+        ),
+        sql_generator=EnsembleGenerator(
+            llm, 
+            model="gpt-4o-mini-2024-07-18", 
+            temperature=0.5, 
+            max_tokens=5000,
+            n_candidates=2,
+            max_retries=3
+        ),
+        post_processor=SkipPostProcessor()
+    )
 
     # pipeline5 = ElephantSQLPipeline(
     #     schema_linker=SkipSchemaLinker(),
@@ -111,9 +111,9 @@ async def main():
 
     
     # 运行pipeline，设置并行数
-    await pipeline2.run_pipeline_parallel(
-        data_file="./data/merge_dev_demo.json",
-        max_workers=3
+    await pipeline4.run_pipeline_parallel(
+        data_file="./data/sampled_merged.json",
+        max_workers=10
     )
 
 if __name__ == "__main__":

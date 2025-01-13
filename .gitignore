@@ -22,6 +22,7 @@ config/
 
 # 忽略中间结果
 results/intermediate_results/
+results/important_results/
 
 # 忽略日志文件
 logs/
