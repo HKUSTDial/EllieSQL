@@ -275,7 +275,7 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         self.log_io(
             {
                 "query": query, 
-                "schema": database_schema, 
+                "database_schema": database_schema, 
                 "formatted_schema": schema_str,
                 "messages": messages
             }, 

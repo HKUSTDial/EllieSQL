@@ -2,6 +2,7 @@ import asyncio
 from src.core.llm import LLMBase
 from src.modules.schema_linking.basic_linker import BasicSchemaLinker
 from src.modules.schema_linking.enhanced_linker import EnhancedSchemaLinker
+from src.modules.schema_linking.skip_linker import SkipSchemaLinker
 from src.modules.sql_generation.gpt_generator import GPTSQLGenerator
 from src.modules.sql_generation.enhanced_generator import EnhancedSQLGenerator
 from src.modules.sql_generation.ensemble_generator import EnsembleGenerator
@@ -69,25 +70,52 @@ async def main():
     #     post_processor=SkipPostProcessor()
     # )
 
-    pipeline4 = ElephantSQLPipeline(
-        schema_linker=EnhancedSchemaLinker(
+    # pipeline4 = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=10000
+    #     ),
+    #     sql_generator=EnsembleGenerator(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=10000,
+    #         n_candidates=2
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
+
+    # pipeline5 = ElephantSQLPipeline(
+    #     schema_linker=BasicSchemaLinker(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000
+    #     ),
+    #     sql_generator=GPTSQLGenerator(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.5, 
+    #         max_tokens=1000
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
+
+    pipeline6 = ElephantSQLPipeline(
+        schema_linker=SkipSchemaLinker(),
+        sql_generator=GPTSQLGenerator(
             llm, 
             model="gpt-3.5-turbo", 
             temperature=0.5, 
-            max_tokens=10000
-        ),
-        sql_generator=EnsembleGenerator(
-            llm, 
-            model="gpt-3.5-turbo", 
-            temperature=0.5, 
-            max_tokens=10000,
-            n_candidates=2
+            max_tokens=1000
         ),
         post_processor=SkipPostProcessor()
     )
     
     # 运行pipeline
-    await pipeline4.run_pipeline(data_file="./data/merge_dev_demo.json")
+    await pipeline6.run_pipeline(data_file="./data/merge_dev_demo.json")
 
 if __name__ == "__main__":
     asyncio.run(main()) 
