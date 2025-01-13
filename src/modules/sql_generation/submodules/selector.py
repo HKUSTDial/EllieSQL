@@ -39,7 +39,7 @@ class DirectSelector(SelectorBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    async def select_sql(self, sql_list: List[str], query_id: str) -> str:
+    async def select_sql(self, data_file: str, sql_list: List[str], query_id: str) -> str:
         """
         对生成的多个SQL进行选择，选择一个
         
@@ -47,8 +47,8 @@ class DirectSelector(SelectorBase):
             sql_list: 候选SQL列表
             query_id: 查询ID，用于关联中间结果
         """
-        merge_dev_demo_file = "./data/merge_dev_demo.json"
-        merge_dev_demo_data = load_json(merge_dev_demo_file)
+       
+        merge_dev_demo_data = load_json(data_file)
 
         for item in merge_dev_demo_data:
             if(item.get("question_id") == query_id):

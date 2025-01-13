@@ -64,13 +64,22 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
         print("schema linking 完成，开始divide")
+        data_file = self.data_file
+        data_data = load_json(data_file)
+
+        curr_evidence = ""
+        for item in data_data:
+            if(item.get("question_id") == query_id):
+                curr_evidence = item.get("evidence", "")
+                break
         # 1. divide: 
         # Decompose the original question Qu into a set of sub-questions Sq
         divide_prompt = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": DIVIDE_PROMPT.format(
                 schema=formatted_schema,
-                query=query
+                query=query,
+                evidence = curr_evidence
             )}
         ]
         
@@ -121,7 +130,8 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 {"role": "user", "content": CONQUER_PROMPT.format(
                     schema=formatted_schema,
                     examples=examples_result["response"],  # 使用response字段
-                    query=sub_question
+                    query=sub_question,
+                    evidence = curr_evidence
                 )}
             ]
             # 3. Conquer阶段
@@ -155,6 +165,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             {"role": "user", "content": ASSEMBLE_PROMPT.format(
                 schema=formatted_schema,
                 query=query,
+                evidence = curr_evidence,
                 subs = sub_prompt
             )}
         ]
@@ -181,7 +192,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 max_tokens=self.max_tokens)
         print(111)
         # 5. Refine阶段
-        refine_result = await refiner.process_sql(extracted_sql, query_id)
+        refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
         extracted_sql = self.extractor.extract_sql(refine_result)
         print("sql refine完成")
       

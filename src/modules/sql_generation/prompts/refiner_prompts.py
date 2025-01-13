@@ -20,6 +20,9 @@ Database schema:
 The question is:
 {question} 
 
+Evidence:
+{evidence}
+
 SQL:
 {sql} \n
 The execution result of this SQL is:

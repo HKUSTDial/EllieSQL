@@ -81,6 +81,9 @@ Foreign keys:
 ## Question: 
 {query}
 
+## Evidence:
+{evidence}
+
 ## Decompose the Question into sub-questions, each sub-question is enclosed in <<>>:
 
 """ 
@@ -95,6 +98,9 @@ Examples:
 Question: 
 {query}
 
+Evidence:
+{evidence}
+
 Please generate the corresponding SQL query. SQL must be surrounded by ```sql``` code block.
 """
 
@@ -104,6 +110,9 @@ Given the database schema:
 
 Main question:
 {query}
+
+Evidence:
+{evidence}
 Based on the sql querys for corresponding sub-questions, return the final sql for the main question, SQL must be surrounded by ```sql``` code block.
 
 Sub-questions and corresponding sql querys:

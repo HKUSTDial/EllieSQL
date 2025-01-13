@@ -40,16 +40,17 @@ class FeedbackBasedRefiner(RefinerBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    async def process_sql(self, sql: str, query_id: str) -> str:
+    async def process_sql(self, sql: str, data_file: str, query_id: str) -> str:
         """对生成的SQL进行运行、自反思检查和优化"""
-        merge_dev_demo_file = "./data/merge_dev_demo.json"
-        merge_dev_demo_data = load_json(merge_dev_demo_file)
+        
+        merge_dev_demo_data = load_json(data_file)
 
         for item in merge_dev_demo_data:
             if(item.get("question_id") == query_id):
                 db_id = item.get("db_id", "")
                 source = item.get("source", "")
                 question = item.get("question", "")
+                curr_evidence = item.get("evidence")
                 db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
                 #执行sql并且返回结果：能运行、超时、或报错
                 ex_result = execute_sql_with_timeout(db_path, sql)
@@ -70,6 +71,7 @@ class FeedbackBasedRefiner(RefinerBase):
                                                                     result = ex_result.result, 
                                                                     error_message = ex_result.error_message , 
                                                                     question = question,
+                                                                    evidence = curr_evidence,
                                                                     db_schema = formatted_schema
                                                                     )}
                 ]

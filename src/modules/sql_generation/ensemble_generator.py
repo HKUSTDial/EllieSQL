@@ -83,7 +83,8 @@ class EnsembleGenerator(EnhancedSQLGenerator):
         # 2. 使用selector选择最佳SQL
         print("开始选择最佳SQL...")
         try:
-            result = await self.selector.select_sql(candidates, query_id)
+            data_file = self.data_file
+            result = await self.selector.select_sql(data_file, candidates, query_id)
             selected_sql = result
             
             # 直接从selector的返回结果中获取token统计
