@@ -10,6 +10,7 @@ from src.modules.post_processing.reflection import ReflectionPostProcessor
 from src.modules.post_processing.feedback_based_reflection import FeedbackBasedReflectionPostProcessor
 from src.modules.post_processing.skip_post_processing import SkipPostProcessor
 from src.pipeline import ElephantSQLPipeline
+from concurrent.futures import ThreadPoolExecutor
 
 async def main():
     # 初始化LLM和模块
@@ -107,9 +108,27 @@ async def main():
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
+
     
-    # 运行pipeline
-    await pipeline2.run_pipeline(data_file="./data/merge_dev_demo.json")
+    # 运行pipeline，设置并行数
+    await pipeline2.run_pipeline_parallel(
+        data_file="./data/merge_dev_demo.json",
+        max_workers=3
+    )
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    # 串行化运行
+    # asyncio.run(main())
+
+    # 并行化运行
+    # 1. 设置新的事件循环
+    policy = asyncio.get_event_loop_policy()
+    policy.set_event_loop(policy.new_event_loop())
+
+    # 2. 设置线程池大小
+    loop = asyncio.get_event_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=20))
+
+    # 3. 运行与关闭
+    loop.run_until_complete(main())
+    loop.close() 

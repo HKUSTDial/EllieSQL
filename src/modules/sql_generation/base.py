@@ -86,7 +86,7 @@ class SQLGeneratorBase(ModuleBase):
                             continue
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"SQL生成第{attempt + 1}次尝试失败: {str(e)}")
+                self.logger.warning(f"SQL生成第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
                 continue
                 
         # 达到重试阈值，记录错误并返回最后一次有效的SQL

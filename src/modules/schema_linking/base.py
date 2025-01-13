@@ -95,7 +95,7 @@ class SchemaLinkerBase(ModuleBase):
                         return enriched_linked_schema
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"Schema linking 第{attempt + 1}次尝试失败: {str(e)}")
+                self.logger.warning(f"Schema linking 第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
                 continue
         
         # 达到重试阈值，返回完整的数据库schema，并确保格式与正常返回一致

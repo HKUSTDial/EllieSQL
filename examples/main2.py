@@ -38,7 +38,7 @@ async def main():
     )
     
     # 运行pipeline
-    await pipeline.run_pipeline(data_file="./data/sampled_merged.json")
+    await pipeline.run_pipeline_parallel(data_file="./data/sampled_merged.json")
 
 if __name__ == "__main__":
     asyncio.run(main()) 

@@ -29,7 +29,7 @@ class PostProcessorBase(ModuleBase):
                         return processed_sql
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"SQL后处理第{attempt + 1}次尝试失败: {str(e)}")
+                self.logger.warning(f"SQL后处理第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
                 continue
         
         # 达到重试阈值，返回原始SQL，并记录错误
