@@ -5,8 +5,8 @@ from ...core.schema.manager import SchemaManager
 class SkipSchemaLinker(SchemaLinkerBase):
     """跳过Schema Linking的实现，直接返回 *带有补充信息* 的数据库schema"""
     
-    def __init__(self):
-        super().__init__("SkipSchemaLinker")
+    def __init__(self, max_retries: int = 1):
+        super().__init__("SkipSchemaLinker", max_retries)
         self.schema_manager = SchemaManager()
         
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:

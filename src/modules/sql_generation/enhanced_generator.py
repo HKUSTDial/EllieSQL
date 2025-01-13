@@ -13,8 +13,9 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.0,
-                max_tokens: int = 5000):
-        super().__init__("EnhancedSQLGenerator")
+                max_tokens: int = 5000,
+                max_retries: int = 3):
+        super().__init__("EnhancedSQLGenerator", max_retries)
         self.llm = llm
         self.model = model
         self.temperature = temperature

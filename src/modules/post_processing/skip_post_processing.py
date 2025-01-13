@@ -5,8 +5,8 @@ from ...core.llm import LLMBase
 class SkipPostProcessor(PostProcessorBase):
     """直接返回SQL生成模块输出的后处理器，不进行任何处理，即跳过Post Processing"""
     
-    def __init__(self):
-        super().__init__("SkipPostProcessor")
+    def __init__(self, max_retries: int = 1):
+        super().__init__("SkipPostProcessor", max_retries)
         
     async def process_sql(self, sql: str, query_id: str = None) -> str:
         """

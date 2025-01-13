@@ -1,6 +1,4 @@
-import re
 from typing import Dict, List
-# from ..base import PostProcessorBase
 from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl

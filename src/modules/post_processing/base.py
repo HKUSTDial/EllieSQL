@@ -10,31 +10,55 @@ class PostProcessorBase(ModuleBase):
         
     async def process_sql_with_retry(self, sql: str, query_id: str = None) -> str:
         """
-        带重试机制的SQL后处理
+        带重试机制的SQL后处理，达到重试阈值后返回原始SQL
         
         Args:
             sql: 待处理的SQL
             query_id: 查询ID
             
         Returns:
-            str: 处理后的SQL
-            
-        Raises:
-            ValueError: 当重试次数达到上限时抛出
+            str: 处理后的SQL或原始SQL
         """
         last_error = None
         for attempt in range(self.max_retries):
             try:
-                result = await self.process_sql(sql, query_id)
-                if result is not None:
-                    extracted = self.extractor.extract_sql(result)
-                    if extracted is not None:
-                        return result
+                raw_processed_sql = await self.process_sql(sql, query_id)
+                if raw_processed_sql is not None:
+                    processed_sql = self.extractor.extract_sql(raw_processed_sql)
+                    if processed_sql is not None:
+                        return processed_sql
             except Exception as e:
                 last_error = e
                 self.logger.warning(f"SQL后处理第{attempt + 1}次尝试失败: {str(e)}")
                 continue
-                
-        error_message = f"SQL后处理在{self.max_retries}次尝试后失败。最后一次错误: {str(last_error)}"
-        self.logger.error(error_message)
-        raise ValueError(error_message) 
+        
+        # 达到重试阈值，返回原始SQL，并记录错误
+        self.logger.error(f"SQL后处理 共{self.max_retries}次尝试后失败，使用原始SQL。最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行...")
+        
+        # 加载SQL生成的结果以获取原始查询
+        try:
+            prev_result = self.load_previous_result(query_id)
+            original_query = prev_result["input"]["query"]
+        except:
+            original_query = "Unknown"
+            
+        # 保存中间结果
+        self.save_intermediate(
+            input_data={
+                "original_query": original_query,
+                "original_sql": sql
+            },
+            output_data={
+                "raw_output": "Post-processing failed, using original SQL",
+                "processed_sql": sql  # 使用原始SQL
+            },
+            model_info={
+                "model": "none",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            },
+            query_id=query_id
+        )
+        
+        return sql 

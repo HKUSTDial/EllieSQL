@@ -101,7 +101,11 @@ class ElephantSQLPipeline:
             
         return queries
         
-    async def run_pipeline(self, data_file: str) -> None:
+    async def run_pipeline(self, data_file: str):
+        """运行完整的处理流程"""
+        # 设置data_file
+        self.sql_generator.set_data_file(data_file)
+        
         self.logger.info(f"开始处理数据文件: {data_file}")
         """
         运行完整的pipeline流程
@@ -196,7 +200,6 @@ class ElephantSQLPipeline:
             module.logger.info(f"Query: {query}")
             
         # 1. Schema Linking with retry
-        # raw_linking_output, extracted_schema = await self.schema_linker.link_schema_with_retry(
         enriched_linked_schema = await self.schema_linker.link_schema_with_retry(
             query, 
             database_schema,
@@ -209,7 +212,6 @@ class ElephantSQLPipeline:
         }
         
         # 2. SQL Generation with retry
-        # raw_sql_output, extracted_sql = await self.sql_generator.generate_sql_with_retry(
         extracted_sql = await self.sql_generator.generate_sql_with_retry(
             query,
             schema_linking_output,
@@ -217,7 +219,6 @@ class ElephantSQLPipeline:
         )
         
         # 3. Post Processing with retry
-        # raw_postprocessing_output, processed_sql = await self.post_processor.process_sql_with_retry(
         processed_sql = await self.post_processor.process_sql_with_retry(
             extracted_sql,
             query_id=query_id
@@ -230,12 +231,9 @@ class ElephantSQLPipeline:
             "query_id": query_id,
             "query": query,
             # "raw_linking_output": raw_linking_output,
-            "raw_linking_output": schema_linking_output,
-            "extracted_schema": enriched_linked_schema,
             # "raw_sql_output": raw_sql_output,
-            "raw_sql_output": extracted_sql,
-            "extracted_sql": extracted_sql,
             # "raw_postprocessing_output": raw_postprocessing_output,
-            "raw_postprocessing_output": processed_sql,
+            "extracted_schema": enriched_linked_schema,
+            "extracted_sql": extracted_sql,
             "processed_sql": processed_sql
         } 

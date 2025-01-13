@@ -21,19 +21,22 @@ async def main():
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=1000
+    #         max_tokens=1000,
+    #         max_retries=3
     #     ),
     #     sql_generator=GPTSQLGenerator(
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=1000
+    #         max_tokens=1000,
+    #         max_retries=3
     #     ),
     #     post_processor=FeedbackBasedReflectionPostProcessor(
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=1000
+    #         max_tokens=1000,
+    #         max_retries=3
     #     )
     # )
     
@@ -42,13 +45,15 @@ async def main():
             llm, 
             model="gpt-3.5-turbo", 
             temperature=0.5, 
-            max_tokens=1000
+            max_tokens=1000,
+            max_retries=10
         ),
         sql_generator=GPTSQLGenerator(
             llm, 
             model="gpt-3.5-turbo", 
             temperature=0.5, 
-            max_tokens=1000
+            max_tokens=1000,
+            max_retries=10
         ),
         post_processor=SkipPostProcessor()
     )
@@ -59,13 +64,15 @@ async def main():
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=10000
+    #         max_tokens=10000,
+    #         max_retries=3
     #     ),
     #     sql_generator=EnhancedSQLGenerator(
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=10000
+    #         max_tokens=10000,
+    #         max_retries=3
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -75,14 +82,16 @@ async def main():
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=10000
+    #         max_tokens=10000,
+    #         max_retries=3
     #     ),
     #     sql_generator=EnsembleGenerator(
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
     #         max_tokens=10000,
-    #         n_candidates=2
+    #         n_candidates=2,
+    #         max_retries=3
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -93,7 +102,8 @@ async def main():
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=10000
+    #         max_tokens=10000,
+    #         max_retries=3
     #     ),
     #     post_processor=SkipPostProcessor()
     # )

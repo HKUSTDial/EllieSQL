@@ -73,7 +73,7 @@ class SchemaLinkerBase(ModuleBase):
     
     async def link_schema_with_retry(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """
-        带重试机制的schema linking
+        带重试机制的schema linking，达到重试阈值后返回完整的数据库schema
         
         Args:
             query: 用户查询
@@ -81,51 +81,92 @@ class SchemaLinkerBase(ModuleBase):
             query_id: 查询ID
             
         Returns:
-            str: Schema Linking的结果
-            
-        Raises:
-            ValueError: 当重试次数达到上限时抛出
+            str: Schema Linking的结果或完整数据库schema的JSON字符串
         """
         last_error = None
         for attempt in range(self.max_retries):
             try:
-                raw_output = await self.link_schema(query, database_schema, query_id)
-                if raw_output is not None:
+                raw_schema_output = await self.link_schema(query, database_schema, query_id)
+                if raw_schema_output is not None:
                     # 从原始输出中提取schema并补充主键和外键信息
-                    extracted_linked_schema = self.extractor.extract_schema_json(raw_output)
+                    extracted_linked_schema = self.extractor.extract_schema_json(raw_schema_output)
                     enriched_linked_schema = self.enrich_schema_info(extracted_linked_schema, database_schema)
-                    # self.logger.debug("Enriched Linked Schema:")
-                    # self.logger.debug(json.dumps(enriched_linked_schema, indent=2, ensure_ascii=False))
-                    
                     if extracted_linked_schema is not None:
                         return enriched_linked_schema
             except Exception as e:
                 last_error = e
                 self.logger.warning(f"Schema linking 第{attempt + 1}次尝试失败: {str(e)}")
                 continue
-                
-        error_message = f"Schema linking在{self.max_retries}次尝试后失败。最后一次错误: {str(last_error)}"
-        self.logger.error(error_message)
-        raise ValueError(error_message)
+        
+        # 达到重试阈值，返回完整的数据库schema，并确保格式与正常返回一致
+        self.logger.error(f"Schema linking 共{self.max_retries}次尝试后失败，返回完整数据库schema。最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行...")
+        
+        # 构造一个包含所有表和列的schema，并补充主键和外键信息
+        full_schema = {
+            "tables": [
+                {
+                    "table": table["table"],
+                    "columns": list(table["columns"].keys()),
+                    "columns_info": table["columns"],
+                    "primary_keys": table.get("primary_keys", [])
+                }
+                for table in database_schema["tables"]
+            ]
+        }
+        
+        # 添加外键信息
+        if "foreign_keys" in database_schema:
+            for table in full_schema["tables"]:
+                table_name = table["table"]
+                table["foreign_keys"] = []
+                for fk in database_schema["foreign_keys"]:
+                    if fk["table"][0] == table_name:
+                        table["foreign_keys"].append({
+                            "column": fk["column"][0],
+                            "referenced_table": fk["table"][1],
+                            "referenced_column": fk["column"][1]
+                        })
+        
+        # 保存中间结果
+        self.save_intermediate(
+            input_data={
+                "query": query,
+                # "database_schema": database_schema
+            },
+            output_data={
+                "raw_output": "Schema linking failed, using full database schema",
+                "extracted_linked_schema": full_schema,
+                "formatted_linked_schema": self.schema_manager.format_linked_schema(full_schema)
+            },
+            model_info={
+                "model": "none",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            },
+            query_id=query_id
+        )
+        # print(self.schema_manager.format_linked_schema(full_schema))
+        return full_schema
     
     def _format_basic_schema(self, schema: Dict) -> str:
         """基础schema格式化方法"""
         result = []
         
         # 添加数据库名称
-        result.append(f"数据库: {schema['database']}\n")
+        result.append(f"Database: {schema['database']}\n")
         
         # 格式化表结构
         for table in schema['tables']:
-            result.append(f"表名: {table['table']}")
-            result.append(f"列: {', '.join(table['columns'])}")
+            result.append(f"Table name: {table['table']}")
+            result.append(f"Columns: {', '.join(table['columns'])}")
             if table['primary_keys']:
-                result.append(f"主键: {', '.join(table['primary_keys'])}")
+                result.append(f"Primary keys: {', '.join(table['primary_keys'])}")
             result.append("")
-            
+
         # 格式化外键关系
         if schema.get('foreign_keys'):
-            result.append("外键关系:")
+            result.append("Foreign keys:")
             for fk in schema['foreign_keys']:
                 result.append(
                     f"  {fk['table'][0]}.{fk['column'][0]} = "

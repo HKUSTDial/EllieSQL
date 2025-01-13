@@ -102,3 +102,31 @@ def check_query_valid(db_path: str, query: str, with_limit: bool = True, timeout
     if with_limit:
         query = f"SELECT * FROM ({query}) LIMIT 1;"
     return execute_sql_with_timeout(db_path, query, timeout).result_type == SQLExecutionResultType.SUCCESS
+
+
+def validate_sql(db_path: str, sql: str) -> Tuple[bool, str]:
+    """
+    验证SQL是否可以在指定数据库上正常执行且结果不为空
+    
+    Args:
+        db_path: 数据库文件路径
+        sql: 待验证的SQL语句
+        
+    Returns:
+        Tuple[bool, str]: (是否有效, 错误信息)
+    """
+    try:
+        result = execute_sql_with_timeout(db_path, sql)
+        
+        # 检查执行结果
+        if result.result_type == "error":
+            return False, f"SQL执行错误: {result.error_message}"
+        elif result.result_type == "timeout":
+            return False, "SQL执行超时"
+        elif result.result_type == "success" and (not result.result or len(result.result) == 0):
+            return False, "SQL执行结果为空"
+            
+        return True, ""
+        
+    except Exception as e:
+        return False, f"SQL验证异常: {str(e)}"

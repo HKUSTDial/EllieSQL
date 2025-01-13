@@ -11,12 +11,14 @@ class EnsembleGenerator(EnhancedSQLGenerator):
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.7,  # 使用更高的temperature以获得多样性
                 max_tokens: int = 5000,
-                n_candidates: int = 3):  # 生成的候选数量
+                n_candidates: int = 3,  # 生成的候选数量
+                max_retries: int = 3):  # 重试次数阈值
         super().__init__(
             llm=llm,
             model=model,
             temperature=temperature,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            max_retries=max_retries
         )
         self.name = "EnsembleGenerator"
         self.n_candidates = n_candidates
