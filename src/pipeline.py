@@ -196,7 +196,8 @@ class ElephantSQLPipeline:
             module.logger.info(f"Query: {query}")
             
         # 1. Schema Linking with retry
-        raw_linking_output, extracted_schema = await self.schema_linker.link_schema_with_retry(
+        # raw_linking_output, extracted_schema = await self.schema_linker.link_schema_with_retry(
+        enriched_linked_schema = await self.schema_linker.link_schema_with_retry(
             query, 
             database_schema,
             query_id=query_id
@@ -204,18 +205,20 @@ class ElephantSQLPipeline:
         
         schema_linking_output = {
             "original_schema": database_schema,
-            "linked_schema": extracted_schema
+            "linked_schema": enriched_linked_schema
         }
         
         # 2. SQL Generation with retry
-        raw_sql_output, extracted_sql = await self.sql_generator.generate_sql_with_retry(
+        # raw_sql_output, extracted_sql = await self.sql_generator.generate_sql_with_retry(
+        extracted_sql = await self.sql_generator.generate_sql_with_retry(
             query,
             schema_linking_output,
             query_id=query_id
         )
         
         # 3. Post Processing with retry
-        raw_postprocessing_output, processed_sql = await self.post_processor.process_sql_with_retry(
+        # raw_postprocessing_output, processed_sql = await self.post_processor.process_sql_with_retry(
+        processed_sql = await self.post_processor.process_sql_with_retry(
             extracted_sql,
             query_id=query_id
         )
@@ -226,10 +229,13 @@ class ElephantSQLPipeline:
         return {
             "query_id": query_id,
             "query": query,
-            "raw_linking_output": raw_linking_output,
-            "extracted_schema": extracted_schema,
-            "raw_sql_output": raw_sql_output,
+            # "raw_linking_output": raw_linking_output,
+            "raw_linking_output": schema_linking_output,
+            "extracted_schema": enriched_linked_schema,
+            # "raw_sql_output": raw_sql_output,
+            "raw_sql_output": extracted_sql,
             "extracted_sql": extracted_sql,
-            "raw_postprocessing_output": raw_postprocessing_output,
+            # "raw_postprocessing_output": raw_postprocessing_output,
+            "raw_postprocessing_output": processed_sql,
             "processed_sql": processed_sql
         } 

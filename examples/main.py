@@ -37,21 +37,21 @@ async def main():
     #     )
     # )
     
-    # pipeline2 = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.5, 
-    #         max_tokens=1000
-    #     ),
-    #     sql_generator=GPTSQLGenerator(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.5, 
-    #         max_tokens=1000
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
+    pipeline2 = ElephantSQLPipeline(
+        schema_linker=EnhancedSchemaLinker(
+            llm, 
+            model="gpt-3.5-turbo", 
+            temperature=0.5, 
+            max_tokens=1000
+        ),
+        sql_generator=GPTSQLGenerator(
+            llm, 
+            model="gpt-3.5-turbo", 
+            temperature=0.5, 
+            max_tokens=1000
+        ),
+        post_processor=SkipPostProcessor()
+    )
     
 
     # pipeline3 = ElephantSQLPipeline(
@@ -88,34 +88,18 @@ async def main():
     # )
 
     # pipeline5 = ElephantSQLPipeline(
-    #     schema_linker=BasicSchemaLinker(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.5, 
-    #         max_tokens=1000
-    #     ),
+    #     schema_linker=SkipSchemaLinker(),
     #     sql_generator=GPTSQLGenerator(
     #         llm, 
     #         model="gpt-3.5-turbo", 
     #         temperature=0.5, 
-    #         max_tokens=1000
+    #         max_tokens=10000
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
-
-    pipeline6 = ElephantSQLPipeline(
-        schema_linker=SkipSchemaLinker(),
-        sql_generator=GPTSQLGenerator(
-            llm, 
-            model="gpt-3.5-turbo", 
-            temperature=0.5, 
-            max_tokens=1000
-        ),
-        post_processor=SkipPostProcessor()
-    )
     
     # 运行pipeline
-    await pipeline6.run_pipeline(data_file="./data/merge_dev_demo.json")
+    await pipeline2.run_pipeline(data_file="./data/merge_dev_demo.json")
 
 if __name__ == "__main__":
     asyncio.run(main()) 

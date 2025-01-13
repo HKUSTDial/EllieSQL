@@ -6,9 +6,10 @@ import json
 class SchemaLinkerBase(ModuleBase):
     """Schema Linking模块的基类"""
     
-    def __init__(self, name: str = "SchemaLinker"):
+    def __init__(self, name: str, max_retries: int = 3):
         super().__init__(name)
-    
+        self.max_retries = max_retries  # 重试次数阈值
+        
     def enrich_schema_info(self, linked_schema: Dict, database_schema: Dict) -> Dict:
         """
         为linked schema补充主键和外键信息
@@ -70,28 +71,42 @@ class SchemaLinkerBase(ModuleBase):
         """
         pass
     
-    async def link_schema_with_retry(self, 
-                                  query: str, 
-                                  database_schema: Dict,
-                                  query_id: str = None) -> Tuple[str, Dict]:
-        """使用重试机制进行schema linking"""
-        raw_output, extracted_schema = await self.execute_with_retry(
-            func=self.link_schema,
-            extract_method='schema_json',
-            error_msg="Schema linking失败",
-            query=query,
-            database_schema=database_schema,
-            query_id=query_id
-        )
+    async def link_schema_with_retry(self, query: str, database_schema: Dict, query_id: str = None) -> str:
+        """
+        带重试机制的schema linking
         
-        # 补充主键和外键信息
-        enriched_schema = self.enrich_schema_info(extracted_schema, database_schema)
-        
-        # 记录enriched schema
-        self.logger.debug("Enriched Schema:")
-        self.logger.debug(json.dumps(enriched_schema, indent=2, ensure_ascii=False))
-        
-        return raw_output, enriched_schema 
+        Args:
+            query: 用户查询
+            database_schema: 数据库schema
+            query_id: 查询ID
+            
+        Returns:
+            str: Schema Linking的结果
+            
+        Raises:
+            ValueError: 当重试次数达到上限时抛出
+        """
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                raw_output = await self.link_schema(query, database_schema, query_id)
+                if raw_output is not None:
+                    # 从原始输出中提取schema并补充主键和外键信息
+                    extracted_linked_schema = self.extractor.extract_schema_json(raw_output)
+                    enriched_linked_schema = self.enrich_schema_info(extracted_linked_schema, database_schema)
+                    # self.logger.debug("Enriched Linked Schema:")
+                    # self.logger.debug(json.dumps(enriched_linked_schema, indent=2, ensure_ascii=False))
+                    
+                    if extracted_linked_schema is not None:
+                        return enriched_linked_schema
+            except Exception as e:
+                last_error = e
+                self.logger.warning(f"Schema linking 第{attempt + 1}次尝试失败: {str(e)}")
+                continue
+                
+        error_message = f"Schema linking在{self.max_retries}次尝试后失败。最后一次错误: {str(last_error)}"
+        self.logger.error(error_message)
+        raise ValueError(error_message)
     
     def _format_basic_schema(self, schema: Dict) -> str:
         """基础schema格式化方法"""

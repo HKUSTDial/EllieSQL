@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from .base import SQLGeneratorBase
 from ...core.llm import LLMBase
 from .prompts.gpt_prompts import SQL_GENERATION_SYSTEM, SQL_GENERATION_USER
@@ -18,7 +18,7 @@ class GPTSQLGenerator(SQLGeneratorBase):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str) -> str:
+    async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
         """生成SQL"""
         # 加载schema linking的结果
         if not schema_linking_output:
@@ -68,7 +68,8 @@ class GPTSQLGenerator(SQLGeneratorBase):
                 "output_tokens": result["output_tokens"],
                 "total_tokens": result["total_tokens"]
             },
-            query_id=query_id
+            query_id=query_id,
+            module_name=self.name if (module_name == None) else module_name
         )
         
         self.log_io(

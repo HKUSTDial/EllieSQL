@@ -76,6 +76,7 @@ class ModuleBase(ABC):
                                **kwargs) -> Tuple[str, Any]:
         """
         使用重试机制执行操作
+        ** NOTE: 该方法已弃用。请使用各模块base类中的专用retry实现。
         
         Args:
             func: 要执行的异步函数
