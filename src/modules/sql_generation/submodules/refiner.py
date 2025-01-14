@@ -71,7 +71,7 @@ class FeedbackBasedRefiner(RefinerBase):
                                                                     result = ex_result.result, 
                                                                     error_message = ex_result.error_message , 
                                                                     question = question,
-                                                                    evidence = curr_evidence,
+                                                                    evidence = curr_evidence if curr_evidence else "None",
                                                                     db_schema = formatted_schema
                                                                     )}
                 ]

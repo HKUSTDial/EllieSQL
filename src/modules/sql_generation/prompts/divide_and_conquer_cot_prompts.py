@@ -89,32 +89,33 @@ Foreign keys:
 """ 
 
 CONQUER_PROMPT = """
-Given the database schema:
+### Database Schema:
 {schema}
 
-Examples:
+### Examples:
 {examples}
 
-Question: 
+### Question: 
 {query}
 
-Evidence:
+### Hint:
 {evidence}
 
 Please generate the corresponding SQL query. SQL must be surrounded by ```sql``` code block.
 """
 
 ASSEMBLE_PROMPT = """
-Given the database schema:
+### Database Schema:
 {schema}
 
-Main question:
+### Main question:
 {query}
 
-Evidence:
+### Hint:
 {evidence}
-Based on the sql querys for corresponding sub-questions, return the final sql for the main question, SQL must be surrounded by ```sql``` code block.
 
-Sub-questions and corresponding sql querys:
+### Sub-questions and corresponding sql querys:
 {subs}
+
+Based on the sql querys for corresponding sub-questions, return the final sql for the main question, SQL must be surrounded by ```sql``` code block.
 """

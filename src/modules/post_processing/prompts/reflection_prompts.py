@@ -1,24 +1,23 @@
 """SQL后处理模块的prompt模板"""
 
-REFLECTION_SYSTEM = """你是一个SQL专家，负责检查和优化SQL语句。
-检查以下几点：
-1. SQL语法是否正确
-2. 表的连接条件是否合理
-3. WHERE子句的条件是否合适
-4. 是否可以优化性能
+REFLECTION_SYSTEM = """You are a SQL expert responsible for checking and optimizing SQL statements.
+Check the following points:
+1. whether the SQL syntax is correct
+2. whether the join conditions of tables are reasonable
+3. whether the conditions of WHERE clause are appropriate or not
 
-如果发现问题，直接返回修正后的SQL。如果没有问题，返回原SQL。SQL语句必须使用```sql```包裹。"""
+If a problem is found, return the corrected SQL directly If there is no problem, return the original SQL The SQL statement must be wrapped in ```sql```."""
 
-REFLECTION_USER = """请检查和优化以下SQL:
+REFLECTION_USER = """Please check and optimize the following SQL:
 {sql}""" 
 
 
-FEEDBACK_BASED_REFLECTION_USER = """请基于SQL运行结果和自然语言表述，检查和优化以下SQL，确保SQL正确反映了自然语言表述的意图:
+FEEDBACK_BASED_REFLECTION_USER = """Please check and optimize the following SQL based on the SQL execution result and natural language expression, ensuring that the SQL correctly reflects the intention of the natural language expression:
 {sql} \n
-SQL的运行结果为：
+The SQL execution result is:
 result_type: {result_type} \n
 result: {result} \n
 error_message: {error_message} \n
-原始自然语言表述为：
+The original natural language expression is:
 {question}
 """ 

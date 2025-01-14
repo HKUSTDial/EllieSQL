@@ -43,12 +43,12 @@ class GPTSQLGenerator(SQLGeneratorBase):
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
                 schema=formatted_schema,
-                evidence=curr_evidence,
+                evidence=curr_evidence if curr_evidence else "None",
                 query=query
             )}
         ]
         
-        print('\n'+messages[1]['content']+'\n')
+        # print('\n'+messages[1]['content']+'\n')
         result = await self.llm.call_llm(
             messages,
             self.model,

@@ -111,7 +111,9 @@ class ElephantSQLPipeline:
         self.logger.info(f"开始处理数据文件: {data_file}")
         
         # 设置data_file
+        self.schema_linker.set_data_file(data_file)
         self.sql_generator.set_data_file(data_file)
+        self.post_processor.set_data_file(data_file)
 
         # 准备数据
         queries = self.prepare_queries(data_file)

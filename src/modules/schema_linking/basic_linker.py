@@ -3,6 +3,7 @@ from ...core.llm import LLMBase
 from .base import SchemaLinkerBase
 from .prompts.schema_prompts import BASE_SCHEMA_SYSTEM, BASE_SCHEMA_USER
 from ...core.schema.manager import SchemaManager
+from ...core.utils import load_json
 
 class BasicSchemaLinker(SchemaLinkerBase):
     """基础的Schema Linking实现"""
@@ -23,13 +24,23 @@ class BasicSchemaLinker(SchemaLinkerBase):
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """执行schema linking"""
         schema_str = self._format_basic_schema(database_schema)
+
+        # 获取evidence
+        data_file = self.data_file
+        dataset_examples = load_json(data_file)
+        curr_evidence = ""
+        for item in dataset_examples:
+            if(item.get("question_id") == query_id):
+                curr_evidence = item.get("evidence", "")
+                break
         
         # 构建prompt
         messages = [
             {"role": "system", "content": BASE_SCHEMA_SYSTEM},
             {"role": "user", "content": BASE_SCHEMA_USER.format(
                 schema_str=schema_str,
-                query=query
+                query=query,
+                evidence=curr_evidence if curr_evidence else "None"
             )}
         ]
         

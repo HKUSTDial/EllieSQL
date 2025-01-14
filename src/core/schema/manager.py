@@ -240,7 +240,7 @@ class SchemaManager:
             
             # 添加主键信息
             if "primary_keys" in table:
-                result.append(f"主键: {', '.join(table['primary_keys'])}")
+                result.append(f"Primary key: {', '.join(table['primary_keys'])}")
             
             # 添加外键信息
             if "foreign_keys" in table:

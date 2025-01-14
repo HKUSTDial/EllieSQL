@@ -13,7 +13,12 @@ class ModuleBase(ABC):
         self.extractor = TextExtractor()
         self.logger = None  # 将由pipeline设置
         self._previous_module = None  # 添加前置模块引用
+        self.data_file = None  # 添加data_file属性
         
+    def set_data_file(self, data_file: str):
+        """设置数据文件路径"""
+        self.data_file = data_file
+    
     def log_io(self, input_data: Any, output_data: Any):
         """记录模块的输入输出，一级key单独成行"""
         if self.logger:

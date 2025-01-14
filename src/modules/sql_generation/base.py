@@ -11,27 +11,13 @@ class SQLGeneratorBase(ModuleBase):
     def __init__(self, name: str = "SQLGenerator", max_retries: int = 3):
         super().__init__(name)
         self.max_retries = max_retries
-        self.data_file = None  # 添加data_file属性
         
-    def set_data_file(self, data_file: str):
-        """设置数据文件路径"""
-        self.data_file = data_file
-    
     @abstractmethod
     async def generate_sql(self,
                         query: str,
                         linked_schema: Dict,
                         module_name: Optional[str] = None) -> str:
-        """
-        根据自然语言查询和链接后的schema生成SQL
-        
-        Args:
-            query: 用户的自然语言查询
-            linked_schema: 链接后的schema信息
-            
-        Returns:
-            str: 生成的SQL语句
-        """
+        """生成SQL"""
         pass 
     
     async def generate_sql_with_retry(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:

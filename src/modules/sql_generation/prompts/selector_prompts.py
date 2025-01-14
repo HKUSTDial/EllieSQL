@@ -2,31 +2,34 @@
 
 SELECTOR_SYSTEM = """
 You are a SQLite expert. 
-SQL must be surrounded by ```sql``` code block.
 """
 
 SELECTOR_USER = """
+You are a SQLite expert. 
+
+### Instruction:
 Regarding the Question, there are {candidate_num} candidate SQL along with their Execution result in the database (showing the first 10 rows).
 You need to compare these candidates and analyze the differences among the various candidate SQL. 
-Based on the provided Database Schema, Evidence, and Question, select the correct and reasonable result.
+Based on the provided Database Schema, Evidence, and Question, select the correct and reasonable candidate SQL, which must be surrounded by ```sql``` code block.
 
-[Database Schema]
+### Database Schema:
 {db_schema}
 
-[Hint]
+### Hint:
 {evidence}
 
-[Question]
+### Question:
 {question}
 
-==========
+### Candidates:
+{candidate_list}
 
-Candidates:
-
+### Response:
+Think carefully and select the correct candidate SQL, which must be surrounded by ```sql``` code block.
 """ 
 
 CANDIDATE_FORMAT = """
-Candidate {i}
+Candidate {i}:
 [SQL]
 {isql}
 [Execution result]

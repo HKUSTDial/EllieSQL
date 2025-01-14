@@ -69,21 +69,23 @@ class DirectSelector(SelectorBase):
                 schema_manager = SchemaManager()
                 formatted_schema = schema_manager.get_formatted_enriched_schema(db_id,source)
 
-                user_content = SELECTOR_USER.format(
-                    candidate_num=candidate_num,
-                    db_schema=formatted_schema,
-                    evidence=evidence,
-                    question=question
-                )
-                
+                candidate_list = ""
                 for i in range(candidate_num):
-                    user_content += CANDIDATE_FORMAT.format(
+                    candidate_list += CANDIDATE_FORMAT.format(
                         i=i,
                         isql=sql_list[i],
                         iresult_type=str(ex_results[i].result_type),
                         iresult=ex_results[i].result, 
                         ierror_message=ex_results[i].error_message
                     )
+                
+                user_content = SELECTOR_USER.format(
+                    candidate_num=candidate_num,
+                    db_schema=formatted_schema,
+                    evidence=evidence if evidence else "None",
+                    question=question,
+                    candidate_list=candidate_list
+                )
                      
                 messages = [
                     {"role": "system", "content": SELECTOR_SYSTEM},

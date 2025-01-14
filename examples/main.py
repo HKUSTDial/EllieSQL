@@ -113,7 +113,7 @@ async def main():
     # 运行pipeline，设置并行数
     await pipeline2.run_pipeline_parallel(
         data_file="./data/merge_dev_demo.json",
-        max_workers=2
+        max_workers=1
     )
 
 if __name__ == "__main__":

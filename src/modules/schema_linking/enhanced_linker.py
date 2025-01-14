@@ -3,7 +3,7 @@ from .base import SchemaLinkerBase
 from ...core.llm import LLMBase
 from .prompts.schema_prompts import ENHANCED_SCHEMA_SYSTEM, BASE_SCHEMA_USER
 from ...core.schema.manager import SchemaManager
-import json
+from ...core.utils import load_json
 import os
 
 class EnhancedSchemaLinker(SchemaLinkerBase):
@@ -214,6 +214,15 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         """
         # 使用schema manager的格式化方法
         schema_str = self.schema_manager.format_enriched_db_schema(database_schema)
+
+        # 获取evidence
+        data_file = self.data_file
+        dataset_examples = load_json(data_file)
+        curr_evidence = ""
+        for item in dataset_examples:
+            if(item.get("question_id") == query_id):
+                curr_evidence = item.get("evidence", "")
+                break
         
         # 记录格式化后的schema以便检查
         self.logger.debug("格式化后的Schema信息:")
@@ -223,9 +232,11 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             {"role": "system", "content": ENHANCED_SCHEMA_SYSTEM},
             {"role": "user", "content": BASE_SCHEMA_USER.format(
                 schema_str=schema_str,
-                query=query
+                query=query,
+                evidence=curr_evidence if curr_evidence else "None"
             )}
         ]
+        # print('\n'+messages[1]['content']+'\n')
         
         result = await self.llm.call_llm(
             messages,

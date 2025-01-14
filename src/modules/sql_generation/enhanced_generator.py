@@ -79,7 +79,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             {"role": "user", "content": DIVIDE_PROMPT.format(
                 schema=formatted_schema,
                 query=query,
-                evidence = curr_evidence
+                evidence = curr_evidence if curr_evidence else "None"
             )}
         ]
         
@@ -131,7 +131,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                     schema=formatted_schema,
                     examples=examples_result["response"],  # 使用response字段
                     query=sub_question,
-                    evidence = curr_evidence
+                    evidence = curr_evidence if curr_evidence else "None"
                 )}
             ]
             # 3. Conquer阶段
@@ -165,7 +165,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             {"role": "user", "content": ASSEMBLE_PROMPT.format(
                 schema=formatted_schema,
                 query=query,
-                evidence = curr_evidence,
+                evidence = curr_evidence if curr_evidence else "None",
                 subs = sub_prompt
             )}
         ]
