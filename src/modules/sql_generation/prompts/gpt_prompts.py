@@ -26,6 +26,9 @@ SQL_GENERATION_USER = """
 Given the database schema:
 {schema}
 
+Hint:
+{evidence}
+
 User question: 
 {query}
 

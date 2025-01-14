@@ -65,10 +65,10 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         
         print("schema linking 完成，开始divide")
         data_file = self.data_file
-        data_data = load_json(data_file)
+        dataset_examples = load_json(data_file)
 
         curr_evidence = ""
-        for item in data_data:
+        for item in dataset_examples:
             if(item.get("question_id") == query_id):
                 curr_evidence = item.get("evidence", "")
                 break

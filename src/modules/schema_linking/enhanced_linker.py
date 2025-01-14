@@ -3,6 +3,8 @@ from .base import SchemaLinkerBase
 from ...core.llm import LLMBase
 from .prompts.schema_prompts import ENHANCED_SCHEMA_SYSTEM, BASE_SCHEMA_USER
 from ...core.schema.manager import SchemaManager
+import json
+import os
 
 class EnhancedSchemaLinker(SchemaLinkerBase):
     """使用增强schema信息的Schema Linker"""
@@ -242,7 +244,7 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         
         # print("****before enhance*****\n", extracted_linked_schema, "\n*********")
         
-        # 增强schema信息
+        # 增强schema信息: 添加必要的主键、外键信息和补充信息
         enhanced_linked_schema = self._enhance_linked_schema(extracted_linked_schema, database_schema)
         # print("****after enhance*****\n", enhanced_linked_schema, "\n*********")
         
@@ -283,4 +285,49 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             raw_output
         )
         
+        # Save the linked schema result
+        # Get source from the database_schema or a default value
+        source = database_schema.get("source", "unknown")
+        self.save_linked_schema_result(
+            query_id=query_id,
+            source=source,
+            linked_schema={
+                "database": database_schema.get("database", ""),
+                "tables": enhanced_linked_schema.get("tables", [])
+            }
+        )
+        
         return raw_output 
+
+    # def save_linked_schema_result(self, query_id: str, source: str, linked_schema: Dict) -> None:
+    #     """
+    #     Save the linked schema result to a separate JSONL file.
+        
+    #     Args:
+    #         query_id: Query ID
+    #         source: Data source (e.g., 'bird_dev')
+    #         linked_schema: The linked schema with primary/foreign keys
+    #     """
+    #     # Get the pipeline directory from the intermediate result handler
+    #     pipeline_dir = self.intermediate.pipeline_dir
+        
+    #     # Define the output file path
+    #     output_file = os.path.join(pipeline_dir, "linked_schema_results.jsonl")
+        
+    #     # Format the result in the specified structure
+    #     result = {
+    #         "query_id": query_id,
+    #         "source": source,
+    #         "database": linked_schema.get("database", ""),
+    #         "tables": [
+    #             {
+    #                 "table": table["table"],
+    #                 "columns": table["columns"]
+    #             }
+    #             for table in linked_schema.get("tables", [])
+    #         ]
+    #     }
+        
+    #     # Save to JSONL file
+    #     with open(output_file, "a", encoding="utf-8") as f:
+    #         f.write(json.dumps(result, ensure_ascii=False) + "\n")  

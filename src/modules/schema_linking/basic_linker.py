@@ -47,6 +47,17 @@ class BasicSchemaLinker(SchemaLinkerBase):
         extracted_linked_schema = self.extractor.extract_schema_json(raw_output)
         formatted_linked_schema = self.schema_manager.format_linked_schema(extracted_linked_schema)
         
+        # Save the linked schema result
+        source = database_schema.get("source", "unknown")
+        self.save_linked_schema_result(
+            query_id=query_id,
+            source=source,
+            linked_schema={
+                "database": database_schema.get("database", ""),
+                "tables": extracted_linked_schema.get("tables", [])
+            }
+        )
+        
         # 保存中间结果
         self.save_intermediate(
             input_data={

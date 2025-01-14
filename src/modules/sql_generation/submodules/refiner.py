@@ -43,9 +43,9 @@ class FeedbackBasedRefiner(RefinerBase):
     async def process_sql(self, sql: str, data_file: str, query_id: str) -> str:
         """对生成的SQL进行运行、自反思检查和优化"""
         
-        merge_dev_demo_data = load_json(data_file)
+        dataset_examples = load_json(data_file)
 
-        for item in merge_dev_demo_data:
+        for item in dataset_examples:
             if(item.get("question_id") == query_id):
                 db_id = item.get("db_id", "")
                 source = item.get("source", "")

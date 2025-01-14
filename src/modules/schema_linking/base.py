@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 from ..base import ModuleBase
 import json
+import os
 
 class SchemaLinkerBase(ModuleBase):
     """Schema Linking模块的基类"""
@@ -174,3 +175,36 @@ class SchemaLinkerBase(ModuleBase):
                 )
                 
         return "\n".join(result) 
+    
+    def save_linked_schema_result(self, query_id: str, source: str, linked_schema: Dict) -> None:
+        """
+        Save the linked schema result to a separate JSONL file.
+        
+        Args:
+            query_id: Query ID
+            source: Data source (e.g., 'bird_dev')
+            linked_schema: The linked schema with primary/foreign keys
+        """
+        # Get the pipeline directory from the intermediate result handler
+        pipeline_dir = self.intermediate.pipeline_dir
+        
+        # Define the output file path
+        output_file = os.path.join(pipeline_dir, "linked_schema_results.jsonl")
+        
+        # Format the result in the specified structure
+        result = {
+            "query_id": query_id,
+            "source": source,
+            "database": linked_schema.get("database", ""),
+            "tables": [
+                {
+                    "table": table["table"],
+                    "columns": table["columns"]
+                }
+                for table in linked_schema.get("tables", [])
+            ]
+        }
+        
+        # Save to JSONL file
+        with open(output_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(result, ensure_ascii=False) + "\n") 

@@ -81,7 +81,7 @@ Foreign keys:
 ## Question: 
 {query}
 
-## Evidence:
+## Hint:
 {evidence}
 
 ## Decompose the Question into sub-questions, each sub-question is enclosed in <<>>:

@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from .base import SQLGeneratorBase
 from ...core.llm import LLMBase
 from .prompts.gpt_prompts import SQL_GENERATION_SYSTEM, SQL_GENERATION_USER
-import re
+from ...core.utils import load_json
 
 class GPTSQLGenerator(SQLGeneratorBase):
     """使用GPT模型生成SQL的实现"""
@@ -31,16 +31,24 @@ class GPTSQLGenerator(SQLGeneratorBase):
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
+        data_file = self.data_file
+        dataset_examples = load_json(data_file)
+        curr_evidence = ""
+        for item in dataset_examples:
+            if(item.get("question_id") == query_id):
+                curr_evidence = item.get("evidence", "")
+                break
         # 构建提示词
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
                 schema=formatted_schema,
+                evidence=curr_evidence,
                 query=query
             )}
         ]
         
-        # print('\n'+messages[1]['content']+'\n')
+        print('\n'+messages[1]['content']+'\n')
         result = await self.llm.call_llm(
             messages,
             self.model,

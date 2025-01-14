@@ -34,6 +34,17 @@ class SkipSchemaLinker(SchemaLinkerBase):
                 ]
             }
             
+            # Save the linked schema result
+            source = database_schema.get("source", "unknown")
+            self.save_linked_schema_result(
+                query_id=query_id,
+                source=source,
+                linked_schema={
+                    "database": database_schema.get("database", ""),
+                    "tables": linked_schema.get("tables", [])
+                }
+            )
+            
             # 格式化linked schema
             formatted_linked_schema = self.schema_manager.format_linked_schema(linked_schema)
             # print("****formatted_linked_schema*****\n", formatted_linked_schema, "\n*********")

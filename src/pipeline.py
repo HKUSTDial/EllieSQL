@@ -233,6 +233,9 @@ class ElephantSQLPipeline:
         Returns:
             Dict[str, Any]: 处理结果
         """
+        # Add source to database_schema
+        database_schema["source"] = source
+        
         # 在每个示例开始时添加分隔符
         for module in [self.schema_linker, self.sql_generator, self.post_processor]:
             module.logger.info("="*70)

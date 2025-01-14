@@ -20,7 +20,7 @@ Database schema:
 The question is:
 {question} 
 
-Evidence:
+Hint:
 {evidence}
 
 SQL:

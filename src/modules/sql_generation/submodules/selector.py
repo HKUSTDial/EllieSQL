@@ -48,9 +48,9 @@ class DirectSelector(SelectorBase):
             query_id: 查询ID，用于关联中间结果
         """
        
-        merge_dev_demo_data = load_json(data_file)
+        dataset_examples = load_json(data_file)
 
-        for item in merge_dev_demo_data:
+        for item in dataset_examples:
             if(item.get("question_id") == query_id):
                 db_id = item.get("db_id", "")
                 source = item.get("source", "")

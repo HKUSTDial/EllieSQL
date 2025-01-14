@@ -13,7 +13,7 @@ Based on the provided Database Schema, Evidence, and Question, select the correc
 [Database Schema]
 {db_schema}
 
-[Evidence]
+[Hint]
 {evidence}
 
 [Question]
