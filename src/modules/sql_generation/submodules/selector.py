@@ -4,40 +4,28 @@ from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
 from ..prompts.selector_prompts import SELECTOR_SYSTEM, SELECTOR_USER, CANDIDATE_FORMAT
 from src.core.schema.manager import SchemaManager
-
+from ....core.utils import TextExtractor
 
 from ..base import ModuleBase
 from typing import Any, Dict, Optional, Tuple, Callable
 
-class SelectorBase(ModuleBase):
-    """Selector模块的基类"""
-    pass
-    # async def process_sql_with_retry(self, 
-    #                               sql_list: List[str], #不知道这样修改是否合理
-    #                               query_id: str = None) -> Tuple[str, str]:
-    #     """使用重试机制处理SQL"""
-    #     return await self.execute_with_retry(
-    #         func=self.process_sql,
-    #         extract_method='sql',
-    #         error_msg="SQL Selector失败",
-    #         sql_list=sql_list,
-    #         query_id=query_id
-    #     ) 
 
-
-class DirectSelector(SelectorBase):
+class DirectSelector():
     """基于prompt直接从多个候选中选择正确SQL的SQL Selector，使用SQL运行信息和DB Schema"""
     
     def __init__(self, 
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.0,
-                max_tokens: int = 5000):
-        super().__init__("DirectSelector")
+                max_tokens: int = 5000,
+                module_name: str = "EnhancedSQLGenerator"):
+        # super().__init__("DirectSelector")
         self.llm = llm
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.extractor = TextExtractor()
+        self.module_name = module_name
         
     async def select_sql(self, data_file: str, sql_list: List[str], query_id: str) -> str:
         """
@@ -57,7 +45,7 @@ class DirectSelector(SelectorBase):
                 evidence = item.get("evidence")
                 question = item.get("question", "")
                 db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
-                
+
                 # 执行(多个)sql并且返回结果
                 candidate_num = len(sql_list)
                 ex_results = []
@@ -97,40 +85,42 @@ class DirectSelector(SelectorBase):
                     self.model,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    module_name=self.name
+                    module_name=self.module_name
                 )
                 
                 raw_output = result["response"]
+                
                 selected_sql = self.extractor.extract_sql(raw_output)
+                print(selected_sql)
                 
                 # 保存中间结果
-                self.save_intermediate(
-                    input_data={
-                        "question": question,
-                        "candidate_sqls": sql_list,
-                        "execution_results": [
-                            {
-                                "sql": sql,
-                                "result_type": str(ex_result.result_type),
-                                "result": ex_result.result,
-                                "error_message": ex_result.error_message
-                            }
-                            for sql, ex_result in zip(sql_list, ex_results)
-                        ]
-                    },
-                    output_data={
-                        "raw_output": raw_output,
-                        "selected_sql": selected_sql
-                    },
-                    model_info={
-                        "model": self.model,
-                        "input_tokens": result["input_tokens"],
-                        "output_tokens": result["output_tokens"],
-                        "total_tokens": result["total_tokens"]
-                    },
-                    query_id=query_id
-                )
+                # self.save_intermediate(
+                #     input_data={
+                #         "question": question,
+                #         "candidate_sqls": sql_list,
+                #         "execution_results": [
+                #             {
+                #                 "sql": sql,
+                #                 "result_type": str(ex_result.result_type),
+                #                 "result": ex_result.result,
+                #                 "error_message": ex_result.error_message
+                #             }
+                #             for sql, ex_result in zip(sql_list, ex_results)
+                #         ]
+                #     },
+                #     output_data={
+                #         "raw_output": raw_output,
+                #         "selected_sql": selected_sql
+                #     },
+                #     model_info={
+                #         "model": self.model,
+                #         "input_tokens": result["input_tokens"],
+                #         "output_tokens": result["output_tokens"],
+                #         "total_tokens": result["total_tokens"]
+                #     },
+                #     query_id=query_id
+                # )
                 
-                self.log_io({"candidates": sql_list, "messages": messages}, selected_sql)
+                # self.log_io({"candidates": sql_list, "messages": messages}, selected_sql)
                 return selected_sql
         

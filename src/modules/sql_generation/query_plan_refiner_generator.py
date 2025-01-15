@@ -3,7 +3,7 @@ from .base import SQLGeneratorBase
 from ...core.llm import LLMBase
 from .prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT
 from .submodules.refiner import *
-
+from .submodules.query_planer import *
 from ...core.utils import load_json
 
 class QPRefinerSQLGenerator(SQLGeneratorBase):
@@ -40,27 +40,39 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
             if(item.get("question_id") == query_id):
                 curr_evidence = item.get("evidence", "")
                 break
-        # 构建提示词
-        messages = [
-            {"role": "system", "content": SQL_GENERATION_SYSTEM},
-            {"role": "user", "content": QUERY_PLAN_PROMPT.format(
-                schema=formatted_schema,
-                query=query,
-                evidence=curr_evidence if curr_evidence else "None"
-            )}
-        ]
-        
-        # print('\n'+messages[1]['content']+'\n')
-        result = await self.llm.call_llm(
-            messages,
-            self.model,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            module_name=self.name
-        )
-        
+
+
+
+        query_planer = QueryPlaner(llm=self.llm, 
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                module_name=self.name)
+        result = await query_planer.generate_sql(query=query, formatted_schema=formatted_schema, curr_evidence=curr_evidence)
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
+
+        # # 构建提示词
+        # messages = [
+        #     {"role": "system", "content": SQL_GENERATION_SYSTEM},
+        #     {"role": "user", "content": QUERY_PLAN_PROMPT.format(
+        #         schema=formatted_schema,
+        #         query=query,
+        #         evidence=curr_evidence if curr_evidence else "None"
+        #     )}
+        # ]
+        
+        # # print('\n'+messages[1]['content']+'\n')
+        # result = await self.llm.call_llm(
+        #     messages,
+        #     self.model,
+        #     temperature=self.temperature,
+        #     max_tokens=self.max_tokens,
+        #     module_name=self.name
+        # )
+        
+        # raw_output = result["response"]
+        # extracted_sql = self.extractor.extract_sql(raw_output)
 
                 #Refine阶段
         refiner = FeedbackBasedRefiner(llm=self.llm, 
@@ -68,6 +80,8 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 module_name=self.name)
+        
+        print(data_file)
 
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
         refiner_raw_output = refine_result["response"]
@@ -78,7 +92,7 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
             input_data={
                 "query": query,
                 "formatted_schema": formatted_schema,
-                "messages": messages
+                "messages": "mm"#messages
             },
             output_data={
                 "raw_output": raw_output,
@@ -98,7 +112,7 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
             input_data={
                 "query": query, 
                 "formatted_schema": formatted_schema,
-                "messages": messages
+                "messages": "mm"#messages
             }, 
             output_data=raw_output
         )

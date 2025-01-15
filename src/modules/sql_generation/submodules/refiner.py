@@ -86,7 +86,6 @@ class FeedbackBasedRefiner(RefinerBase):
                     module_name=self.module_name  # 使用生成器的模块名，这样统计会计入生成器
                 )
 
-                
                 return result
                 # raw_output = result["response"]
                 # return raw_output

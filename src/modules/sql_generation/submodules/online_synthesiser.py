@@ -3,7 +3,7 @@ from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
 from ..prompts.online_synthesis_cot_prompts import SQL_GENERATION_SYSTEM, ONLINE_SYNTHESIS_PROMPT
-
+from ..prompts.gpt_few_shot_prompts import SQL_GENERATION_USER
 
 from ..base import ModuleBase
 from typing import Any, Dict, Optional, Tuple, Callable
@@ -63,4 +63,32 @@ class OnlineSynthesiser():
         return result  # 返回完整的结果字典
 
                 
+    async def generate_sql(self, query: str, formatted_schema: str, curr_evidence: str)-> str:
+        """生成SQL"""
+        # 使用封装的方法生成online synthesis示例
+        examples_result = await self.generate_online_synthesis_examples(formatted_schema)
+        # 构建提示词
+        messages = [
+            {"role": "system", "content": SQL_GENERATION_SYSTEM},
+            {"role": "user", "content": SQL_GENERATION_USER.format(
+                schema=formatted_schema,
+                examples = examples_result,
+                evidence=curr_evidence if curr_evidence else "None",
+                query=query
+            )}
+        ]
         
+        # print('\n'+messages[1]['content']+'\n')
+        result = await self.llm.call_llm(
+            messages,
+            self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            module_name=self.module_name
+        )
+        
+        # raw_output = result["response"]
+        # extracted_sql = self.extractor.extract_sql(raw_output)
+
+        print("OS完成了候选sql生成")
+        return result  
