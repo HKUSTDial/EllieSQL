@@ -1,14 +1,13 @@
 from typing import Dict, List, Optional
 from .base import SQLGeneratorBase
 from ...core.llm import LLMBase
-from .prompts.gpt_few_shot_prompts import SQL_GENERATION_SYSTEM, SQL_GENERATION_USER
-from ...core.utils import load_json
+from .prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT
 from .submodules.refiner import *
-from .submodules.online_synthesiser import *
 
+from ...core.utils import load_json
 
-class OSRefinerSQLGenerator(SQLGeneratorBase):
-    """使用Online Synthesis + Refiner生成SQL的实现"""
+class QPRefinerSQLGenerator(SQLGeneratorBase):
+    """使用Query Plan + Refiner生成SQL的实现"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -16,7 +15,7 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
                 temperature: float = 0.0,
                 max_tokens: int = 5000,
                 max_retries: int = 3):
-        super().__init__("OSRefinerSQLGenerator", max_retries)
+        super().__init__("QPRefinerSQLGenerator", max_retries)
         self.llm = llm
         self.model = model
         self.temperature = temperature
@@ -41,22 +40,13 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
             if(item.get("question_id") == query_id):
                 curr_evidence = item.get("evidence", "")
                 break
-
-        # 使用封装的方法生成online synthesis示例
-        online_synthesiser = OnlineSynthesiser(llm=self.llm, 
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                module_name=self.name )
-        examples_result = await online_synthesiser.generate_online_synthesis_examples(formatted_schema)
         # 构建提示词
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
-            {"role": "user", "content": SQL_GENERATION_USER.format(
+            {"role": "user", "content": QUERY_PLAN_PROMPT.format(
                 schema=formatted_schema,
-                examples = examples_result,
-                evidence=curr_evidence if curr_evidence else "None",
-                query=query
+                query=query,
+                evidence=curr_evidence if curr_evidence else "None"
             )}
         ]
         
@@ -72,7 +62,7 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
-        #Refine阶段
+                #Refine阶段
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -82,7 +72,6 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
         refiner_raw_output = refine_result["response"]
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
-
         
         # 保存中间结果
         self.save_intermediate(

@@ -6,6 +6,7 @@ from src.modules.schema_linking.skip_linker import SkipSchemaLinker
 from src.modules.sql_generation.gpt_generator import GPTSQLGenerator
 from src.modules.sql_generation.enhanced_generator import EnhancedSQLGenerator
 from src.modules.sql_generation.online_synthesis_refiner_generator import OSRefinerSQLGenerator
+from src.modules.sql_generation.query_plan_refiner_generator import QPRefinerSQLGenerator
 from src.modules.sql_generation.ensemble_generator import EnsembleGenerator
 from src.modules.post_processing.reflection import ReflectionPostProcessor
 from src.modules.post_processing.feedback_based_reflection import FeedbackBasedReflectionPostProcessor
@@ -61,25 +62,43 @@ async def main():
     # )
     
 
-    pipeline3 = ElephantSQLPipeline(
-        schema_linker=EnhancedSchemaLinker(
-            llm, 
-            model="gpt-4o-2024-08-06", 
-            temperature=0.5, 
-            max_tokens=5000,
-            max_retries=3
-        ),
-        sql_generator=EnhancedSQLGenerator(
-            llm, 
-            model="gpt-4o-2024-08-06", 
-            temperature=0.5, 
-            max_tokens=5000,
-            max_retries=3
-        ),
-        post_processor=SkipPostProcessor()
-    )
+    # pipeline3 = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-4o-2024-08-06", 
+    #         temperature=0.5, 
+    #         max_tokens=5000,
+    #         max_retries=3
+    #     ),
+    #     sql_generator=EnhancedSQLGenerator(
+    #         llm, 
+    #         model="gpt-4o-2024-08-06", 
+    #         temperature=0.5, 
+    #         max_tokens=5000,
+    #         max_retries=3
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
 
-    pipeline_osr = ElephantSQLPipeline(
+    # pipeline_osr = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-4o-2024-08-06", 
+    #         temperature=0.5, 
+    #         max_tokens=5000,
+    #         max_retries=3
+    #     ),
+    #     sql_generator=OSRefinerSQLGenerator(
+    #         llm, 
+    #         model="gpt-4o-2024-08-06", 
+    #         temperature=0.5, 
+    #         max_tokens=5000,
+    #         max_retries=3
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
+
+    pipeline_qpr = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
             llm, 
             model="gpt-4o-2024-08-06", 
@@ -87,7 +106,7 @@ async def main():
             max_tokens=5000,
             max_retries=3
         ),
-        sql_generator=OSRefinerSQLGenerator(
+        sql_generator=QPRefinerSQLGenerator(
             llm, 
             model="gpt-4o-2024-08-06", 
             temperature=0.5, 
@@ -130,7 +149,7 @@ async def main():
 
     
     # 运行pipeline，设置并行数
-    await pipeline_osr.run_pipeline_parallel(
+    await pipeline_qpr.run_pipeline_parallel(
         data_file="./data/sampled_merged.json",
         max_workers=1
     )
