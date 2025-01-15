@@ -104,6 +104,20 @@ CONQUER_PROMPT = """
 Please generate the corresponding SQL query. SQL must be surrounded by ```sql``` code block.
 """
 
+
+CONQUER_PROMPT_WO_EXAMPLES = """
+### Database Schema:
+{schema}
+
+### Question: 
+{query}
+
+### Hint:
+{evidence}
+
+Please generate the corresponding SQL query. SQL must be surrounded by ```sql``` code block.
+"""
+
 ASSEMBLE_PROMPT = """
 ### Database Schema:
 {schema}

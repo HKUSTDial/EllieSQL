@@ -1,13 +1,12 @@
 from typing import Dict, List
 from .base import SQLGeneratorBase
 from ...core.llm import LLMBase
-from .prompts.divide_and_conquer_cot_prompts import SQL_GENERATION_SYSTEM, DIVIDE_PROMPT, CONQUER_PROMPT, ASSEMBLE_PROMPT
+from .prompts.divide_and_conquer_cot_prompts import SQL_GENERATION_SYSTEM, DIVIDE_PROMPT, CONQUER_PROMPT_WO_EXAMPLES, ASSEMBLE_PROMPT
 from .prompts.online_synthesis_cot_prompts import SQL_GENERATION_SYSTEM, ONLINE_SYNTHESIS_PROMPT
 import re
 from .submodules.refiner import *
-from .submodules.online_synthesiser import *
 
-class EnhancedSQLGenerator(SQLGeneratorBase):
+class DCRefinerSQLGenerator(SQLGeneratorBase):
     """使用Divide And Conquer CoT + Online synthesis生成SQL的实现"""
     
     def __init__(self, 
@@ -16,41 +15,12 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 temperature: float = 0.0,
                 max_tokens: int = 5000,
                 max_retries: int = 3):
-        super().__init__("EnhancedSQLGenerator", max_retries)
+        super().__init__("DCRefinerSQLGenerator", max_retries)
         self.llm = llm
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-    # async def generate_online_synthesis_examples(self, formatted_schema: str) -> Dict:
-    #     """
-    #     生成在线合成的示例
-        
-    #     Args:
-    #         formatted_schema: 格式化的schema字符串
-            
-    #     Returns:
-    #         Dict: 包含示例和token统计的结果字典
-    #     """
-    #     # 构建提示词
-    #     online_synthesis_messages = [
-    #         {"role": "system", "content": SQL_GENERATION_SYSTEM},
-    #         {"role": "user", "content": ONLINE_SYNTHESIS_PROMPT.format(
-    #             TARGET_DATABASE_SCHEMA=formatted_schema,
-    #             k=2  # 或者根据需要调整
-    #         )}
-    #     ]
-        
-    #     # 调用 LLM 获取示例
-    #     result = await self.llm.call_llm(
-    #         online_synthesis_messages,
-    #         self.model,
-    #         temperature=self.temperature,
-    #         max_tokens=self.max_tokens,
-    #         module_name=self.name
-    #     )
-    #     print("生成examples完成")
-    #     return result  # 返回完整的结果字典
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
         """生成SQL"""
@@ -113,29 +83,14 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         #print(sub_questions)
         print("divide结束")
         # 2. conquer:
-        ## online synthesis examples for few-shot
-        #online_synthesiser=OnlineSynthesis(llm=self.llm, model=self.model, temperature=self.temperature, max_tokens=self.max_tokens)
-        # print("online_synthesiser实例化成功")
-
-        # 使用封装的方法生成online synthesis示例
-        online_synthesiser = OnlineSynthesiser(llm=self.llm, 
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                module_name=self.name )
-        examples_result = await online_synthesiser.generate_online_synthesis_examples(formatted_schema)
-        step_tokens["online_synthesis"]["input_tokens"] = examples_result["input_tokens"]
-        step_tokens["online_synthesis"]["output_tokens"] = examples_result["output_tokens"]
-        step_tokens["online_synthesis"]["total_tokens"] = examples_result["total_tokens"]
         
         # for each sub-question qi in Sq
         for sub_question in sub_questions:
         # Generate a partial SQL query for each sub-question qi
             conquer_prompt = [
                 {"role": "system", "content": SQL_GENERATION_SYSTEM},
-                {"role": "user", "content": CONQUER_PROMPT.format(
+                {"role": "user", "content": CONQUER_PROMPT_WO_EXAMPLES.format(
                     schema=formatted_schema,
-                    examples=examples_result["response"],  # 使用response字段
                     query=sub_question,
                     evidence = curr_evidence if curr_evidence else "None"
                 )}
@@ -195,23 +150,11 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                module_name=self.name)
-        # print(111)
+                max_tokens=self.max_tokens)
+        print(111)
         # 5. Refine阶段
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
-
-        print(refine_result)
-        refiner_raw_output = refine_result["response"]
-        print(refiner_raw_output)
-        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
-        #extracted_sql = self.extractor.extract_sql(refine_result)
-
-        
-
-        step_tokens["refine"]["input_tokens"] = refine_result["input_tokens"]
-        step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
-        step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
+        extracted_sql = self.extractor.extract_sql(refine_result)
         print("sql refine完成")
       
         # 计算总token
@@ -232,7 +175,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             output_data={
                 "raw_output": raw_output,
                 "extracted_sql": extracted_sql,
-                "refined_sql": extracted_sql #self.extractor.extract_sql(refine_result)
+                "refined_sql": self.extractor.extract_sql(refine_result)
             },
             model_info={
                 "model": self.model,

@@ -7,8 +7,10 @@ schema_manager = SchemaManager()
 try:
     # 获取格式化的schema字符串
     formatted_schema = schema_manager.get_formatted_enriched_schema(
-        db_id="debit_card_specializing",
-        source="bird_dev"
+        # db_id="debit_card_specializing",
+        # source="bird_dev"
+        db_id="college_2",
+        source= "spider_dev"
     )
     print(formatted_schema)
     

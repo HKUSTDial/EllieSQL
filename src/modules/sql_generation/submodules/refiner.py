@@ -33,12 +33,14 @@ class FeedbackBasedRefiner(RefinerBase):
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.0,
-                max_tokens: int = 5000):
+                max_tokens: int = 5000,
+                module_name: str = "EnhancedSQLGenerator"):
         super().__init__("FeedbackBasedRefiner")
         self.llm = llm
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.module_name = module_name
         
     async def process_sql(self, sql: str, data_file: str, query_id: str) -> str:
         """对生成的SQL进行运行、自反思检查和优化"""
@@ -81,10 +83,14 @@ class FeedbackBasedRefiner(RefinerBase):
                     self.model,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    module_name="EnhancedSQLGenerator"  # 使用生成器的模块名，这样统计会计入生成器
+                    module_name=self.module_name  # 使用生成器的模块名，这样统计会计入生成器
                 )
+
                 
-                raw_output = result["response"]
+                return result
+                # raw_output = result["response"]
+                # return raw_output
+
                 # processed_sql = self.extractor.extract_sql(raw_output)
                 
                 # # 保存中间结果
@@ -107,5 +113,5 @@ class FeedbackBasedRefiner(RefinerBase):
                 # )
                 
                 # self.log_io({"original_sql": sql, "messages": messages}, processed_sql)
-                return raw_output
+                
         
