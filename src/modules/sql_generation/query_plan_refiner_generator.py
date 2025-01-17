@@ -59,9 +59,9 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
         step_tokens["query_plan"]["output_tokens"] = result["output_tokens"]
         step_tokens["query_plan"]["total_tokens"] = result["total_tokens"]
         
-        raw_output = result["response"]
+        raw_output_before_refine = result["response"]
         
-        extracted_sql = self.extractor.extract_sql(raw_output)
+        extracted_sql = self.extractor.extract_sql(raw_output_before_refine)
 
         # # 构建提示词
         # messages = [
@@ -100,8 +100,8 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
 
 
-        refiner_raw_output = refine_result["response"]
-        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
+        raw_output = refine_result["response"]
+        extracted_sql = self.extractor.extract_sql(raw_output)
 
 
         # 计算总token

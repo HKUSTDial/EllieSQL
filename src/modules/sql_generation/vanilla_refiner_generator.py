@@ -71,8 +71,8 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
         step_tokens["vanilla"]["output_tokens"] = result["output_tokens"]
         step_tokens["vanilla"]["total_tokens"] = result["total_tokens"]
         
-        raw_output = result["response"]
-        extracted_sql = self.extractor.extract_sql(raw_output)
+        raw_output_before_refine = result["response"]
+        extracted_sql = self.extractor.extract_sql(raw_output_before_refine)
         
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
@@ -87,9 +87,9 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
 
-
-        refiner_raw_output = refine_result["response"]
-        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
+        refine_false = refine_result["refine_false"]
+        raw_output = refine_result["response"] # This is the raw output after refining
+        extracted_sql = self.extractor.extract_sql(raw_output)
 
 
         # 计算总token
@@ -111,7 +111,8 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
             },
             output_data={
                 "raw_output": raw_output,
-                "extracted_sql": extracted_sql
+                "extracted_sql": extracted_sql,
+                "refine_false": refine_false
             },
             model_info={
                 "model": self.model,

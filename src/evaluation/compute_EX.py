@@ -22,6 +22,42 @@ def find_latest_folder(directory):
     latest_folder = sorted(folders)[-1]
     return latest_folder
 
+
+
+
+# def compare_sql_results_new(db_path, sql1, sql2, timeout=10):
+#     """
+#     Compare the ex results for two sqls.
+    
+#     Args:
+#         db_path: The path to the .sqlite file.
+#         sql1: The gold sql.
+#         sql2: The generated sql.
+#     Returns:
+#         1 for equal, 0 for not equal.
+#     """
+#     # 执行第一个 SQL 语句
+#     flag1, message1 = validate_sql(db_path, sql1)
+#     result1 = execute_sql_with_timeout(db_path, sql1, timeout)
+#     if(flag1 == False):
+#         print(f"gold SQL 运行出现报错!! 错误信息如下：{message1}")
+#         print(db_path)
+#         print(sql1)
+#         return 0
+#     # 执行第二个 SQL 语句
+#     flag, message = validate_sql(db_path, sql2)
+#     if(flag == False):
+#         print(f"generated SQL 运行出现报错。错误信息如下：{message}")
+#         return 0
+#     result2 = execute_sql_with_timeout(db_path, sql2, timeout)
+
+#     # 比较结果
+#     if set(result1.result) == set(result2.result):
+#         return 1
+#     else:
+#         return 0
+
+
 def compare_sql_results(db_path, sql1, sql2, timeout=10):
     """
     Compare the ex results for two sqls.
@@ -44,14 +80,22 @@ def compare_sql_results(db_path, sql1, sql2, timeout=10):
         print("generated SQL 没有产生结果对象。")
         return 0
     
-    if result2.result is None:
-        if result2.result_type == SQLExecutionResultType.TIMEOUT:
-            print(f"generated SQL 运行超时。错误信息如下：{result2.error_message}")
-        elif result2.result_type == SQLExecutionResultType.ERROR:
-            print(f"generated SQL 运行出现报错。错误信息如下：{result2.error_message}")
-        elif result2.result_type == SQLExecutionResultType.ERROR:
-            print(f"generated SQL 运行成功但结果为空。")
+    # flag, message = validate_sql(db_path, sql2)
+    # if(flag == False):
+    #     print(f"generated SQL 运行flag为False。False信息如下：{message}")
+    #     print(db_path)
+    #     print(sql2)
+
+    if result2.result_type == SQLExecutionResultType.TIMEOUT:
+        print(f"generated SQL 运行超时。错误信息如下：{result2.error_message}")
         return 0
+    if result2.result_type == SQLExecutionResultType.ERROR:
+        print(f"generated SQL 运行出现报错。错误信息如下：{result2.error_message}")
+        return 0
+    
+    if result2.result is None and result2.result_type == SQLExecutionResultType.SUCCESS:
+        print(f"generated SQL 运行成功但结果为空。")
+    #     return 0
     #else:
         #print(f"gold SQL结果: {result1} \n generated SQL结果: {result2}")
     
@@ -61,102 +105,6 @@ def compare_sql_results(db_path, sql1, sql2, timeout=10):
     else:
         return 0
 
-
-# def compute_EX(merge_dev_demo_file, time_path):
-#     """
-#     Compute the EX for the latest generated sql results.
-    
-#     Args:
-#         merge_dev_demo_file: The path to the nl2sql file.
-#         time_path: The path to intermediate_results (upper level catalog for such as 20250103_172805).
-#     Returns:
-#         EX.
-#     """
-    
-#     merge_dev_demo_data = load_json(merge_dev_demo_file)
-#     time_path = time_path + find_latest_folder(time_path) 
-
-#     generated_sql_file = time_path + "/" + "generated_sql_results.jsonl"
-#     generated_sql_data = load_jsonl(generated_sql_file)
-
-
-#     total_cnt = 0
-#     correct_cnt = 0
-#     for item in merge_dev_demo_data:
-#         total_cnt+=1
-
-#         question_id = item.get("question_id")
-#         source = item.get("source", "")
-#         db_id = item.get("db_id", "")
-#         db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
-
-#         # print(db_path)
-
-#         gold_sql = item.get("gold_SQL")
-#         generated_sql = ""
-
-#         for i in generated_sql_data:
-#             if i.get("question_id") == question_id:
-#                 generated_sql = i.get("generated_sql")
-#         correct_cnt += compare_sql_results(db_path, gold_sql, generated_sql)
-        
-
-#     EX = round(correct_cnt*100/total_cnt, 2)
-#     print(f"总计问题数量：{total_cnt}, 生成sql正确执行数量{correct_cnt}, EX值{EX}")
-#     return
-
-# def compute_EX_source_based(merge_dev_demo_file, time_path):
-#     """
-#     Compute the EX for the latest generated sql results, grouped by source.
-    
-#     Args:
-#         merge_dev_demo_file: The path to the nl2sql file.
-#         time_path: The path to intermediate_results (upper level catalog for such as 20250103_172805).
-#     Returns:
-#         A dictionary containing EX values for each source.
-#     """
-    
-#     merge_dev_demo_data = load_json(merge_dev_demo_file)
-#     time_path = time_path + find_latest_folder(time_path) 
-
-#     generated_sql_file = time_path + "/" + "generated_sql_results.jsonl"
-#     generated_sql_data = load_jsonl(generated_sql_file)
-
-#     # Dictionary to store counts for each source
-#     source_stats = {}
-
-#     for item in merge_dev_demo_data:
-#         question_id = item.get("question_id")
-#         source = item.get("source", "")
-#         difficulty = item.get("difficulty")
-#         db_id = item.get("db_id", "")
-#         db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
-
-#         gold_sql = item.get("gold_SQL")
-#         generated_sql = ""
-
-#         for i in generated_sql_data:
-#             if i.get("question_id") == question_id:
-#                 generated_sql = i.get("generated_sql")
-
-#         # Initialize the source in the dictionary if not already present
-#         if source not in source_stats:
-#             source_stats[source] = {"total_cnt": 0, "correct_cnt": 0}
-
-#         source_stats[source]["total_cnt"] += 1
-#         if compare_sql_results(db_path, gold_sql, generated_sql):
-#             source_stats[source]["correct_cnt"] += 1
-
-#     # Calculate EX for each source
-#     ex_results = {}
-#     for source, stats in source_stats.items():
-#         total_cnt = stats["total_cnt"]
-#         correct_cnt = stats["correct_cnt"]
-#         EX = round(correct_cnt * 100 / total_cnt, 2)
-#         ex_results[source] = EX
-#         print(f"Source: {source}, 总计问题数量：{total_cnt}, 生成sql正确执行数量{correct_cnt}, EX值{EX}")
-
-#     return ex_results
 
 
 def compute_EX_source_difficulty_based(merge_dev_demo_file, time_path):

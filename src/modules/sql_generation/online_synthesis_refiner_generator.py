@@ -60,8 +60,8 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
         step_tokens["online_synthesis"]["output_tokens"] = result["output_tokens"]
         step_tokens["online_synthesis"]["total_tokens"] = result["total_tokens"]
 
-        raw_output = result["response"]
-        extracted_sql = self.extractor.extract_sql(raw_output)
+        raw_output_before_refine = result["response"]
+        extracted_sql = self.extractor.extract_sql(raw_output_before_refine)
 
         #Refine阶段
         refiner = FeedbackBasedRefiner(llm=self.llm, 
@@ -76,8 +76,8 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
 
-        refiner_raw_output = refine_result["response"]
-        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
+        raw_output = refine_result["response"]
+        extracted_sql = self.extractor.extract_sql(raw_output)
 
         # 计算总token
         total_tokens = {
