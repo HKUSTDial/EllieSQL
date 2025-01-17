@@ -46,25 +46,7 @@ async def main():
     #     )
     # )
     
-    # pipeline_v = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.0, 
-    #         max_tokens=5000,
-    #         max_retries=3
-    #     ),
-    #     sql_generator=GPTSQLGenerator(
-    #         llm, 
-    #         model="gpt-3.5-turbo", 
-    #         temperature=0.0, 
-    #         max_tokens=5000,
-    #         max_retries=3
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-    
-    pipeline_vr = ElephantSQLPipeline(
+    pipeline_v = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
             llm, 
             model="gpt-3.5-turbo", 
@@ -72,7 +54,7 @@ async def main():
             max_tokens=5000,
             max_retries=3
         ),
-        sql_generator=VanillaRefineSQLGenerator(
+        sql_generator=GPTSQLGenerator(
             llm, 
             model="gpt-3.5-turbo", 
             temperature=0.0, 
@@ -81,6 +63,24 @@ async def main():
         ),
         post_processor=SkipPostProcessor()
     )
+    
+    # pipeline_vr = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.0, 
+    #         max_tokens=5000,
+    #         max_retries=3
+    #     ),
+    #     sql_generator=VanillaRefineSQLGenerator(
+    #         llm, 
+    #         model="gpt-3.5-turbo", 
+    #         temperature=0.0, 
+    #         max_tokens=5000,
+    #         max_retries=3
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
 
 
     # pipeline_enh = ElephantSQLPipeline(
@@ -206,10 +206,10 @@ async def main():
 
     
     # 运行pipeline，设置并行数
-    await pipeline_vr.run_pipeline_parallel(
-        # data_file="./data/merge_dev_demo.json",
-        data_file="./data/sampled_merged.json",
-        max_workers=10
+    await pipeline_v.run_pipeline_parallel(
+        data_file="./data/merge_dev_demo.json",
+        # data_file="./data/sampled_merged.json",
+        max_workers=1
     )
 
 if __name__ == "__main__":

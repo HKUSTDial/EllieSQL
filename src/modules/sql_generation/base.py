@@ -22,8 +22,51 @@ class SQLGeneratorBase(ModuleBase):
     
     async def generate_sql_with_retry(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:
         """
-        带重试机制的SQL生成，会验证SQL的可执行性。
-        达到重试阈值时返回最后一次有效的SQL，如果完全失败则返回fallback SQL。
+        带重试机制的SQL生成, 仅用于防止无法提取出SQL的情况, 不进行validate_sql验证SQL的可执行性
+        
+        Args:
+            query: 用户查询
+            schema_linking_output: Schema Linking的输出
+            query_id: 查询ID
+            module_name: 模块名称
+            
+        Returns:
+            str: 生成的SQL（如果所有尝试都失败则返回fallback SQL）
+        """
+        last_error = None
+        last_extracted_sql = None  # 保存最后一次成功提取的SQL
+        
+        for attempt in range(self.max_retries):
+            try:
+                raw_sql_output = await self.generate_sql(query, schema_linking_output, query_id, module_name)
+                if raw_sql_output is not None:
+                    extracted_sql = self.extractor.extract_sql(raw_sql_output)
+                    if extracted_sql is not None:
+                        return extracted_sql
+                    else:
+                        self.logger.warning(f"无法从输出中提取SQL, 第{attempt + 1}/{self.max_retries}次尝试")
+                        continue
+            except Exception as e:
+                last_error = e
+                self.logger.warning(f"SQL生成第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
+                continue
+                
+        # 达到重试阈值，记录错误
+        error_message = f"SQL生成在{self.max_retries}次尝试后完全失败，无法提取有效SQL。最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行..."
+        self.logger.error(error_message)
+        
+        # 从schema中获取第一个表和它的第一个列作为fallback
+        first_table = schema_linking_output["original_schema"]["tables"][0]
+        table_name = first_table["table"]
+        first_column = list(first_table["columns"].keys())[0]
+        fallback_sql = f"SELECT {first_column} FROM {table_name} LIMIT 1;"
+        
+        return fallback_sql
+    
+    async def generate_sql_with_retry_with_validate(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:
+        """
+        NOTE: [deprecated]此函数已废弃, validate_sql应该由refiner实现
+        带重试机制的SQL生成, 同时验证SQL的可执行性,达到重试阈值时返回最后一次有效的SQL, 如果完全失败则返回fallback SQL。
         
         Args:
             query: 用户查询

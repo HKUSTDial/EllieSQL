@@ -2,7 +2,7 @@ from typing import Dict, List
 from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
-from ..prompts.refiner_prompts import REFINER_SYSTEM, REFINER_USER
+from ..prompts.refiner_prompts import REFINER_SYSTEM, REFINER_USER, REFINER_ALL_USER
 from ....core.utils import TextExtractor
 
 from src.core.schema.manager import SchemaManager
@@ -164,7 +164,7 @@ class FeedbackBasedRefiner(RefinerBase):
         
                 messages = [
                     {"role": "system", "content": REFINER_SYSTEM},
-                    {"role": "user", "content": REFINER_USER.format(sql = sql, 
+                    {"role": "user", "content": REFINER_ALL_USER.format(sql = sql, 
                                                                     result_type = ex_result.result_type, 
                                                                     result = ex_result.result, 
                                                                     error_message = ex_result.error_message , 
