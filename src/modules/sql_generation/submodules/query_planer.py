@@ -2,7 +2,7 @@ from typing import Dict, List
 from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
-from ..prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT
+from ..prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT, QUERY_PLAN_PROMPT2, EXAMPLE
 from ..base import ModuleBase
 from typing import Any, Dict, Optional, Tuple, Callable
 
@@ -36,6 +36,12 @@ class QueryPlaner():
                 query=query,
                 evidence=curr_evidence if curr_evidence else "None"
             )}
+            # {"role": "user", "content": QUERY_PLAN_PROMPT2.format(
+            #     example = EXAMPLE,
+            #     schema=formatted_schema,
+            #     query=query,
+            #     evidence=curr_evidence if curr_evidence else "None"
+            # )}
         ]
         
         # print('\n'+messages[1]['content']+'\n')

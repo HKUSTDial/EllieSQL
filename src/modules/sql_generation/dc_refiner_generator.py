@@ -43,6 +43,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
             if(item.get("question_id") == query_id):
                 curr_evidence = item.get("evidence", "")
                 break
+
         # 1. divide: 
         # Decompose the original question Qu into a set of sub-questions Sq
         divide_prompt = [
@@ -57,7 +58,6 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
         # 记录每个步骤的token统计
         step_tokens = {
             "divide": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
-            "online_synthesis": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "conquer": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "assemble": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
@@ -151,10 +151,16 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens)
-        print(111)
+
         # 5. Refine阶段
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
-        extracted_sql = self.extractor.extract_sql(refine_result)
+
+        step_tokens["refine"]["input_tokens"] = refine_result["input_tokens"]
+        step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
+        step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
+
+        raw_output = refine_result["response"]
+        extracted_sql = self.extractor.extract_sql(raw_output)
         print("sql refine完成")
       
         # 计算总token
@@ -175,7 +181,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
             output_data={
                 "raw_output": raw_output,
                 "extracted_sql": extracted_sql,
-                "refined_sql": self.extractor.extract_sql(refine_result)
+                "refined_sql": extracted_sql
             },
             model_info={
                 "model": self.model,

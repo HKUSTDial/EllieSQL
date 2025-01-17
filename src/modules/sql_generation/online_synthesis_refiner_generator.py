@@ -42,33 +42,24 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
                 curr_evidence = item.get("evidence", "")
                 break
 
+                # 记录每个步骤的token统计
+        step_tokens = {
+            "online_synthesis": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        }
+
         # 使用封装的方法生成online synthesis示例
         online_synthesiser = OnlineSynthesiser(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 module_name=self.name )
-        examples_result = await online_synthesiser.generate_online_synthesis_examples(formatted_schema)
-        # 构建提示词
-        messages = [
-            {"role": "system", "content": SQL_GENERATION_SYSTEM},
-            {"role": "user", "content": SQL_GENERATION_USER.format(
-                schema=formatted_schema,
-                examples = examples_result,
-                evidence=curr_evidence if curr_evidence else "None",
-                query=query
-            )}
-        ]
-        
-        # print('\n'+messages[1]['content']+'\n')
-        result = await self.llm.call_llm(
-            messages,
-            self.model,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            module_name=self.name
-        )
-        
+        result = await online_synthesiser.generate_sql(query=query, formatted_schema=formatted_schema, curr_evidence=curr_evidence)
+
+        step_tokens["online_synthesis"]["input_tokens"] = result["input_tokens"]
+        step_tokens["online_synthesis"]["output_tokens"] = result["output_tokens"]
+        step_tokens["online_synthesis"]["total_tokens"] = result["total_tokens"]
+
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
@@ -80,16 +71,27 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
                 module_name=self.name)
 
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
+
+        step_tokens["refine"]["input_tokens"] = refine_result["input_tokens"]
+        step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
+        step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
+
         refiner_raw_output = refine_result["response"]
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
 
+        # 计算总token
+        total_tokens = {
+            "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
+            "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
+            "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
+        }
         
         # 保存中间结果
         self.save_intermediate(
             input_data={
                 "query": query,
                 "formatted_schema": formatted_schema,
-                "messages": messages
+                # "messages": messages
             },
             output_data={
                 "raw_output": raw_output,
@@ -97,9 +99,9 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
             },
             model_info={
                 "model": self.model,
-                "input_tokens": result["input_tokens"],
-                "output_tokens": result["output_tokens"],
-                "total_tokens": result["total_tokens"]
+                "input_tokens": total_tokens["input_tokens"],
+                "output_tokens": total_tokens["output_tokens"],
+                "total_tokens": total_tokens["total_tokens"]
             },
             query_id=query_id,
             module_name=self.name if (module_name == None) else module_name
@@ -109,7 +111,7 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
             input_data={
                 "query": query, 
                 "formatted_schema": formatted_schema,
-                "messages": messages
+                # "messages": messages
             }, 
             output_data=raw_output
         )

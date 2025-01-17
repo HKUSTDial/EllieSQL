@@ -88,11 +88,11 @@ class DirectSelector():
                     module_name=self.module_name
                 )
                 
-                raw_output = result["response"]
+                # raw_output = result["response"]
                 
-                selected_sql = self.extractor.extract_sql(raw_output)
-                print(selected_sql)
-                
+                # selected_sql = self.extractor.extract_sql(raw_output)
+                # print(selected_sql)
+                return result
                 # 保存中间结果
                 # self.save_intermediate(
                 #     input_data={
@@ -122,5 +122,5 @@ class DirectSelector():
                 # )
                 
                 # self.log_io({"candidates": sql_list, "messages": messages}, selected_sql)
-                return selected_sql
+                
         

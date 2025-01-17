@@ -1,21 +1,20 @@
 from typing import Dict, List, Optional
 from .base import SQLGeneratorBase
 from ...core.llm import LLMBase
-from .prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT
-from .submodules.refiner import *
-from .submodules.query_planer import *
+from .prompts.gpt_prompts import SQL_GENERATION_SYSTEM, SQL_GENERATION_USER
 from ...core.utils import load_json
+from .submodules.refiner import *
 
-class QPRefinerSQLGenerator(SQLGeneratorBase):
-    """使用Query Plan + Refiner生成SQL的实现"""
+class VanillaRefineSQLGenerator(SQLGeneratorBase):
+    """使用GPT模型生成SQL的实现"""
     
     def __init__(self, 
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
                 temperature: float = 0.0,
-                max_tokens: int = 5000,
+                max_tokens: int = 1000,
                 max_retries: int = 3):
-        super().__init__("QPRefinerSQLGenerator", max_retries)
+        super().__init__("VanillaRefineSQLGenerator", max_retries)
         self.llm = llm
         self.model = model
         self.temperature = temperature
@@ -41,51 +40,40 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
                 curr_evidence = item.get("evidence", "")
                 break
 
+
                 # 记录每个步骤的token统计
         step_tokens = {
-            "query_plan": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            "vanilla": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
 
 
-        query_planer = QueryPlaner(llm=self.llm, 
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                module_name=self.name)
-        result = await query_planer.generate_sql(query=query, formatted_schema=formatted_schema, curr_evidence=curr_evidence)
+        # 构建提示词
+        messages = [
+            {"role": "system", "content": SQL_GENERATION_SYSTEM},
+            {"role": "user", "content": SQL_GENERATION_USER.format(
+                schema=formatted_schema,
+                evidence=curr_evidence if curr_evidence else "None",
+                query=query
+            )}
+        ]
         
-        step_tokens["query_plan"]["input_tokens"] = result["input_tokens"]
-        step_tokens["query_plan"]["output_tokens"] = result["output_tokens"]
-        step_tokens["query_plan"]["total_tokens"] = result["total_tokens"]
+        # print('\n'+messages[1]['content']+'\n')
+        result = await self.llm.call_llm(
+            messages,
+            self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            module_name=self.name
+        )
+
+        step_tokens["vanilla"]["input_tokens"] = result["input_tokens"]
+        step_tokens["vanilla"]["output_tokens"] = result["output_tokens"]
+        step_tokens["vanilla"]["total_tokens"] = result["total_tokens"]
         
         raw_output = result["response"]
-        
         extracted_sql = self.extractor.extract_sql(raw_output)
-
-        # # 构建提示词
-        # messages = [
-        #     {"role": "system", "content": SQL_GENERATION_SYSTEM},
-        #     {"role": "user", "content": QUERY_PLAN_PROMPT.format(
-        #         schema=formatted_schema,
-        #         query=query,
-        #         evidence=curr_evidence if curr_evidence else "None"
-        #     )}
-        # ]
         
-        # # print('\n'+messages[1]['content']+'\n')
-        # result = await self.llm.call_llm(
-        #     messages,
-        #     self.model,
-        #     temperature=self.temperature,
-        #     max_tokens=self.max_tokens,
-        #     module_name=self.name
-        # )
-        
-        # raw_output = result["response"]
-        # extracted_sql = self.extractor.extract_sql(raw_output)
-
-                #Refine阶段
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -111,12 +99,15 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
             "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
         
+
+
+
         # 保存中间结果
         self.save_intermediate(
             input_data={
                 "query": query,
                 "formatted_schema": formatted_schema,
-                # "messages": "mm"#messages
+                # "messages": messages
             },
             output_data={
                 "raw_output": raw_output,
@@ -136,7 +127,7 @@ class QPRefinerSQLGenerator(SQLGeneratorBase):
             input_data={
                 "query": query, 
                 "formatted_schema": formatted_schema,
-                # "messages": "mm"#messages
+                # "messages": messages
             }, 
             output_data=raw_output
         )

@@ -201,9 +201,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         # 5. Refine阶段
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
 
-        print(refine_result)
         refiner_raw_output = refine_result["response"]
-        print(refiner_raw_output)
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
         #extracted_sql = self.extractor.extract_sql(refine_result)
 
