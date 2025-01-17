@@ -117,16 +117,15 @@ def validate_sql(db_path: str, sql: str) -> Tuple[bool, str]:
     """
     try:
         result = execute_sql_with_timeout(db_path, sql)
-        
         # 检查执行结果
-        if result.result_type == "error":
-            return False, f"SQL执行错误: {result.error_message}"
-        elif result.result_type == "timeout":
-            return False, "SQL执行超时"
-        elif result.result_type == "success" and (not result.result or len(result.result) == 0):
-            return False, "SQL执行结果为空"
+        if result.result_type == SQLExecutionResultType.ERROR:
+            return False, f"SQL execution error: {result.error_message}"
+        elif result.result_type == SQLExecutionResultType.TIMEOUT:
+            return False, "SQL execution timeout"
+        elif result.result_type == SQLExecutionResultType.SUCCESS and (not result.result or len(result.result) == 0):
+            return False, "SQL execution result is empty"
             
-        return True, ""
+        return True, "SQL is executable"
         
     except Exception as e:
-        return False, f"SQL验证异常: {str(e)}"
+        return False, f"SQL validation exception: {str(e)}"
