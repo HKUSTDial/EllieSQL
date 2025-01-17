@@ -88,8 +88,8 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
 
         refine_false = refine_result["refine_false"]
-        raw_output = refine_result["response"] # This is the raw output after refining
-        extracted_sql = self.extractor.extract_sql(raw_output)
+        refiner_raw_output = refine_result["response"] # This is the raw output after refining
+        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
 
 
         # 计算总token
@@ -110,7 +110,7 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
                 # "messages": messages
             },
             output_data={
-                "raw_output": raw_output,
+                "raw_output": refiner_raw_output,
                 "extracted_sql": extracted_sql,
                 "refine_false": refine_false
             },
@@ -130,8 +130,8 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
                 "formatted_schema": formatted_schema,
                 # "messages": messages
             }, 
-            output_data=raw_output
+            output_data=refiner_raw_output
         )
         
-        return raw_output
+        return refiner_raw_output
         

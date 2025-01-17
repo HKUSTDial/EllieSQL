@@ -108,6 +108,8 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
             step_tokens["conquer"]["total_tokens"] += conquer_result["total_tokens"]
             
             raw_output = conquer_result["response"]
+            # print('-------------')
+            # print(raw_output)
             extracted_sql = self.extractor.extract_sql(raw_output)
             ssql.append(extracted_sql)
 
@@ -144,6 +146,8 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
         
         raw_output = assemble_result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
+        # print('-------------')
+        # print(raw_output)
 
         print("完成了初步sql生成")
 
@@ -159,9 +163,11 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
 
-        raw_output = refine_result["response"]
-        extracted_sql = self.extractor.extract_sql(raw_output)
+        refiner_raw_output = refine_result["response"]
+        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
         print("sql refine完成")
+        # print('-------------')
+        # print(refiner_raw_output)
       
         # 计算总token
         total_tokens = {
@@ -179,7 +185,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
                 "sub_sqls": ssql
             },
             output_data={
-                "raw_output": raw_output,
+                "raw_output": refiner_raw_output,
                 "extracted_sql": extracted_sql,
                 "refined_sql": extracted_sql
             },
@@ -200,8 +206,8 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
                 "formatted_schema": formatted_schema,
                 "messages": assemble_prompt #这样修改合理吗
             }, 
-            output_data=raw_output
+            output_data=refiner_raw_output
         )
-        
-        return extracted_sql
+
+        return refiner_raw_output
         

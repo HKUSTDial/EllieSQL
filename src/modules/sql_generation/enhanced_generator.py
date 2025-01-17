@@ -203,7 +203,6 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
 
         refiner_raw_output = refine_result["response"]
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
-        #extracted_sql = self.extractor.extract_sql(refine_result)
 
         
 
@@ -230,7 +229,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             output_data={
                 "raw_output": raw_output,
                 "extracted_sql": extracted_sql,
-                "refined_sql": extracted_sql #self.extractor.extract_sql(refine_result)
+                "refined_sql": extracted_sql
             },
             model_info={
                 "model": self.model,
@@ -252,5 +251,5 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             output_data=raw_output
         )
         
-        return extracted_sql
+        return refiner_raw_output
         

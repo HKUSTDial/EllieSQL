@@ -17,12 +17,22 @@ class SQLGeneratorBase(ModuleBase):
                         query: str,
                         linked_schema: Dict,
                         module_name: Optional[str] = None) -> str:
-        """生成SQL"""
+        """
+        生成SQL, 返回使用代码块包裹的生成SQL的raw output, 统一在generate_sql_with_retry中使用重试机制安全提取代码块中的SQL
+        
+        Args:
+            query: 用户查询
+            linked_schema: Schema Linking的输出
+            module_name: 模块名称
+            
+        Returns:
+            str: 生成SQL的原始输出raw output, 供generate_sql_with_retry提取, 例如: Therefore, the final SQL is ```sql SELECT * FROM players;```
+        """
         pass 
     
     async def generate_sql_with_retry(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:
         """
-        带重试机制的SQL生成, 仅用于防止无法提取出SQL的情况, 不进行validate_sql验证SQL的可执行性
+        带重试机制的SQL生成与提取, 仅用于防止无法提取出SQL的情况, 不进行validate_sql验证SQL的可执行性
         
         Args:
             query: 用户查询
@@ -65,7 +75,7 @@ class SQLGeneratorBase(ModuleBase):
     
     async def generate_sql_with_retry_with_validate(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:
         """
-        NOTE: [deprecated]此函数已废弃, validate_sql应该由refiner实现
+        NOTE: [deprecated]此函数已弃用, validate_sql应该由refiner实现
         带重试机制的SQL生成, 同时验证SQL的可执行性,达到重试阈值时返回最后一次有效的SQL, 如果完全失败则返回fallback SQL。
         
         Args:

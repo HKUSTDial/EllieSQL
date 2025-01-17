@@ -128,4 +128,5 @@ class EnsembleGenerator(EnhancedSQLGenerator):
             module_name=self.name if (module_name == None) else module_name
         )
         
-        return selected_sql 
+        # 保持返回值格式与raw_output统一，使用```sql```包裹selected_sql
+        return f"```sql\n{selected_sql}\n```"

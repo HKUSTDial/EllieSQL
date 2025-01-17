@@ -76,8 +76,8 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
 
-        raw_output = refine_result["response"]
-        extracted_sql = self.extractor.extract_sql(raw_output)
+        refiner_raw_output = refine_result["response"]
+        extracted_sql = self.extractor.extract_sql(refiner_raw_output)
 
         # 计算总token
         total_tokens = {
@@ -94,7 +94,7 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
                 # "messages": messages
             },
             output_data={
-                "raw_output": raw_output,
+                "raw_output": refiner_raw_output,
                 "extracted_sql": extracted_sql
             },
             model_info={
@@ -113,8 +113,8 @@ class OSRefinerSQLGenerator(SQLGeneratorBase):
                 "formatted_schema": formatted_schema,
                 # "messages": messages
             }, 
-            output_data=raw_output
+            output_data=refiner_raw_output
         )
         
-        return raw_output
+        return refiner_raw_output
         

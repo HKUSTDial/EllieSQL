@@ -231,6 +231,12 @@ class CHASESQLGenerator(SQLGeneratorBase):
             }, 
             output_data=raw_output
         )
-        
-        return selected_sql 
+        # print('--------------------------------')
+        # print(raw_output)
+        # print('--------------------------------')
+        # print(selected_sql)
+        # print('--------------------------------')
+
+        # 保持返回值格式与raw_output统一，使用```sql```包裹selected_sql
+        return f"```sql\n{selected_sql}\n```"
         
