@@ -15,7 +15,7 @@ from src.core.schema.manager import SchemaManager
 from concurrent.futures import ThreadPoolExecutor
 
 class ElephantSQLPipeline:
-    """ElephantSQL系统的主要pipeline"""
+    """完整的处理流程Pipeline"""
     
     def __init__(self,
                  schema_linker: SchemaLinkerBase,
@@ -27,23 +27,28 @@ class ElephantSQLPipeline:
         self.logger_manager = LoggerManager(self.pipeline_id)
         self.logger = self.logger_manager.get_logger("pipeline")
         
-        # 为每个模块设置pipeline_id和logger
-        schema_linker.intermediate = IntermediateResult(schema_linker.name, self.pipeline_id)
-        schema_linker.logger = self.logger_manager.get_logger(schema_linker.name)
-        
-        sql_generator.intermediate = IntermediateResult(sql_generator.name, self.pipeline_id)
-        sql_generator.logger = self.logger_manager.get_logger(sql_generator.name)
-        
-        post_processor.intermediate = IntermediateResult(post_processor.name, self.pipeline_id)
-        post_processor.logger = self.logger_manager.get_logger(post_processor.name)
-        
-        # 设置模块间的关联
-        sql_generator.set_previous_module(schema_linker)
-        post_processor.set_previous_module(sql_generator)
-        
+        # 先保存模块引用
         self.schema_linker = schema_linker
         self.sql_generator = sql_generator
         self.post_processor = post_processor
+        
+        # 为每个模块设置pipeline_id和logger
+        self.schema_linker.intermediate = IntermediateResult(self.schema_linker.name, self.pipeline_id)
+        self.schema_linker.logger = self.logger_manager.get_logger(self.schema_linker.name)
+        
+        self.sql_generator.intermediate = IntermediateResult(self.sql_generator.name, self.pipeline_id)
+        self.sql_generator.logger = self.logger_manager.get_logger(self.sql_generator.name)
+        
+        self.post_processor.intermediate = IntermediateResult(self.post_processor.name, self.pipeline_id)
+        self.post_processor.logger = self.logger_manager.get_logger(self.post_processor.name)
+        
+        # 设置模块间的依赖关系
+        self.sql_generator.set_previous_module(self.schema_linker)
+        if hasattr(self.sql_generator, 'generators'):  # 检查是否为路由器
+            for generator in self.sql_generator.generators.values():
+                generator.set_previous_module(self.schema_linker)
+                
+        self.post_processor.set_previous_module(self.sql_generator)
         
         # 创建pipeline级别的中间结果处理器
         self.intermediate = IntermediateResult("pipeline", self.pipeline_id)
@@ -113,6 +118,10 @@ class ElephantSQLPipeline:
         # 设置data_file
         self.schema_linker.set_data_file(data_file)
         self.sql_generator.set_data_file(data_file)
+        if hasattr(self.sql_generator, 'generators'):  # 检查是否为路由器
+            for generator in self.sql_generator.generators.values():
+                generator.set_data_file(data_file)
+                
         self.post_processor.set_data_file(data_file)
 
         # 准备数据
