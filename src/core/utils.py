@@ -44,10 +44,10 @@ class TextExtractor:
     
     @staticmethod
     def extract_sql(text: str) -> str:
-        """从文本中提取SQL代码块"""
+        """从文本中提取SQL代码块, 取最后一个```sql```块中的sql"""
         sql_pattern = r"```sql\s*(.*?)\s*```"
         matches = re.findall(sql_pattern, text, re.DOTALL)
-        return matches[0].strip() if matches else text.strip()
+        return matches[-1].strip() if matches else text.strip()
         
     @staticmethod
     def extract_schema_json(text: str) -> Optional[Dict]:

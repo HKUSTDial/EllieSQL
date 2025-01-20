@@ -29,7 +29,7 @@ class TableCountRouter(RouterBase):
         table_count = len(tables)
         
         # 根据表数量选择生成器
-        if table_count <= 1:
+        if table_count <= 2:
             generator_name = self.single_table_generator
         else:
             generator_name = self.multi_table_generator

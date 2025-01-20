@@ -81,7 +81,7 @@ class FeedbackBasedRefiner(RefinerBase):
                 while(flag == False and iter_cnt < 3):
                     #执行sql并且返回结果：能运行、超时、或报错
                     ex_result = execute_sql_with_timeout(db_path, curr_sql)
-                    flag, error_message= validate_sql(db_path, curr_sql)
+                    flag, error_message= validate_sql_execution(db_path, curr_sql)
                     # print(flag)
                     if(flag == True):
                         result = {
@@ -122,7 +122,7 @@ class FeedbackBasedRefiner(RefinerBase):
                     curr_sql = extractor.extract_sql(raw_output)
                     iter_cnt += 1
                 
-                flag, error_message = validate_sql(db_path, curr_sql)
+                flag, error_message = validate_sql_execution(db_path, curr_sql)
                 if(flag == True):
                     result = {
                                 "response": f"sql迭代超过{iter_cnt}次后执行成功，直接返回 ```sql {curr_sql}```",

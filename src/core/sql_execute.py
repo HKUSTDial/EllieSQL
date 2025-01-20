@@ -104,7 +104,35 @@ def check_query_valid(db_path: str, query: str, with_limit: bool = True, timeout
     return execute_sql_with_timeout(db_path, query, timeout).result_type == SQLExecutionResultType.SUCCESS
 
 
-def validate_sql(db_path: str, sql: str) -> Tuple[bool, str]:
+def validate_sql_execution(db_path: str, sql: str) -> Tuple[bool, str]:
+    """
+    验证SQL是否可以在指定数据库上正常执行且结果不为空
+    
+    Args:
+        db_path: 数据库文件路径
+        sql: 待验证的SQL语句
+        
+    Returns:
+        Tuple[bool, str]: (是否有效, 错误信息)
+    """
+    try:
+        result = execute_sql_with_timeout(db_path, sql)
+        # 检查执行结果
+        if result.result_type == SQLExecutionResultType.ERROR:
+            return False, f"SQL execution error: {result.error_message}"
+        elif result.result_type == SQLExecutionResultType.TIMEOUT:
+            return False, "SQL execution timeout"
+        # elif result.result_type == SQLExecutionResultType.SUCCESS and (not result.result or len(result.result) == 0):
+        #     return False, "SQL execution result is empty"
+            
+        return True, "SQL is executable"
+        
+    except Exception as e:
+        return False, f"SQL validation exception: {str(e)}"
+
+
+
+def validate_sql_execution_and_non_empty_result(db_path: str, sql: str) -> Tuple[bool, str]:
     """
     验证SQL是否可以在指定数据库上正常执行且结果不为空
     

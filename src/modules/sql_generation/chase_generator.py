@@ -182,8 +182,11 @@ class CHASESQLGenerator(SQLGeneratorBase):
             step_tokens["select"]["total_tokens"] = result["total_tokens"]
 
             raw_output = result["response"]
+            #print(raw_output)
                 
             selected_sql = self.extractor.extract_sql(raw_output)
+
+            #print(f"检查选出的sql: {selected_sql}")
 
         except Exception as e:
             self.logger.error(f"选择最佳SQL时发生错误: {str(e)}")

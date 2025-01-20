@@ -1,6 +1,6 @@
 # 在任何需要获取schema的地方
 from src.core.schema.manager import SchemaManager
-from src.core.sql_execute import validate_sql, execute_sql_with_timeout
+from src.core.sql_execute import validate_sql_execution, execute_sql_with_timeout
 
 # 获取schema manager实例
 schema_manager = SchemaManager()

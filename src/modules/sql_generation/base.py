@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Optional
 from ..base import ModuleBase
-from ...core.sql_execute import validate_sql
+from ...core.sql_execute import validate_sql_execution
 from ...core.utils import load_json
 import os
 
@@ -117,7 +117,7 @@ class SQLGeneratorBase(ModuleBase):
                     if extracted_sql is not None:
                         last_extracted_sql = extracted_sql  # 更新最后一次成功提取的SQL
                         # 验证SQL是否可以执行且结果不为空
-                        is_valid, error_msg = validate_sql(db_path, extracted_sql)
+                        is_valid, error_msg = validate_sql_execution(db_path, extracted_sql)
                         if is_valid:
                             return extracted_sql
                         else:
@@ -143,7 +143,7 @@ class SQLGeneratorBase(ModuleBase):
             table_name = first_table["table"]
             first_column = list(first_table["columns"].keys())[0]
             fallback_sql = f"SELECT {first_column} FROM {table_name} LIMIT 1;"
-            is_valid, error_msg = validate_sql(db_path, fallback_sql)
+            is_valid, error_msg = validate_sql_execution(db_path, fallback_sql)
             
             if not is_valid:
                 self.logger.fatal(f"[FATAL] Fallback SQL执行失败: {error_msg}。最后一次错误: {str(last_error)}。Question ID: {query_id}")

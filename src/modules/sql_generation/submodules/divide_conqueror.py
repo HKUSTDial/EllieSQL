@@ -2,7 +2,6 @@ from typing import Dict, List
 from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
-from ..prompts.online_synthesis_cot_prompts import SQL_GENERATION_SYSTEM, ONLINE_SYNTHESIS_PROMPT
 from ..prompts.divide_and_conquer_cot_prompts import SQL_GENERATION_SYSTEM, DIVIDE_PROMPT, CONQUER_PROMPT_WO_EXAMPLES, ASSEMBLE_PROMPT
 from ....core.utils import TextExtractor
 from ..base import ModuleBase
@@ -48,9 +47,16 @@ class DivideConqueror():
             max_tokens=self.max_tokens,
             module_name=self.module_name
         )
+
+        input_tokens = divide_result["input_tokens"]
+        output_tokens = divide_result["output_tokens"]
+        total_tokens = divide_result["total_tokens"]
+
         
         raw_output = divide_result["response"]
         sub_questions = self.extractor.extract_sub_questions(raw_output)
+
+        # print(sub_questions)
         
         # Initialize an empty set Ssql to store partial SQL queries for each sub-question
         ssql = [] 
@@ -76,20 +82,28 @@ class DivideConqueror():
                 module_name=self.module_name
             )
 
+
+            input_tokens += conquer_result["input_tokens"]
+            output_tokens += conquer_result["output_tokens"]
+            total_tokens += conquer_result["total_tokens"]
+
             raw_output = conquer_result["response"]
-            extracted_sql = self.extractor.extract_sql(raw_output)
-            ssql.append(extracted_sql)
+            # extracted_sql = self.extractor.extract_sql(raw_output)
+            # ssql.append(extracted_sql)
+            ssql.append(raw_output)
 
         print("Conquer 完成，开始assemble")
         # 3. assemble:
         # Assemble the final SQL query Sf from all sub-queries in Ssql
         sub_prompt = ""
         for i in range(len(sub_questions)):
-            # sub_prompt += "Sub-question " + str(i) +": "
+            sub_prompt += "Sub-question " + str(i) +": "
             sub_prompt += sub_questions[i] +"\n"
             sub_prompt += "SQL query " + str(i) +": "
             sub_prompt += ssql[i] +"\n\n"
 
+        # print(sub_prompt)
+    
         assemble_prompt = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": ASSEMBLE_PROMPT.format(
@@ -112,6 +126,10 @@ class DivideConqueror():
         # extracted_sql = self.extractor.extract_sql(raw_output)
 
         print("DC完成了候选sql生成")
+
+        assemble_result["input_tokens"] += input_tokens
+        assemble_result["output_tokens"] += output_tokens
+        assemble_result["total_tokens"] += total_tokens
 
         return assemble_result
         

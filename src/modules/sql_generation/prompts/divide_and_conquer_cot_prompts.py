@@ -70,9 +70,9 @@ Foreign keys:
 
 ## Decompose the Question into sub-questions, each sub-question is enclosed in <<>>:
 
-<<Sub-question 1: What is the lowest average salary branch?>>
-<<Sub-question 2: Who is the youngest client in that branch?>>
-<<Sub-question 3: What is the gender of that client?>>
+Sub-question 1: <<What is the lowest average salary branch?>>
+Sub-question 2: <<Who is the youngest client in that branch?>>
+Sub-question 3: <<What is the gender of that client?>>
 
 ### Now do the following task:
 ## Given the database schema:
@@ -128,7 +128,7 @@ ASSEMBLE_PROMPT = """
 ### Hint:
 {evidence}
 
-### Sub-questions and corresponding sql querys:
+### Sub-questions and corresponding output, including sql querys and explanation:
 {subs}
 
 Based on the sql querys for corresponding sub-questions, return the final sql for the main question, SQL must be surrounded by ```sql``` code block.

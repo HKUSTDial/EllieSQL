@@ -60,8 +60,8 @@ if __name__ == "__main__":
     # 运行pipeline
     loop.run_until_complete(
         run_with_router(
-            data_file="./data/merge_dev_demo.json",
-            max_workers=2
+            data_file="./data/sampled_merged.json",
+            max_workers=20
         )
     )
     
