@@ -40,7 +40,7 @@ class OnlineSynthesiser():
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": ONLINE_SYNTHESIS_PROMPT.format(
                 TARGET_DATABASE_SCHEMA=formatted_schema,
-                k=2  # 或者根据需要调整
+                k=8  # 或者根据需要调整
             )}
         ]
         
@@ -67,12 +67,17 @@ class OnlineSynthesiser():
         """生成SQL"""
         # 使用封装的方法生成online synthesis示例
         examples_result = await self.generate_online_synthesis_examples(formatted_schema)
+        example_raw_output = examples_result["response"]
+
+        #print(example_raw_output)
+
+        # print(example_raw_output)
         # 构建提示词
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
                 schema=formatted_schema,
-                examples = examples_result,
+                examples = example_raw_output,
                 evidence=curr_evidence if curr_evidence else "None",
                 query=query
             )}
@@ -91,4 +96,8 @@ class OnlineSynthesiser():
         # extracted_sql = self.extractor.extract_sql(raw_output)
 
         print("OS完成了候选sql生成")
+
+        result["input_tokens"] += examples_result["input_tokens"]
+        result["output_tokens"] += examples_result["output_tokens"]
+        result["total_tokens"] += examples_result["total_tokens"]
         return result  

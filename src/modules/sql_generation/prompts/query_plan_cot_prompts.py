@@ -2,23 +2,57 @@
 Query Plan Chain of Thought (CoT) Prompt for NL2SQL Tasks
 """
 
-SQL_GENERATION_SYSTEM = """You are a intelligent and responsible SQLite expert. The Generated corresponding SQL query must be surrounded by ```sql``` code block."""
+SQL_GENERATION_SYSTEM = """You are a SQLite expert."""
 
 
 QUERY_PLAN_PROMPT = """
-Database Info
-{schema}
-**************************
-Answer Repeating the question and evidence, and generating the SQL with a query plan.
-**Question**: {query}
-**Evidence**: {evidence}
+### Instruction:
+You need to read and understand the following database schema description, as well as the evidence that may be used, and use your SQLite knowledge to generate SQL statements to answer user questions.
+You should try to generate a query plan in order to make sure the generated SQL query is correct and align with user question. The Generated corresponding SQL query must be surrounded by ```sql``` code block.
 
-**Query Plan**:
-** Preparation Steps:**
+1. Preparation;
+2. Understand and analyze database schema and question, identify and locate the relevant tables for the question;
+3. Perform operations such as counting, filtering, or matching between tables if needed;
+4. Deliver the final SQL query and optimize if needed.
+
+Answer Repeating the question and evidence, and generating the SQL with a query plan.
+
+### Database Schema:
+{schema}
+
+### Question:
+# {query}
+
+### Hint: 
+{evidence}
+
+### Query Plan:
+## Preparation Steps:
 1. Initialize the process: Start preparing to execute the query.
 2. Prepare storage: Set up storage space (registers) to hold temporary results, initializing them to NULL.
 3. Open the location table: Open the location table so we can read from it.
 4. Open the generalinfo table: Open the generalinfo table so we can read from it.
+"""
+
+QUERY_PLAN_GEN = """
+Database Info
+{schema}
+**************************
+Generating the a query plan for sql generation.
+**Question**: {query}
+**Evidence**: {evidence}
+"""
+
+SQL_GEN = """
+### Generate the corresponding SQL of the question with the Query Plan:
+Database Info
+{schema}
+
+**Question**: {query}
+**Evidence**: {evidence}
+**Query Plan**:
+{query_plan}
+
 """
 
 
