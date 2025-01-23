@@ -2,7 +2,7 @@ from typing import Dict, List
 from ....core.llm import LLMBase
 from ....core.sql_execute import *
 from ....core.utils import load_json, load_jsonl
-from ..prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT, QUERY_PLAN_PROMPT2, EXAMPLE
+from ..prompts.query_plan_cot_prompts import SQL_GENERATION_SYSTEM, QUERY_PLAN_PROMPT, QUERY_PLAN_PROMPT2, EXAMPLE, QUERY_PLAN_GEN, SQL_GEN
 from ..base import ModuleBase
 from typing import Any, Dict, Optional, Tuple, Callable
 
@@ -25,10 +25,58 @@ class QueryPlaner():
         self.module_name = module_name
 
 
+    # async def generate_sql_new(self, query: str, formatted_schema: str, curr_evidence: str)-> str:
+    #     ##  1. 生成query plan
+    #     messages = [
+    #         {"role": "system", "content": SQL_GENERATION_SYSTEM},
+    #         {"role": "user", "content": QUERY_PLAN_GEN.format(
+    #             schema=formatted_schema,
+    #             query=query,
+    #             evidence=curr_evidence if curr_evidence else "None"
+    #         )}
+    #     ]
+
+    #     result = await self.llm.call_llm(
+    #         messages,
+    #         self.model,
+    #         temperature=self.temperature,
+    #         max_tokens=self.max_tokens,
+    #         module_name=self.module_name
+    #     )
+
+    #     query_plan = result["response"]
+    #     print(query_plan)
+
+    #     ##  2. 基于 query plan生成 sql
+    #     messages = [
+    #         {"role": "system", "content": SQL_GENERATION_SYSTEM},
+    #         {"role": "user", "content": SQL_GEN.format(
+    #             schema=formatted_schema,
+    #             query=query,
+    #             evidence=curr_evidence if curr_evidence else "None",
+    #             query_plan = query_plan
+    #         )}
+    #     ]
+
+    #     result = await self.llm.call_llm(
+    #         messages,
+    #         self.model,
+    #         temperature=self.temperature,
+    #         max_tokens=self.max_tokens,
+    #         module_name=self.module_name
+    #     )
+
+
+    #     print("QP完成了候选sql生成")
+    #     return result
+
+
+
+
+
 
     async def generate_sql(self, query: str, formatted_schema: str, curr_evidence: str)-> str:
         """生成SQL"""
-        # 构建提示词
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": QUERY_PLAN_PROMPT.format(
@@ -52,12 +100,14 @@ class QueryPlaner():
             max_tokens=self.max_tokens,
             module_name=self.module_name
         )
+
+        #print(result["response"])
         
         print("QP完成了候选sql生成")
         return result
 
         # raw_output = result["response"]
-        # return raw_output
+        
         
         
         
