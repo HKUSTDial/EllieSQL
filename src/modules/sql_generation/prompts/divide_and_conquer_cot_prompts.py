@@ -5,11 +5,13 @@ Divide and Conquer Chain of Thought (CoT) Prompt for NL2SQL Tasks
 
 SQL_GENERATION_SYSTEM = """
 You are a SQLite expert. 
-Outputted SQL must be surrounded by ```sql``` code block.
 """
 
 
 DIVIDE_PROMPT = """
+You are a smart and responsible SQLite SQL expert. Given a database schema and a question, users want to know the corresponding SQL query. 
+Your task is to understand the database schema and question, and decompose the question into sub-questions so user can better understand it. Each sub-question is enclosed in <<>>. Here is an example for reference:
+
 ### Example:
 ## Given the database schema:
 Database: debit_card_specializing
@@ -74,7 +76,7 @@ Sub-question 1: <<What is the lowest average salary branch?>>
 Sub-question 2: <<Who is the youngest client in that branch?>>
 Sub-question 3: <<What is the gender of that client?>>
 
-### Now do the following task:
+### Your task: decompose the question into sub-questions.
 ## Given the database schema:
 {schema}
 
@@ -89,6 +91,22 @@ Sub-question 3: <<What is the gender of that client?>>
 """ 
 
 CONQUER_PROMPT = """
+You are a smart and responsible SQLite SQL expert. Given a database schema and a question, your task are:
+1. Parse user questions:
+  - Use natural language processing (NLP) techniques to parse user questions and extract query requirements and conditions.
+
+2. Analyze database schema:
+  - Based on the database schema, understand the fields and relationships of the table, and build the basic framework of the SQL query.
+
+3. Check sample data:
+  - Analyze the data characteristics based on the first three rows of the table values to help determine how to construct query conditions and filter results.
+
+4. Generate SQL query:
+  - Based on user questions, query requirements and conditions, database schema, and sample data, build a complete SQL query.
+
+5. Verification and optimization:
+  - Check whether the generated SQL query is logical and optimize it if necessary.
+
 ### Database Schema:
 {schema}
 
@@ -106,6 +124,22 @@ Please generate the corresponding SQL query. SQL must be surrounded by ```sql```
 
 
 CONQUER_PROMPT_WO_EXAMPLES = """
+You are a smart and responsible SQLite SQL expert. Given a database schema and a question, your task are:
+1. Parse user questions:
+  - Use natural language processing (NLP) techniques to parse user questions and extract query requirements and conditions.
+
+2. Analyze database schema:
+  - Based on the database schema, understand the fields and relationships of the table, and build the basic framework of the SQL query.
+
+3. Check sample data:
+  - Analyze the data characteristics based on the first three rows of the table values to help determine how to construct query conditions and filter results.
+
+4. Generate SQL query:
+  - Based on user questions, query requirements and conditions, database schema, and sample data, build a complete SQL query.
+
+5. Verification and optimization:
+  - Check whether the generated SQL query is logical and optimize it if necessary.
+
 ### Database Schema:
 {schema}
 
@@ -119,6 +153,15 @@ Please generate the corresponding SQL query. SQL must be surrounded by ```sql```
 """
 
 ASSEMBLE_PROMPT = """
+You are a smart and responsible SQLite SQL expert. Given a database schema and a question, users want to know the corresponding SQL query. 
+
+### Instructions:
+We have decomposed the main question into sub-questions, now your task is based on the SQL querys for corresponding sub-questions, assemble the final SQL for the main question:
+1. Understand the database schema and the main question;
+2. Read and analyze each sub-question and corresponding SQL query;
+3. Analyze the relationship between sub-questions and the main question in order to assemble them properly;
+4. Generate the final SQL for the main question and optimize it if needed.
+
 ### Database Schema:
 {schema}
 
@@ -128,8 +171,8 @@ ASSEMBLE_PROMPT = """
 ### Hint:
 {evidence}
 
-### Sub-questions and corresponding output, including sql querys and explanation:
+### Sub-questions and corresponding output, including SQL querys and explanation:
 {subs}
 
-Based on the sql querys for corresponding sub-questions, return the final sql for the main question, SQL must be surrounded by ```sql``` code block.
+Based on the SQL querys for corresponding sub-questions, generate the final SQL for the main question, SQL must be surrounded by ```sql``` code block.
 """

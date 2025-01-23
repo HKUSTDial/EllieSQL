@@ -93,11 +93,16 @@ def compare_sql_results(db_path, sql1, sql2, timeout=10):
         print(f"generated SQL 运行出现报错。错误信息如下：{result2.error_message}")
         return 0
     
-    if result2.result is None and result2.result_type == SQLExecutionResultType.SUCCESS:
-        print(f"generated SQL 运行成功但结果为空。")
-    #     return 0
-    #else:
-        #print(f"gold SQL结果: {result1} \n generated SQL结果: {result2}")
+    if result1.result is None:
+        print("gold SQL 执行成功但结果为空。")
+        if result2.result is None:
+            # 如果两个SQL都返回空结果，认为它们是相等的
+            return 1
+        return 0
+
+    if result2.result is None:
+        print("generated SQL 执行成功但结果为空。")
+        return 0
     
     # 比较结果
     if set(result1.result) == set(result2.result):
@@ -200,7 +205,9 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file, time_path):
     return ex_results
 
 if __name__ == "__main__":
-    merge_dev_demo_file = "./data/sampled_merged.json"
+    # merge_dev_demo_file = "./data/sampled_bird_dev.json"
+    # merge_dev_demo_file = "./data/sampled_merged.json"
+    merge_dev_demo_file = "./data/formatted_bird_dev.json"
     #merge_dev_demo_file = "./data/merge_dev_demo.json"
     time_path = "./results/intermediate_results/"
 
