@@ -30,3 +30,4 @@ logs/
 # 忽略data的json 和databases
 data/*.json
 data/merged_databases/**
+data/gold_schema_linking/**

@@ -49,14 +49,14 @@ async def main():
     pipeline_v = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
             llm, 
-            model="gpt-3.5-turbo", 
+            model="gpt-4o-mini-2024-07-18", 
             temperature=0.0, 
             max_tokens=10000,
             max_retries=3
         ),
         sql_generator=GPTSQLGenerator(
             llm, 
-            model="gpt-3.5-turbo", 
+            model="gpt-4o-mini-2024-07-18", 
             temperature=0.0, 
             max_tokens=10000,
             max_retries=3
@@ -207,11 +207,11 @@ async def main():
     
     # 运行pipeline，设置并行数
     await pipeline_v.run_pipeline_parallel(
-        # data_file="./data/merge_dev_demo.json",
+        data_file="./data/merge_dev_demo.json",
         # data_file="./data/sampled_merged.json",
         # data_file="./data/sampled_bird_dev.json", # 20% of bird dev
-        data_file="./data/formatted_bird_dev.json", # 100% of bird dev
-        max_workers=50
+        # data_file="./data/formatted_bird_dev.json", # 100% of bird dev
+        max_workers=1
     )
 
 if __name__ == "__main__":
