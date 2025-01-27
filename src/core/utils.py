@@ -48,6 +48,28 @@ class TextExtractor:
         sql_pattern = r"```sql\s*(.*?)\s*```"
         matches = re.findall(sql_pattern, text, re.DOTALL)
         return matches[-1].strip() if matches else text.strip()
+    
+    @staticmethod
+    def extract_code_block(text: str, language: str = None) -> str:
+        """
+        从文本中提取代码块内容，支持指定语言或提取任意语言的代码块
+        
+        Args:
+            text: 包含代码块的文本
+            language: 代码块的语言标识(可选)，如'sql', 'json', 'python'等
+            
+        Returns:
+            str: 提取的代码块内容(去除前后空白)，如果未找到则返回原文本
+        """
+        if language:
+            # 提取指定语言的代码块
+            pattern = f"```{language}\s*(.*?)\s*```"
+        else:
+            # 提取任意语言的代码块
+            pattern = r"```\w*\s*(.*?)\s*```"
+            
+        matches = re.findall(pattern, text, re.DOTALL)
+        return matches[-1].strip() if matches else text.strip()
         
     @staticmethod
     def extract_schema_json(text: str) -> Optional[Dict]:

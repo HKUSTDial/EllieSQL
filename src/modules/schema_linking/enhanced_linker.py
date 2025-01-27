@@ -5,6 +5,7 @@ from .prompts.schema_prompts import ENHANCED_SCHEMA_SYSTEM, BASE_SCHEMA_USER
 from ...core.schema.manager import SchemaManager
 from ...core.utils import load_json
 import os
+import json
 
 class EnhancedSchemaLinker(SchemaLinkerBase):
     """使用增强schema信息的Schema Linker"""
@@ -200,6 +201,64 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         
         return linked_schema
     
+    def enhance_schema_only_with_keys(self, linked_schema: Dict, database_schema: Dict) -> Dict:
+        """
+        仅使用主键外键增强schema, 不包含补充信息和样例值
+        
+        Args:
+            linked_schema: Schema Linking的结果
+            database_schema: 原始数据库schema
+            
+        Returns:
+            Dict: 增强后的schema
+        """
+        enhanced_schema = {"tables": []}
+        
+        # 获取数据库中表的主键外键信息
+        table_info = {}
+        for table in database_schema["tables"]:
+            table_info[table["table"]] = {
+                "primary_keys": table.get("primary_keys", []),
+                "foreign_keys": table.get("foreign_keys", [])
+            }
+        
+        # 为每个linked table添加主键外键信息
+        for table in linked_schema.get("tables", []):
+            table_name = table["table"]
+            columns = set(table["columns"])  # 使用set提高查找效率
+            
+            if table_name in table_info:
+                # 添加主键列
+                for pk in table_info[table_name]["primary_keys"]:
+                    columns.add(pk)
+                
+                # 添加外键列
+                for fk in table_info[table_name]["foreign_keys"]:
+                    columns.add(fk["column"])
+            
+            # 创建增强后的表对象
+            enhanced_table = {
+                "table": table_name,
+                "columns": list(columns)  # 转回list
+            }
+            
+            # 添加主键和外键信息（如果存在）
+            if table_name in table_info:
+                if table_info[table_name]["primary_keys"]:
+                    enhanced_table["primary_keys"] = table_info[table_name]["primary_keys"]
+                
+                # 添加外键信息
+                foreign_keys = []
+                for fk in table_info[table_name]["foreign_keys"]:
+                    if fk["column"] in columns:
+                        foreign_keys.append(fk)
+                if foreign_keys:
+                    enhanced_table["foreign_keys"] = foreign_keys
+            
+            enhanced_schema["tables"].append(enhanced_table)
+            
+        return enhanced_schema
+    
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """
         执行schema linking
@@ -253,11 +312,16 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
         if not extracted_linked_schema or not self._validate_linked_schema(extracted_linked_schema, database_schema):
             raise ValueError("Schema linking结果验证失败：包含不存在的表或列")
         
+        # print(raw_output)
         # print("****before enhance*****\n", extracted_linked_schema, "\n*********")
         
         # 增强schema信息: 添加必要的主键、外键信息和补充信息
         enhanced_linked_schema = self._enhance_linked_schema(extracted_linked_schema, database_schema)
         # print("****after enhance*****\n", enhanced_linked_schema, "\n*********")
+
+        # 仅使用主键外键信息增强schema，不包含补充信息和样例值
+        enhanced_linked_schema_wo_info = self.enhance_schema_only_with_keys(extracted_linked_schema, database_schema)
+        # print("****after enhance*****\n", enhanced_linked_schema_wo_info, "\n*********")
         
         # 格式化linked schema
         formatted_linked_schema = self.schema_manager.format_linked_schema(enhanced_linked_schema)
@@ -275,6 +339,7 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
                 "raw_output": raw_output,
                 "extracted_linked_schema": extracted_linked_schema,
                 "enhanced_linked_schema": enhanced_linked_schema,  # 添加增强后的schema
+                "enhanced_linked_schema_wo_info": enhanced_linked_schema_wo_info,
                 "formatted_linked_schema": formatted_linked_schema
             },
             model_info={
@@ -296,7 +361,7 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             raw_output
         )
         
-        # Save the linked schema result
+        # Save the enhanced linked schema result (without extra info)
         # Get source from the database_schema or a default value
         source = database_schema.get("source", "unknown")
         self.save_linked_schema_result(
@@ -304,7 +369,7 @@ class EnhancedSchemaLinker(SchemaLinkerBase):
             source=source,
             linked_schema={
                 "database": database_schema.get("database", ""),
-                "tables": enhanced_linked_schema.get("tables", [])
+                "tables": enhanced_linked_schema_wo_info.get("tables", [])
             }
         )
         
