@@ -60,7 +60,7 @@ class Labeler:
             post_processor=SkipPostProcessor()
         )
         
-        # Pipeline 3: 使用Enhanced生成器
+        # Pipeline 3: 使用Enhanced生成器: DC + OS + Refiner
         self.enhanced_pipeline = ElephantSQLPipeline(
             schema_linker=create_schema_linker(),
             sql_generator=EnhancedSQLGenerator(
@@ -79,7 +79,79 @@ class Labeler:
             PipelineType.DC_OS_REFINER: self.enhanced_pipeline
         }
 
-    async def label_dataset(self, data_file: str, output_file: str, max_workers: int = 5):
+    async def label_single_item(self, item: Dict, data_file: str) -> Dict:
+        """标注单个样例"""
+        query_id = item["question_id"]
+        source = item["source"]
+        db_id = item["db_id"]
+        gold_sql = item["gold_SQL"]
+        db_path = f"data/merged_databases/{source}_{db_id}/{db_id}.sqlite"
+        
+        # label默认值使用最复杂的pipeline, 如果简单pipeline能正确生成, 则使用简单pipeline替代标注
+        label = PipelineType.DC_OS_REFINER.value
+        
+        try:
+            # 先获取schema linking结果
+            linked_schema_raw = await self.vanilla_pipeline.schema_linker.link_schema(
+                query=item["question"],
+                database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                query_id=query_id
+            )
+            
+            # 获取仅包含主键外键的enhanced schema
+            enhanced_linked_schema_wo_info = self.vanilla_pipeline.schema_linker.enhance_schema_only_with_keys(
+                json.loads(self.extractor.extract_code_block(linked_schema_raw, 'json')),
+                self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict()
+            )
+            
+            # 尝试使用Pipeline 1: Vanilla Pipeline
+            result1 = await self.vanilla_pipeline.process(
+                query=item["question"],
+                database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                query_id=query_id,
+                source=source
+            )
+            if result1:
+                processed_sql = result1.get("processed_sql", "")
+                check_sql_result = compare_sql_results(db_path, gold_sql, processed_sql)
+                is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
+                
+                if is_correct:
+                    label = PipelineType.VANILLA.value
+                
+                else:
+                    # 尝试使用Pipeline 2: DC Refiner Pipeline
+                    result2 = await self.dc_refiner_pipeline.process(
+                        query=item["question"],
+                        database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                        query_id=query_id,
+                        source=source
+                    )
+                    if result2:
+                        processed_sql = result2.get("processed_sql", "")
+                        check_sql_result = compare_sql_results(db_path, gold_sql, processed_sql)
+                        is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
+                        
+                        if is_correct:
+                            label = PipelineType.DC_REFINER.value
+
+            return {
+                "question_id": query_id,
+                "source": source,
+                "db_id": db_id,
+                "question": item.get("question", ""),
+                "difficulty": item.get("difficulty", ""),
+                "gold_sql": gold_sql,
+                "pipeline_type": PipelineType(label).name,
+                "label": label,
+                "enhanced_linked_schema_wo_info": enhanced_linked_schema_wo_info
+            }
+            
+        except Exception as e:
+            print(f"Error processing question {query_id}: {str(e)}")
+            return None
+
+    async def label_dataset_parallel(self, data_file: str, output_file: str, max_workers: int = 5):
         """标注数据集"""
         # 加载数据集
         dataset = load_json(data_file)
@@ -95,82 +167,28 @@ class Labeler:
             pipeline.sql_generator.set_data_file(data_file)
             pipeline.post_processor.set_data_file(data_file)
         
-        # 对每个样例进行标注
-        for item in tqdm(dataset, desc="Labeling dataset"):
-            try:
-                query_id = item["question_id"]
-                source = item["source"]
-                db_id = item["db_id"]
-                gold_sql = item["gold_SQL"]
-                db_path = f"data/merged_databases/{source}_{db_id}/{db_id}.sqlite"
-                
-                # label默认值使用最复杂的pipeline：即如果较为简单的pipeline不能生成正确的SQL，则label为最复杂的Pipeline 3
-                label = PipelineType.DC_OS_REFINER.value
-                
-                # 先获取schema linking结果
-                linked_schema_raw = await self.vanilla_pipeline.schema_linker.link_schema(
-                    query=item["question"],
-                    database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
-                    query_id=query_id
-                )
-                
-                # 获取仅包含主键外键的enhanced schema
-                enhanced_linked_schema_wo_info = self.vanilla_pipeline.schema_linker.enhance_schema_only_with_keys(
-                    json.loads(self.extractor.extract_code_block(linked_schema_raw, 'json')),
-                    self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict()
-                )
-                
-                # 尝试使用Pipeline 1: Vanilla Pipeline
-                result1 = await self.vanilla_pipeline.process(
-                    query=item["question"],
-                    database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
-                    query_id=query_id,
-                    source=source
-                )
-                if result1:
-                    generated_sql = result1.get("generated_sql", "")
-                    result = compare_sql_results(db_path, gold_sql, generated_sql)
-                    is_correct = result[0] if isinstance(result, tuple) else result
-                    
-                    if is_correct:
-                        label = PipelineType.VANILLA.value
-                    else:
-                        # 尝试使用Pipeline 2: DC Refiner Pipeline
-                        result2 = await self.dc_refiner_pipeline.process(
-                            query=item["question"],
-                            database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
-                            query_id=query_id,
-                            source=source
-                        )
-                        if result2:
-                            generated_sql = result2.get("generated_sql", "")
-                            result = compare_sql_results(db_path, gold_sql, generated_sql)
-                            is_correct = result[0] if isinstance(result, tuple) else result
-                            
-                            if is_correct:
-                                label = PipelineType.DC_REFINER.value
-                
-                # 保存标注结果
-                labeled_result = {
-                    "question_id": query_id,
-                    "source": source,
-                    "db_id": db_id,
-                    "question": item.get("question", ""),
-                    "difficulty": item.get("difficulty", ""),
-                    "gold_sql": gold_sql,
-                    "pipeline_type": PipelineType(label).name,
-                    "label": label,
-                    "enhanced_linked_schema_wo_info": enhanced_linked_schema_wo_info
-                }
-                labeled_results.append(labeled_result)
-                
-                # 写入文件
-                with open(output_file, "a", encoding="utf-8") as f:
-                    f.write(json.dumps(labeled_result, ensure_ascii=False) + "\n")
-                    
-            except Exception as e:
-                print(f"Error processing question {query_id}: {str(e)}")
-                continue
+        # 创建任务列表
+        tasks = []
+        semaphore = asyncio.Semaphore(max_workers)
+        
+        async def process_with_semaphore(item):
+            async with semaphore:
+                return await self.label_single_item(item, data_file)
+        
+        # 创建所有任务
+        for item in dataset:
+            tasks.append(process_with_semaphore(item))
+        
+        # 使用tqdm显示进度
+        with tqdm(total=len(tasks), desc=f"Labeling dataset (threads: {max_workers})") as pbar:
+            for coro in asyncio.as_completed(tasks):
+                result = await coro
+                if result:
+                    labeled_results.append(result)
+                    # 写入文件
+                    with open(output_file, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(result, ensure_ascii=False) + "\n")
+                pbar.update(1)
                 
         return labeled_results
 
@@ -182,10 +200,10 @@ async def main():
     labeler = Labeler(llm)
     
     # 标注数据集
-    await labeler.label_dataset(
-        data_file="./data/merge_dev_demo.json",
-        output_file="./data/labeled/merge_dev_demo_pipeline_preference.jsonl",
-        max_workers=5
+    await labeler.label_dataset_parallel(
+        data_file="./data/sampled_bird_demo.json",
+        output_file="./data/labeled/sampled_bird_demo_pipeline_preference.jsonl",
+        max_workers=10
     )
 
 if __name__ == "__main__":
