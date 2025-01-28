@@ -13,6 +13,7 @@ from ..modules.post_processing.skip_post_processing import SkipPostProcessor
 from ..pipeline import ElephantSQLPipeline
 from ..evaluation.compute_EX import compare_sql_results
 from ..core.utils import load_json, TextExtractor
+from ..pipeline_factory import PipelineFactory, PipelineLevel
 
 class PipelineType(Enum):
     """Pipeline类型枚举"""
@@ -25,59 +26,13 @@ class Labeler:
     
     def __init__(self, llm: LLMBase):
         self.llm = llm
-        self.extractor = TextExtractor()  # 创建一个extractor实例
+        self.extractor = TextExtractor()
+        self.pipeline_factory = PipelineFactory(llm)
         
-        # 创建共用的schema linker
-        def create_schema_linker():
-            return EnhancedSchemaLinker(
-                llm,
-                model="gpt-4o-mini-2024-07-18",
-                temperature=0.0,
-                max_tokens=10000
-            )
-        
-        # Pipeline 1: 简单的GPT生成
-        self.vanilla_pipeline = ElephantSQLPipeline(
-            schema_linker=create_schema_linker(),
-            sql_generator=GPTSQLGenerator(
-                llm,
-                model="gpt-4o-mini-2024-07-18",
-                temperature=0.0,
-                max_tokens=10000
-            ),
-            post_processor=SkipPostProcessor()
-        )
-        
-        # Pipeline 2: 使用DC Refiner
-        self.dc_refiner_pipeline = ElephantSQLPipeline(
-            schema_linker=create_schema_linker(),
-            sql_generator=DCRefinerSQLGenerator(
-                llm,
-                model="gpt-4o-mini-2024-07-18",
-                temperature=0.0,
-                max_tokens=10000
-            ),
-            post_processor=SkipPostProcessor()
-        )
-        
-        # Pipeline 3: 使用Enhanced生成器: DC + OS + Refiner
-        self.enhanced_pipeline = ElephantSQLPipeline(
-            schema_linker=create_schema_linker(),
-            sql_generator=EnhancedSQLGenerator(
-                llm,
-                model="gpt-4o-mini-2024-07-18",
-                temperature=0.0,
-                max_tokens=10000
-            ),
-            post_processor=SkipPostProcessor()
-        )
-        
-        # 保存pipeline映射关系
-        self.pipelines = {
-            PipelineType.VANILLA: self.vanilla_pipeline,
-            PipelineType.DC_REFINER: self.dc_refiner_pipeline,
-            PipelineType.DC_OS_REFINER: self.enhanced_pipeline
-        }
+        # 获取不同级别的pipeline
+        self.basic_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.BASIC)
+        self.intermediate_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.INTERMEDIATE)
+        self.advanced_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.ADVANCED)
 
     async def label_single_item(self, item: Dict, data_file: str) -> Dict:
         """标注单个样例"""
@@ -92,22 +47,22 @@ class Labeler:
         
         try:
             # 先获取schema linking结果
-            linked_schema_raw = await self.vanilla_pipeline.schema_linker.link_schema(
+            linked_schema_raw = await self.basic_pipeline.schema_linker.link_schema(
                 query=item["question"],
-                database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
                 query_id=query_id
             )
             
             # 获取仅包含主键外键的enhanced schema
-            enhanced_linked_schema_wo_info = self.vanilla_pipeline.schema_linker.enhance_schema_only_with_keys(
+            enhanced_linked_schema_wo_info = self.basic_pipeline.schema_linker.enhance_schema_only_with_keys(
                 json.loads(self.extractor.extract_code_block(linked_schema_raw, 'json')),
-                self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict()
+                self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict()
             )
             
             # 尝试使用Pipeline 1: Vanilla Pipeline
-            result1 = await self.vanilla_pipeline.process(
+            result1 = await self.basic_pipeline.process(
                 query=item["question"],
-                database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
                 query_id=query_id,
                 source=source
             )
@@ -121,9 +76,9 @@ class Labeler:
                 
                 else:
                     # 尝试使用Pipeline 2: DC Refiner Pipeline
-                    result2 = await self.dc_refiner_pipeline.process(
+                    result2 = await self.intermediate_pipeline.process(
                         query=item["question"],
-                        database_schema=self.vanilla_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                        database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
                         query_id=query_id,
                         source=source
                     )
@@ -162,7 +117,7 @@ class Labeler:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
         # 设置数据文件路径给各个模块
-        for pipeline in self.pipelines.values():
+        for pipeline in [self.basic_pipeline, self.intermediate_pipeline, self.advanced_pipeline]:
             pipeline.schema_linker.set_data_file(data_file)
             pipeline.sql_generator.set_data_file(data_file)
             pipeline.post_processor.set_data_file(data_file)
