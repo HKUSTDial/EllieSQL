@@ -74,7 +74,7 @@ class SchemaLinkerBase(ModuleBase):
     
     async def link_schema_with_retry(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """
-        带重试机制的schema linking，达到重试阈值后返回完整的数据库schema
+        带重试机制的schema linking, 达到重试阈值后返回完整的数据库schema
         
         Args:
             query: 用户查询
@@ -82,7 +82,7 @@ class SchemaLinkerBase(ModuleBase):
             query_id: 查询ID
             
         Returns:
-            str: Schema Linking的结果或完整数据库schema的JSON字符串
+            str: Schema Linking的结果(补充主键和外键)或完整数据库schema的JSON字符串
         """
         last_error = None
         for attempt in range(self.max_retries):

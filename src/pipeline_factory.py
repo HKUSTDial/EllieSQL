@@ -5,6 +5,7 @@ from .modules.schema_linking.enhanced_linker import EnhancedSchemaLinker
 from .modules.sql_generation.gpt_generator import GPTSQLGenerator
 from .modules.sql_generation.dc_refiner_generator import DCRefinerSQLGenerator
 from .modules.sql_generation.online_synthesis_refiner_generator import OSRefinerSQLGenerator
+from .modules.sql_generation.enhanced_generator import EnhancedSQLGenerator
 from .modules.post_processing.skip_post_processing import SkipPostProcessor
 from .pipeline import ElephantSQLPipeline
 
@@ -62,10 +63,10 @@ class PipelineFactory:
                 )
                 
             elif level == PipelineLevel.ADVANCED:
-                # 高级pipeline：使用DC+OS+Refiner
+                # 高级pipeline：使用DC+OS+Refiner (EnhancedSQLGenerator)
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
-                    sql_generator=OSRefinerSQLGenerator(
+                    sql_generator=EnhancedSQLGenerator(
                         self.llm,
                         model="gpt-4o-mini-2024-07-18",
                         temperature=0.0,

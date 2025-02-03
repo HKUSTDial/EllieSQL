@@ -16,14 +16,18 @@ class SQLGeneratorBase(ModuleBase):
     @abstractmethod
     async def generate_sql(self,
                         query: str,
-                        linked_schema: Dict,
+                        schema_linking_output: Dict,
                         module_name: Optional[str] = None) -> str:
         """
         生成SQL, 返回使用代码块包裹的生成SQL的raw output, 统一在generate_sql_with_retry中使用重试机制安全提取代码块中的SQL
         
         Args:
             query: 用户查询
-            linked_schema: Schema Linking的输出
+            schema_linking_output: Schema Linking的输出
+                                    schema_linking_output = {
+                                        "original_schema": database_schema,
+                                        "linked_schema": enriched_linked_schema (如果使用enhanced linker, 则已经补充主键和外键, 而basic linker则无)
+                                    }
             module_name: 模块名称
             
         Returns:

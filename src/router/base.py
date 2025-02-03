@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from ..modules.sql_generation.base import SQLGeneratorBase
 
 class RouterBase(SQLGeneratorBase):
-    """Router的基类"""
+    """Router的基类 (继承SQLGeneratorBase类以方便实现)"""
     
     def __init__(self, name: str = "BaseRouter"):
         super().__init__(name)
@@ -42,14 +42,13 @@ class RouterBase(SQLGeneratorBase):
             query_id: 查询ID
             
         Returns:
-            str: 生成的SQL
+            str: 选择的生成器名称
         """
         pass
         
-    @abstractmethod
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str = None, module_name: Optional[str] = None) -> str:
         """
-        通过路由选择合适的生成器并生成SQL
+        通过路由选择合适的生成器并生成SQL (对SQLGeneratorBase的generate_sql抽象方法的实现)
         
         Args:
             query: 用户查询
@@ -60,4 +59,12 @@ class RouterBase(SQLGeneratorBase):
         Returns:
             str: 生成的SQL
         """
-        pass 
+        # 获取路由结果
+        selected_generator = await self.route(query, schema_linking_output, query_id)
+        
+        if selected_generator not in self.generators:
+            raise ValueError(f"Generator {selected_generator} not found")
+            
+        # 使用选定的生成器生成SQL
+        generator = self.generators[selected_generator]
+        return await generator.generate_sql(query, schema_linking_output, query_id, module_name) 
