@@ -17,8 +17,8 @@ Thumbs.db
 # 忽略pycache
 __pycache__/
 
-# 忽略config文件
-config/
+# 忽略config下的文件
+config/*
 
 # 忽略中间结果
 results/intermediate_results/
@@ -32,3 +32,6 @@ data/*.json
 data/labeled/*.jsonl
 data/merged_databases/**
 data/gold_schema_linking/**
+
+# 不忽略配置文件示例
+!config/config_example.yaml

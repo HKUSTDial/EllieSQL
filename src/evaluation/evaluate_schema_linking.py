@@ -1,5 +1,6 @@
 import json
 from ..core.utils import load_json, load_jsonl
+from ..core.config import Config
 
 def calculate_precision(golden_files, dev_file):
     # 加载文件内容
@@ -141,16 +142,18 @@ def calculate_f1(precision, recall):
     return 2 * (precision * recall) / (precision + recall)
 
 if __name__ == '__main__':
-    golden_file_spider_dev = "data\gold_schema_linking\spider_dev_gold_schema_linking.json"
+    golden_file_spider_dev = str(Config().gold_schema_linking_dir / "spider_dev_gold_schema_linking.json")
     # golden_file_spider_test = ""
-    golden_file_bird_dev = "data\gold_schema_linking\\bird_dev_gold_schema_linking.json"
+    golden_file_bird_dev = str(Config().gold_schema_linking_dir / "bird_dev_gold_schema_linking.json")
     
+
     golden_files = []
     golden_files.append(golden_file_spider_dev)
     # golden_files.append(golden_file_spider_test)
     golden_files.append(golden_file_bird_dev)
     
-    dev_file = "results\intermediate_results/20250125_220636\linked_schema_results.jsonl"
+    dev_file = str(Config().results_dir / "intermediate_results/20250125_220636/linked_schema_results.jsonl")
+
 
     precision = calculate_precision(golden_files, dev_file)
     recall = calculate_recall(golden_files, dev_file)

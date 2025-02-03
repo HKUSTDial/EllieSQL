@@ -14,6 +14,7 @@ from ..pipeline import ElephantSQLPipeline
 from ..evaluation.compute_EX import compare_sql_results
 from ..core.utils import load_json, TextExtractor
 from ..pipeline_factory import PipelineFactory, PipelineLevel
+from ..core.config import Config
 
 class PipelineType(Enum):
     """Pipeline类型枚举"""
@@ -40,7 +41,10 @@ class Labeler:
         source = item["source"]
         db_id = item["db_id"]
         gold_sql = item["gold_SQL"]
-        db_path = f"data/merged_databases/{source}_{db_id}/{db_id}.sqlite"
+        # 修复数据库路径拼接
+        db_folder = f"{source}_{db_id}"
+        db_file = f"{db_id}.sqlite"
+        db_path = str(Config().database_dir / db_folder / db_file)
         
         # label默认值使用最复杂的pipeline, 如果简单pipeline能正确生成, 则使用简单pipeline替代标注
         label = PipelineType.DC_OS_REFINER.value
@@ -108,6 +112,10 @@ class Labeler:
 
     async def label_dataset_parallel(self, data_file: str, output_file: str, max_workers: int = 5):
         """标注数据集"""
+        # 使用配置路径
+        data_file = str(Config().data_dir / Path(data_file))
+        output_file = str(Config().data_dir / Path(output_file))
+        
         # 加载数据集
         dataset = load_json(data_file)
         labeled_results = []
@@ -156,8 +164,8 @@ async def main():
     
     # 标注数据集
     await labeler.label_dataset_parallel(
-        data_file="./data/sampled_bird_demo.json",
-        output_file="./data/labeled/sampled_bird_demo_pipeline_preference.jsonl",
+        data_file="sampled_bird_demo.json",
+        output_file="labeled/sampled_bird_demo_pipeline_preference.jsonl",
         max_workers=10
     )
 

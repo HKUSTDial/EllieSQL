@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Optional
 from ..base import ModuleBase
 from ...core.sql_execute import validate_sql_execution
 from ...core.utils import load_json
+from ...core.config import Config
 import os
 
 class SQLGeneratorBase(ModuleBase):
@@ -103,7 +104,9 @@ class SQLGeneratorBase(ModuleBase):
                 source = item.get("source", "")
                 # 使用与data_file相对的路径
                 data_dir = os.path.dirname(self.data_file)
-                db_path = os.path.join(data_dir, "merged_databases", f"{source}_{db_id}", f"{db_id}.sqlite")
+                db_folder = f"{source}_{db_id}"
+                db_file = f"{db_id}.sqlite"
+                db_path = str(Config().database_dir / db_folder / db_file)
                 break
                 
         if not db_path:

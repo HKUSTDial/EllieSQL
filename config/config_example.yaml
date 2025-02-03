@@ -1,0 +1,16 @@
+api:
+  base_url: "your_base_url"
+  api_key: "your_api_key"
+
+paths:
+  data_dir: "./data"
+  database_dir: "./data/merged_databases"
+  gold_schema_linking_dir: "./data/gold_schema_linking"
+  results_dir: "./results"
+  logs_dir: "./logs"
+  
+  # data_dir: "/data/elephantsql/data"
+  # database_dir: "/data/elephantsql/merged_databases" 
+  # results_dir: "/data/elephantsql/results"
+  # logs_dir: "/data/elephantsql/logs"
+  # gold_schema_linking_dir: "/data/elephantsql/gold_schema_linking"

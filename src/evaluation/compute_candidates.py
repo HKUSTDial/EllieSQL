@@ -3,6 +3,7 @@ import os
 from ..core.utils import load_json, load_jsonl
 from ..core.sql_execute import *
 from .compute_EX import compare_sql_results
+from ..core.config import Config
 
 
 # 统计结果
@@ -31,7 +32,9 @@ def analyze_results(direct_selector_path, sampled_merged_path):
                 source = item.get("source", "")
                 difficulty = item.get("difficulty")
                 db_id = item.get("db_id", "")
-                db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
+                db_folder = f"{source}_{db_id}"
+                db_file = f"{db_id}.sqlite"
+                db_path = str(Config().database_dir / db_folder / db_file)
                 gold_sql = item.get("gold_SQL")
                 # 比较两个 candidate_sqls 的执行结果与 gold_SQL
                 result1 = compare_sql_results(db_path, gold_sql, candidate_sqls[0])

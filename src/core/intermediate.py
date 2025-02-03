@@ -2,6 +2,7 @@ import json
 import os
 from typing import Dict, Any, List
 from datetime import datetime
+from .config import Config
 
 class IntermediateResult:
     """处理模块中间结果的基类"""
@@ -17,19 +18,19 @@ class IntermediateResult:
         self.module_name = module_name
         self.pipeline_id = pipeline_id or datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # 创建目录结构
-        self.base_dir = "results/intermediate_results"
-        self.pipeline_dir = os.path.join(self.base_dir, self.pipeline_id)
+        # 使用配置的路径
+        self.base_dir = Config().intermediate_results_dir
+        self.pipeline_dir = self.base_dir / self.pipeline_id
         os.makedirs(self.pipeline_dir, exist_ok=True)
         
         # 中间结果文件路径
-        self.result_file = os.path.join(self.pipeline_dir, f"{module_name}.jsonl")
+        self.result_file = self.pipeline_dir / f"{module_name}.jsonl"
         
         # Pipeline统计文件
-        self.stats_file = os.path.join(self.pipeline_dir, "api_stats.json")
+        self.stats_file = self.pipeline_dir / "api_stats.json"
         
         # SQL结果文件
-        self.sql_results_file = os.path.join(self.pipeline_dir, "generated_sql_results.jsonl")
+        self.sql_results_file = self.pipeline_dir / "generated_sql_results.jsonl"
         
     def save_result(self, 
                    input_data: Dict[str, Any],

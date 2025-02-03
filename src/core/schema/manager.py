@@ -3,6 +3,7 @@ from pathlib import Path
 from threading import Lock
 from .schema import DatabaseSchema
 from .extractor import SchemaExtractor
+from ..config import Config
 
 class SchemaManager:
     """管理数据库schema的单例类"""
@@ -48,10 +49,10 @@ class SchemaManager:
         # 构建数据库路径
         db_folder = f"{source}_{db_id}"
         db_file = f"{db_id}.sqlite"
-        db_path = f"./data/merged_databases/{db_folder}/{db_file}"
+        db_path = Config().database_dir / db_folder / db_file
         
         try:
-            schema = self.get_schema(db_id, db_path)
+            schema = self.get_schema(db_id, str(db_path))
             schema_dict = schema.to_dict()
             
             # 格式化schema信息
@@ -118,7 +119,7 @@ class SchemaManager:
         # 构建数据库路径
         db_folder = f"{source}_{db_id}"  # 例如: spider_dev_academic
         db_file = f"{db_id}.sqlite"      # 例如: academic.sqlite
-        db_path = f"./data/merged_databases/{db_folder}/{db_file}"
+        db_path = str(Config().database_dir / db_folder / db_file)
         
         try:
             # 获取schema并转换为字典格式

@@ -13,6 +13,7 @@ from src.core.intermediate import IntermediateResult
 from src.core.logger import LoggerManager
 from src.core.schema.manager import SchemaManager
 from concurrent.futures import ThreadPoolExecutor
+from src.core.config import Config
 
 class ElephantSQLPipeline:
     """完整的处理流程Pipeline"""
@@ -86,7 +87,7 @@ class ElephantSQLPipeline:
             # 例如: ./data/merged_databases/spider_dev_academic/academic.sqlite
             db_folder = f"{source}_{db_id}"  # 例如: spider_dev_academic
             db_file = f"{db_id}.sqlite"      # 例如: academic.sqlite
-            db_path = f"./data/merged_databases/{db_folder}/{db_file}"
+            db_path = str(Config().database_dir / db_folder / db_file)
             
             try:
                 schema = self.schema_manager.get_schema(db_id, db_path)

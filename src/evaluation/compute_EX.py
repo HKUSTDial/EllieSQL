@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
 from ..core.utils import load_json, load_jsonl
 from ..core.sql_execute import *
+from ..core.config import Config
 
 
 def find_latest_folder(directory):
@@ -112,7 +114,7 @@ def compare_sql_results(db_path, sql1, sql2, timeout=10):
 
 
 
-def compute_EX_source_difficulty_based(merge_dev_demo_file, time_path):
+def compute_EX_source_difficulty_based(merge_dev_demo_file: str, time_path: str):
     """
     Compute the EX for the latest generated sql results, grouped by source.
     For 'bird_dev' source, further group by difficulty.
@@ -128,8 +130,9 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file, time_path):
     merge_dev_demo_data = load_json(merge_dev_demo_file)
     time_path = time_path + find_latest_folder(time_path) 
 
-    generated_sql_file = time_path + "/" + "generated_sql_results.jsonl"
-    generated_sql_data = load_jsonl(generated_sql_file)
+    # 使用配置路径
+    generated_sql_file = Path(time_path) / "generated_sql_results.jsonl"
+    generated_sql_data = load_jsonl(str(generated_sql_file))
 
     # Dictionary to store counts for each source and difficulty (for 'bird_dev')
     source_stats = {}
@@ -143,7 +146,9 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file, time_path):
         source = item.get("source", "")
         difficulty = item.get("difficulty")
         db_id = item.get("db_id", "")
-        db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
+        db_folder = f"{source}_{db_id}"
+        db_file = f"{db_id}.sqlite"
+        db_path = str(Config().database_dir / db_folder / db_file)
 
         gold_sql = item.get("gold_SQL")
         generated_sql = ""

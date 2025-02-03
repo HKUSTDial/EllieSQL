@@ -9,9 +9,9 @@ class SQLExecutionResultType(Enum):
     Type of the result of a SQL query execution.
     
     Attributes:
-        SUCCESS: The query is executed successfully.
-        TIMEOUT: The query execution timed out.
-        ERROR: The query execution failed.
+        SUCCESS: The SQL query is executed successfully.
+        TIMEOUT: The SQL query execution timed out.
+        ERROR: The SQL query execution failed.
     """
     SUCCESS = "success"
     TIMEOUT = "timeout"
@@ -42,10 +42,10 @@ class ExecuteSQLThread(threading.Thread):
     """
     Thread to execute a SQL query.
     """
-    def __init__(self, db_path: str, query: str, timeout: int) -> None:
+    def __init__(self, db_path: str, sql: str, timeout: int) -> None:
         super().__init__()
         self.db_path = db_path
-        self.query = query
+        self.sql = sql
         self.timeout = timeout
         self.result = None
         self.exception = None
@@ -54,7 +54,7 @@ class ExecuteSQLThread(threading.Thread):
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute(self.query)
+                cursor.execute(self.sql)
                 self.result = cursor.fetchall()
                 cursor.close()  # 确保关闭游标
         except Exception as e:
@@ -64,44 +64,44 @@ class ExecuteSQLThread(threading.Thread):
                 conn.close()  # 显式关闭连接
 
 
-def execute_sql_with_timeout(db_path: str, query: str, timeout: int = 10) -> SQLExecutionResult:
+def execute_sql_with_timeout(db_path: str, sql: str, timeout: int = 10) -> SQLExecutionResult:
     """
     Execute a SQL query synchronously with a timeout.
     
     Args:
         db_path: The path to the database.
-        query: The SQL query to execute.
+        sql: The SQL query to execute.
         timeout: The timeout.
     Returns:
         The result of the SQL query.
     """ 
-    thread = ExecuteSQLThread(db_path, query, timeout)
+    thread = ExecuteSQLThread(db_path, sql, timeout)
     thread.start()
     thread.join(timeout)
     if thread.is_alive():
         error_message = f"SQL execution timed out after {timeout} seconds"
-        return SQLExecutionResult(db_path, query, SQLExecutionResultType.TIMEOUT, None, error_message)
+        return SQLExecutionResult(db_path, sql, SQLExecutionResultType.TIMEOUT, None, error_message)
     if thread.exception:
         error_message = str(thread.exception)
-        return SQLExecutionResult(db_path, query, SQLExecutionResultType.ERROR, None, error_message)
-    return SQLExecutionResult(db_path, query, SQLExecutionResultType.SUCCESS, thread.result, None)
+        return SQLExecutionResult(db_path, sql, SQLExecutionResultType.ERROR, None, error_message)
+    return SQLExecutionResult(db_path, sql, SQLExecutionResultType.SUCCESS, thread.result, None)
 
 
-def check_query_valid(db_path: str, query: str, with_limit: bool = True, timeout: int = 10) -> bool:
+def check_query_valid(db_path: str, sql: str, with_limit: bool = True, timeout: int = 10) -> bool:
     """
     Check if a SQL query is valid.
     
     Args:
         db_path: The path to the database.
-        query: The SQL query to check.
+        sql: The SQL query to check.
         with_limit: Whether to add a limit to the query.
         timeout: The timeout.
     Returns:
-        Whether the query is valid.
+        Whether the SQL query is valid.
     """
     if with_limit:
-        query = f"SELECT * FROM ({query}) LIMIT 1;"
-    return execute_sql_with_timeout(db_path, query, timeout).result_type == SQLExecutionResultType.SUCCESS
+        sql = f"SELECT * FROM ({sql}) LIMIT 1;"
+    return execute_sql_with_timeout(db_path, sql, timeout).result_type == SQLExecutionResultType.SUCCESS
 
 
 def validate_sql_execution(db_path: str, sql: str) -> Tuple[bool, str]:

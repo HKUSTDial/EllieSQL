@@ -3,6 +3,7 @@ from loguru import logger
 from pathlib import Path
 from datetime import datetime
 import os
+from .config import Config
 
 class LoggerManager:
     """日志管理器"""
@@ -11,8 +12,8 @@ class LoggerManager:
         if pipeline_id is None:
             pipeline_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             
-        # 创建日志目录
-        self.log_dir = Path(f"logs/{pipeline_id}")
+        # 使用配置的路径
+        self.log_dir = Config().logs_dir / pipeline_id
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # 移除默认的sink

@@ -4,7 +4,9 @@ from .base import PostProcessorBase
 from ...core.llm import LLMBase
 from ...core.sql_execute import *
 from ...core.utils import load_json, load_jsonl
+from ...core.config import Config
 from .prompts.reflection_prompts import REFLECTION_SYSTEM, FEEDBACK_BASED_REFLECTION_USER
+
 
 
 class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
@@ -35,7 +37,7 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
         prev_result = self.load_previous_result(query_id)
         original_query = prev_result["input"]["query"]
 
-        merge_dev_demo_file = "./data/merge_dev_demo.json"
+        merge_dev_demo_file = str(Config().data_dir / "merge_dev_demo.json")
         merge_dev_demo_data = load_json(merge_dev_demo_file)
 
         for item in merge_dev_demo_data:
@@ -43,7 +45,9 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
                 db_id = item.get("db_id", "")
                 source = item.get("source", "")
                 question = item.get("question", "")
-                db_path = "./data/merged_databases/" + source +'_'+ db_id +"/"+ db_id + '.sqlite'
+                db_folder = f"{source}_{db_id}"
+                db_file = f"{db_id}.sqlite"
+                db_path = str(Config().database_dir / db_folder / db_file)
                 #执行sql并且返回结果：能运行、超时、或报错
                 ex_result = execute_sql_with_timeout(db_path, sql)
 
