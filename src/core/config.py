@@ -37,3 +37,15 @@ class Config:
     @property 
     def gold_schema_linking_dir(self) -> Path:
         return Path(self.config["paths"]["gold_schema_linking_dir"]) 
+    
+    @property
+    def model_dir(self) -> Path:
+        return Path(self.config["paths"]["model_dir"])
+    
+    @property
+    def finetune_data_dir(self) -> Path:
+        return Path(self.config["paths"]["finetune_data_dir"])
+    
+    @property
+    def finetune_save_dir(self) -> Path:
+        return Path(self.config["paths"]["finetune_save_dir"])

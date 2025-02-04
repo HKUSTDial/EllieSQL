@@ -63,7 +63,7 @@ class TextExtractor:
         """
         if language:
             # 提取指定语言的代码块
-            pattern = f"```{language}\s*(.*?)\s*```"
+            pattern = f"```{language}\\s*(.*?)\\s*```"
         else:
             # 提取任意语言的代码块
             pattern = r"```\w*\s*(.*?)\s*```"
