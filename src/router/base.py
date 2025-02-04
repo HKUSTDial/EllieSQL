@@ -60,11 +60,48 @@ class RouterBase(SQLGeneratorBase):
             str: 生成的SQL
         """
         # 获取路由结果
-        selected_generator = await self.route(query, schema_linking_output, query_id)
+        selected_generator_name = await self.route(query, schema_linking_output, query_id)
         
-        if selected_generator not in self.generators:
-            raise ValueError(f"Generator {selected_generator} not found")
+        if selected_generator_name not in self.generators:
+            raise ValueError(f"Generator {selected_generator_name} not found")
             
         # 使用选定的生成器生成SQL
-        generator = self.generators[selected_generator]
-        return await generator.generate_sql(query, schema_linking_output, query_id, module_name) 
+        selected_generator = self.generators[selected_generator_name]
+        raw_output = await selected_generator.generate_sql(query, schema_linking_output, query_id, module_name)
+        extracted_sql = self.extractor.extract_sql(raw_output)
+        
+        # 保存中间结果
+        self.save_intermediate(
+            input_data={
+                "query": query,
+                "linked_schema": schema_linking_output.get("linked_schema", {}),
+            },
+            output_data={
+                "raw_output": raw_output,
+                "extracted_sql": extracted_sql,
+                "selected_generator": selected_generator_name,
+            },
+            model_info={
+                "model": "none",  # router本身不消耗token
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            },
+            query_id=query_id,
+            module_name=self.name if module_name is None else module_name
+        )
+        
+        # 记录路由信息
+        self.log_io(
+            input_data={
+                "query": query,
+                "schema_linking_output": schema_linking_output
+            },
+            output_data={
+                "selected_generator": selected_generator_name,
+                "raw_output": raw_output,
+                "extracted_sql": extracted_sql
+            }
+        )
+        
+        return raw_output 
