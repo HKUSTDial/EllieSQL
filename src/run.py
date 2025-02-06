@@ -17,7 +17,7 @@ async def main():
     llm = LLMBase()
     
     # 创建pipeline工厂
-    factory = PipelineFactory(llm)
+    factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
     
     # 创建router
     # router = TableCountRouter()
@@ -34,7 +34,7 @@ async def main():
     # 创建使用router的pipeline
     pipeline = ElephantSQLPipeline(
         schema_linker=factory.get_pipeline(PipelineLevel.BASIC).schema_linker, # 复用基础pipeline的schema linker
-        sql_generator=router, # 复用基础pipeline的schema linker
+        sql_generator=router, # 使用router代替特定的generator
         post_processor=SkipPostProcessor()
     )
     

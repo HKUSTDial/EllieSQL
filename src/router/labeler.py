@@ -28,7 +28,7 @@ class Labeler:
     def __init__(self, llm: LLMBase):
         self.llm = llm
         self.extractor = TextExtractor()
-        self.pipeline_factory = PipelineFactory(llm)
+        self.pipeline_factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
         
         # 获取不同级别的pipeline
         self.basic_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.BASIC)

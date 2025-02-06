@@ -18,17 +18,21 @@ class PipelineLevel(Enum):
 class PipelineFactory:
     """Pipeline工厂类, 用于创建和管理不同级别的pipeline"""
     
-    def __init__(self, llm: LLMBase):
+    def __init__(self, llm: LLMBase, backbone_model: str = "gpt-4o-mini-2024-07-18", temperature: float = 0.0, max_retries: int = 10):
         self.llm = llm
+        self.backbone_model = backbone_model
+        self.temperature = temperature
+        self.max_retries = max_retries
         self._pipelines: Dict[PipelineLevel, ElephantSQLPipeline] = {}
         
     def _create_schema_linker(self):
         """创建共用的schema linker"""
         return EnhancedSchemaLinker(
             self.llm,
-            model="gpt-4o-mini-2024-07-18",
-            temperature=0.0,
-            max_tokens=10000
+            model=self.backbone_model,
+            temperature=self.temperature,
+            max_tokens=10000,
+            max_retries=self.max_retries
         )
         
     def get_pipeline(self, level: PipelineLevel) -> ElephantSQLPipeline:
@@ -42,9 +46,10 @@ class PipelineFactory:
                     schema_linker=schema_linker,
                     sql_generator=GPTSQLGenerator(
                         self.llm,
-                        model="gpt-4o-mini-2024-07-18",
-                        temperature=0.0,
-                        max_tokens=10000
+                        model=self.backbone_model,
+                        temperature=self.temperature,
+                        max_tokens=10000,
+                        max_retries=self.max_retries
                     ),
                     post_processor=SkipPostProcessor()
                 )
@@ -55,9 +60,10 @@ class PipelineFactory:
                     schema_linker=schema_linker,
                     sql_generator=DCRefinerSQLGenerator(
                         self.llm,
-                        model="gpt-4o-mini-2024-07-18",
-                        temperature=0.0,
-                        max_tokens=10000
+                        model=self.backbone_model,
+                        temperature=self.temperature,
+                        max_tokens=10000,
+                        max_retries=self.max_retries
                     ),
                     post_processor=SkipPostProcessor()
                 )
@@ -68,9 +74,10 @@ class PipelineFactory:
                     schema_linker=schema_linker,
                     sql_generator=EnhancedSQLGenerator(
                         self.llm,
-                        model="gpt-4o-mini-2024-07-18",
-                        temperature=0.0,
-                        max_tokens=10000
+                        model=self.backbone_model,
+                        temperature=self.temperature,
+                        max_tokens=10000,
+                        max_retries=self.max_retries
                     ),
                     post_processor=SkipPostProcessor()
                 )
