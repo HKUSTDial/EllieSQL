@@ -23,7 +23,7 @@ class PipelineType(Enum):
     DC_OS_REFINER = 3       # Divide and Conquer + Online Synthesis + Refiner
 
 class Labeler:
-    """用于标注数据集中每个样例对pipeline的偏好的标注器"""
+    """用于标注训练集中每个样例对pipeline的偏好的标注器"""
     
     def __init__(self, llm: LLMBase):
         self.llm = llm

@@ -8,6 +8,9 @@ paths:
   gold_schema_linking_dir: "./data/gold_schema_linking"
   results_dir: "./results"
   logs_dir: "./logs"
+  model_dir: "/data/zhuyizhang/models/Qwen2.5-0.5B"
+  finetune_data_dir: "./data/finetune"
+  finetune_save_dir: "/data/zhuyizhang/saves/Qwen2.5-0.5B-router"
   
   # data_dir: "/data/elephantsql/data"
   # database_dir: "/data/elephantsql/merged_databases" 

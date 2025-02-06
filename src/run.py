@@ -9,6 +9,7 @@ from .modules.sql_generation.online_synthesis_refiner_generator import OSRefiner
 from .modules.post_processing.skip_post_processing import SkipPostProcessor
 from .pipeline import ElephantSQLPipeline
 from src.router.table_count_router import TableCountRouter
+from src.router.qwen_router import QwenRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 async def main():
@@ -19,7 +20,8 @@ async def main():
     factory = PipelineFactory(llm)
     
     # 创建router
-    router = TableCountRouter()
+    # router = TableCountRouter()
+    router = QwenRouter(classifier_head=True, seed=42)
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 
