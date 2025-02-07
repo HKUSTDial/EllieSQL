@@ -174,5 +174,5 @@ We have decomposed the main question into sub-questions, now your task is based 
 ### Sub-questions and corresponding output, including SQL querys and explanation:
 {subs}
 
-Based on the SQL querys for corresponding sub-questions, generate the final SQL for the main question, SQL must be surrounded by ```sql``` code block.
+Based on the SQL querys for corresponding sub-questions, generate the final SQL for the main question in the end of your response, SQL must be surrounded by ```sql``` code block.
 """
