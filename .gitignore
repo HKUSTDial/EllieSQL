@@ -39,3 +39,7 @@ data/finetune/**
 
 # 不忽略配置文件示例
 !config/config_example.yaml
+
+examples/m2.py
+examples/m3.py
+examples/m4.py

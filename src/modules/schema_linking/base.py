@@ -147,7 +147,17 @@ class SchemaLinkerBase(ModuleBase):
             },
             query_id=query_id
         )
-        # print(self.schema_manager.format_linked_schema(full_schema))
+
+        # 即使Schema Linking失败返回full database schema也因保存结果
+        source = database_schema.get("source", "unknown")
+        self.save_linked_schema_result(
+            query_id=query_id,
+            source=source,
+            linked_schema={
+                "database": database_schema.get("database", ""),
+                "tables": full_schema.get("tables", [])
+            }
+        )
         return full_schema
     
     def _format_basic_schema(self, schema: Dict) -> str:
