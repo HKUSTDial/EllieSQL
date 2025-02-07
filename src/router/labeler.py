@@ -18,9 +18,10 @@ from ..core.config import Config
 
 class PipelineType(Enum):
     """Pipeline类型枚举"""
-    VANILLA = 1             # Vanilla Pipeline 
-    DC_REFINER = 2          # Divide and Conquer + Refiner
-    DC_OS_REFINER = 3       # Divide and Conquer + Online Synthesis + Refiner
+    BASIC = 1           # 可以使用简单Pipeline处理
+    INTERMEDIATE = 2    # 需要使用中等Pipeline处理
+    ADVANCED = 3        # 需要使用高级Pipeline处理
+    UNSOLVED = 4        # 所有Pipeline都无法处理, 但是training set中实际看作ADVANCED标签
 
 class Labeler:
     """用于标注训练集中每个样例对pipeline的偏好的标注器"""
@@ -28,7 +29,7 @@ class Labeler:
     def __init__(self, llm: LLMBase):
         self.llm = llm
         self.extractor = TextExtractor()
-        self.pipeline_factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
+        self.pipeline_factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
         
         # 获取不同级别的pipeline
         self.basic_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.BASIC)
@@ -36,79 +37,98 @@ class Labeler:
         self.advanced_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.ADVANCED)
 
     async def label_single_item(self, item: Dict, data_file: str) -> Dict:
-        """标注单个样例"""
+        """标注单个样例,按照pipeline难度递增的顺序尝试,直到找到能正确处理的pipeline"""
         query_id = item["question_id"]
         source = item["source"]
         db_id = item["db_id"]
         gold_sql = item["gold_SQL"]
-        # 修复数据库路径拼接
         db_folder = f"{source}_{db_id}"
         db_file = f"{db_id}.sqlite"
         db_path = str(Config().database_dir / db_folder / db_file)
         
-        # label默认值使用最复杂的pipeline, 如果简单pipeline能正确生成, 则使用简单pipeline替代标注
-        label = PipelineType.DC_OS_REFINER.value
-        
         try:
-            # 先获取schema linking结果
+            # 获取schema linking结果
             linked_schema_raw = await self.basic_pipeline.schema_linker.link_schema(
                 query=item["question"],
                 database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
                 query_id=query_id
             )
             
-            # 获取仅包含主键外键的enhanced schema
+            # 获取enhanced schema
             enhanced_linked_schema_wo_info = self.basic_pipeline.schema_linker.enhance_schema_only_with_keys(
                 json.loads(self.extractor.extract_code_block(linked_schema_raw, 'json')),
                 self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict()
             )
-            
-            # 尝试使用Pipeline 1: Vanilla Pipeline
-            result1 = await self.basic_pipeline.process(
+
+            # 1. 尝试BASIC Pipeline
+            result = await self.basic_pipeline.process(
                 query=item["question"],
                 database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
                 query_id=query_id,
                 source=source
             )
-            if result1:
-                processed_sql = result1.get("processed_sql", "")
+            if result:
+                processed_sql = result.get("processed_sql", "")
                 check_sql_result = compare_sql_results(db_path, gold_sql, processed_sql)
                 is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
                 
                 if is_correct:
-                    label = PipelineType.VANILLA.value
-                
-                else:
-                    # 尝试使用Pipeline 2: DC Refiner Pipeline
-                    result2 = await self.intermediate_pipeline.process(
-                        query=item["question"],
-                        database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
-                        query_id=query_id,
-                        source=source
-                    )
-                    if result2:
-                        processed_sql = result2.get("processed_sql", "")
-                        check_sql_result = compare_sql_results(db_path, gold_sql, processed_sql)
-                        is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
-                        
-                        if is_correct:
-                            label = PipelineType.DC_REFINER.value
+                    label = PipelineType.BASIC.value
+                    return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
 
-            return {
-                "question_id": query_id,
-                "source": source,
-                "db_id": db_id,
-                "question": item.get("question", ""),
-                "difficulty": item.get("difficulty", ""),
-                "gold_sql": gold_sql,
-                "pipeline_type": PipelineType(label).name,
-                "label": label,
-                "enhanced_linked_schema_wo_info": enhanced_linked_schema_wo_info
-            }
+            # 2. BASIC失败,尝试INTERMEDIATE Pipeline
+            result = await self.intermediate_pipeline.process(
+                query=item["question"],
+                database_schema=self.intermediate_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                query_id=query_id,
+                source=source
+            )
+            if result:
+                processed_sql = result.get("processed_sql", "")
+                check_sql_result = compare_sql_results(db_path, gold_sql, processed_sql)
+                is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
+                
+                if is_correct:
+                    label = PipelineType.INTERMEDIATE.value
+                    return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
+
+            # 3. INTERMEDIATE失败,尝试ADVANCED Pipeline
+            result = await self.advanced_pipeline.process(
+                query=item["question"],
+                database_schema=self.advanced_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
+                query_id=query_id,
+                source=source
+            )
+            if result:
+                processed_sql = result.get("processed_sql", "")
+                check_sql_result = compare_sql_results(db_path, gold_sql, processed_sql)
+                is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
+                
+                if is_correct:
+                    label = PipelineType.ADVANCED.value
+                    return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
+
+            # 4. 所有Pipeline都失败
+            label = PipelineType.UNSOLVED.value
+            return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
             
         except Exception as e:
             print(f"Error processing question {query_id}: {str(e)}")
             return None
+
+    def _create_result_dict(self, item: Dict, label: int, enhanced_schema: Dict) -> Dict:
+        """创建结果字典"""
+        return {
+            "question_id": item["question_id"],
+            "source": item["source"],
+            "db_id": item["db_id"],
+            "question": item.get("question", ""),
+            "difficulty": item.get("difficulty", ""),
+            "gold_sql": item["gold_SQL"],
+            "pipeline_type": PipelineType(label).name,
+            "label": label,
+            "enhanced_linked_schema_wo_info": enhanced_schema
+        }
 
     async def label_dataset_parallel(self, data_file: str, output_file: str, max_workers: int = 5):
         """标注数据集"""
@@ -164,9 +184,11 @@ async def main():
     
     # 标注数据集
     await labeler.label_dataset_parallel(
-        data_file="sampled_bird_demo.json",
-        output_file="labeled/sampled_bird_demo_pipeline_preference.jsonl",
-        max_workers=10
+        # data_file="sampled_bird_demo.json",
+        # output_file="labeled/sampled_bird_demo_pipeline_preference.jsonl",
+        data_file="formatted_bird_dev.json",
+        output_file="labeled/bird_dev_pipeline_label.jsonl",
+        max_workers=100
     )
 
 if __name__ == "__main__":
