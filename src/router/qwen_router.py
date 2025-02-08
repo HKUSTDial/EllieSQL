@@ -7,6 +7,7 @@ from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
 from ..finetune.qwen_classifier_sft import QwenForSequenceClassification
 from ..finetune.instruction_templates import PipelineClassificationTemplates
+import torch.nn.functional as F
 
 class QwenRouter(RouterBase):
     """基于微调的Qwen模型进行路由的路由器，支持分类头和生成式两种模式"""
@@ -82,11 +83,10 @@ class QwenRouter(RouterBase):
             if isinstance(module, (torch.nn.Dropout, torch.nn.LayerNorm)):
                 module.eval()
                 
-    def _predict_with_head(self, question: str, schema: dict) -> int:
+    def _predict_with_head(self, question: str, schema: dict) -> tuple[int, dict]:
         """使用分类头模型进行预测"""
         input_text = self.templates.create_classifier_prompt(question, schema)
         
-        # 编码输入
         inputs = self.tokenizer(
             input_text,
             padding=True,
@@ -95,18 +95,25 @@ class QwenRouter(RouterBase):
             return_tensors="pt"
         )
         
-        # 将输入移动到正确的设备和数据类型
         inputs = {k: v.to(self.model.device, dtype=torch.long) for k, v in inputs.items()}
         
-        # 进行预测
         with torch.no_grad():
             self.model.eval()
             outputs = self.model(**inputs)
             logits = outputs.logits
-            predicted_class = torch.argmax(logits, dim=-1).item()
             
-        # 返回0-based标签
-        return predicted_class
+            # 使用softmax获取概率分布
+            probs = F.softmax(logits, dim=-1)
+            predicted_class = torch.argmax(probs, dim=-1).item()
+            
+            # 获取每个类别的概率
+            probabilities = {
+                "basic": float(probs[0][0]),
+                "intermediate": float(probs[0][1]),
+                "advanced": float(probs[0][2])
+            }
+        
+        return predicted_class, probabilities
         
     def _predict_with_gen(self, question: str, schema: dict) -> int:
         """使用生成式模型进行预测"""
@@ -157,7 +164,15 @@ class QwenRouter(RouterBase):
         linked_schema = schema_linking_output.get("linked_schema", {})
         
         # 使用模型进行预测
-        predicted_class = self._predict(query, linked_schema)
+        if self.classifier_head:
+            predicted_class, probabilities = self._predict_with_head(query, linked_schema)
+            
+            # 记录预测概率
+            self.logger.info(f"Pipeline selection probabilities for query {query_id}:")
+            for pipeline, prob in probabilities.items():
+                self.logger.info(f"  {pipeline}: {prob:.4f}")
+        else:
+            predicted_class = self._predict_with_gen(query, linked_schema)
         
         # 根据预测结果选择pipeline
         if predicted_class == 0:  # Basic

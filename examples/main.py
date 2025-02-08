@@ -30,21 +30,21 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.5, 
     #         max_tokens=1000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     sql_generator=GPTSQLGenerator(
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.5, 
     #         max_tokens=1000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=FeedbackBasedReflectionPostProcessor(
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.5, 
     #         max_tokens=1000,
-    #         max_retries=3
+    #         max_retries=10
     #     )
     # )
     
@@ -72,35 +72,35 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     sql_generator=VanillaRefineSQLGenerator(
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
 
-    # pipeline_enh = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=3
-    #     ),
-    #     sql_generator=EnhancedSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=5000,
-    #         max_retries=3
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
+    pipeline_enh = ElephantSQLPipeline(
+        schema_linker=EnhancedSchemaLinker(
+            llm, 
+            model=backbone_model, 
+            temperature=0.0, 
+            max_tokens=10000,
+            max_retries=10
+        ),
+        sql_generator=EnhancedSQLGenerator(
+            llm, 
+            model=backbone_model, 
+            temperature=0.0, 
+            max_tokens=10000,
+            max_retries=10
+        ),
+        post_processor=SkipPostProcessor()
+    )
 
     # pipeline_osr = ElephantSQLPipeline(
     #     schema_linker=EnhancedSchemaLinker(
@@ -108,14 +108,14 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     sql_generator=OSRefinerSQLGenerator(
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -126,14 +126,14 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     sql_generator=QPRefinerSQLGenerator(
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=5000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -144,7 +144,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
 
     #     ),
     #     sql_generator=DCRefinerSQLGenerator(
@@ -152,7 +152,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=5000,
-    #         max_retries=3
+    #         max_retries=10
 
     #     ),
     #     post_processor=SkipPostProcessor()
@@ -164,14 +164,14 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.0, 
     #         max_tokens=5000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     sql_generator=CHASESQLGenerator(
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.5, 
     #         max_tokens=5000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -182,7 +182,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.5, 
     #         max_tokens=5000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     sql_generator=EnsembleGenerator(
     #         llm, 
@@ -190,7 +190,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         temperature=0.5, 
     #         max_tokens=5000,
     #         n_candidates=2,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -202,38 +202,38 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         model=backbone_model, 
     #         temperature=0.5, 
     #         max_tokens=10000,
-    #         max_retries=3
+    #         max_retries=10
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
 
-    pipeline_aggr = ElephantSQLPipeline(
-        schema_linker=EnhancedSchemaLinker(
-            llm, 
-            model=backbone_model, 
-            temperature=0.0, 
-            max_tokens=10000,
-            max_retries=10
-        ),
-        sql_generator=OSRefinerAggregationSQLGenerator(
-            llm, 
-            model=backbone_model, 
-            temperature=0.0, 
-            max_tokens=10000,
-            max_retries=10
-        ),
-        post_processor=SkipPostProcessor()
-    )
+    # pipeline_aggr = ElephantSQLPipeline(
+    #     schema_linker=EnhancedSchemaLinker(
+    #         llm, 
+    #         model=backbone_model, 
+    #         temperature=0.0, 
+    #         max_tokens=10000,
+    #         max_retries=10
+    #     ),
+    #     sql_generator=OSRefinerAggregationSQLGenerator(
+    #         llm, 
+    #         model=backbone_model, 
+    #         temperature=0.0, 
+    #         max_tokens=10000,
+    #         max_retries=10
+    #     ),
+    #     post_processor=SkipPostProcessor()
+    # )
 
 
     
     # 运行pipeline，设置并行数
-    await pipeline_aggr.run_pipeline_parallel(
+    await pipeline_enh.run_pipeline_parallel(
         # data_file="./data/merge_dev_demo.json",
         # data_file="./data/sampled_merged.json",
         # data_file="./data/sampled_bird_dev.json", # 20% of bird dev
-        data_file="./data/formatted_bird_dev.json", # 100% of bird dev
-        # data_file="./data/sampled_bird_demo.json",
+        # data_file="./data/formatted_bird_dev.json", # 100% of bird dev
+        data_file="./data/sampled_bird_demo.json",
         max_workers=50
     )
 

@@ -17,7 +17,7 @@ async def main():
     llm = LLMBase()
     
     # 创建pipeline工厂
-    factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
+    factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
     
     # 创建router
     # router = TableCountRouter()
@@ -41,7 +41,7 @@ async def main():
     # 运行pipeline
     await pipeline.run_pipeline_parallel(
         data_file="./data/sampled_bird_demo.json",
-        max_workers=5
+        max_workers=10
     )
 
 if __name__ == "__main__":

@@ -68,8 +68,8 @@ class QwenClassifier:
             if isinstance(module, (torch.nn.Dropout, torch.nn.LayerNorm)):
                 module.eval()
         
-    def classify(self, question: str, schema: dict) -> int:
-        """进行分类预测"""
+    def classify(self, question: str, schema: dict) -> tuple[int, dict]:
+        """进行分类预测，返回预测的类别和概率分布"""
         # 使用模板创建输入文本
         input_text = self.templates.create_classifier_prompt(question, schema)
         
@@ -87,15 +87,23 @@ class QwenClassifier:
         
         # 进行预测
         with torch.no_grad():
-            # 确保在推理时不使用dropout
             self.model.eval()
             outputs = self.model(**inputs)
             logits = outputs.logits
-            # 不使用softmax，直接使用logits进行预测
-            predicted_class = torch.argmax(logits, dim=-1).item()
+            
+            # 使用softmax获取概率分布
+            probs = F.softmax(logits, dim=-1)
+            predicted_class = torch.argmax(probs, dim=-1).item()
+            
+            # 获取每个类别的概率
+            probabilities = {
+                "basic": float(probs[0][0]),
+                "intermediate": float(probs[0][1]),
+                "advanced": float(probs[0][2])
+            }
             
         # 转换回1-based标签
-        return predicted_class + 1
+        return predicted_class + 1, probabilities
 
 def test_deterministic():
     """测试分类结果的确定性"""
@@ -114,12 +122,12 @@ def test_deterministic():
     # 多次运行分类，确保结果一致
     results = []
     for _ in range(5):
-        label = classifier.classify(question, schema)
-        results.append(label)
-        print(f"Iteration {_+1}: {label}")
+        label, probabilities = classifier.classify(question, schema)
+        results.append((label, probabilities))
+        print(f"Iteration {_+1}: {label}, Probabilities: {probabilities}")
     
     # 验证所有结果是否相同
-    assert len(set(results)) == 1, "分类结果不确定！"
+    assert len(set(label for label, _ in results)) == 1, "分类结果不确定！"
     print("确定性测试通过：所有结果一致")
 
 if __name__ == "__main__":
