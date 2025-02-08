@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from enum import Enum
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 from ..core.llm import LLMBase
 from ..modules.schema_linking.enhanced_linker import EnhancedSchemaLinker
 from ..modules.sql_generation.gpt_generator import GPTSQLGenerator
@@ -15,6 +16,7 @@ from ..evaluation.compute_EX import compare_sql_results
 from ..core.utils import load_json, TextExtractor
 from ..pipeline_factory import PipelineFactory, PipelineLevel
 from ..core.config import Config
+from ..core.logger import LoggerManager
 
 class PipelineType(Enum):
     """Pipeline类型枚举"""
@@ -36,6 +38,11 @@ class Labeler:
         self.intermediate_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.INTERMEDIATE)
         self.advanced_pipeline = self.pipeline_factory.get_pipeline(PipelineLevel.ADVANCED)
 
+        # 初始化日志
+        self.logger_manager = LoggerManager()
+        self.logger = self.logger_manager.get_logger("labeler")
+        self.stats_logger = self.logger_manager.get_logger("labeling_stats")
+
     async def label_single_item(self, item: Dict, data_file: str) -> Dict:
         """标注单个样例,按照pipeline难度递增的顺序尝试,直到找到能正确处理的pipeline"""
         query_id = item["question_id"]
@@ -46,21 +53,28 @@ class Labeler:
         db_file = f"{db_id}.sqlite"
         db_path = str(Config().database_dir / db_folder / db_file)
         
+        self.logger.info(f"开始处理样例 [ID: {query_id}] 数据库: {db_path}, 问题: {item['question']}")
+        
         try:
-            # 获取schema linking结果
-            linked_schema_raw = await self.basic_pipeline.schema_linker.link_schema(
+            # 使用带重试机制的schema linking
+            linked_schema = await self.basic_pipeline.schema_linker.link_schema_with_retry(
                 query=item["question"],
                 database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
                 query_id=query_id
             )
             
+            if linked_schema is None:
+                self.logger.error(f"[ID: {query_id}] Schema linking失败")
+                return None
+            
             # 获取enhanced schema
             enhanced_linked_schema_wo_info = self.basic_pipeline.schema_linker.enhance_schema_only_with_keys(
-                json.loads(self.extractor.extract_code_block(linked_schema_raw, 'json')),
+                linked_schema,  # 直接使用返回的字典
                 self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict()
             )
 
             # 1. 尝试BASIC Pipeline
+            self.logger.debug(f"[ID: {query_id}] 尝试BASIC Pipeline...")
             result = await self.basic_pipeline.process(
                 query=item["question"],
                 database_schema=self.basic_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
@@ -73,10 +87,12 @@ class Labeler:
                 is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
                 
                 if is_correct:
+                    self.logger.info(f"[ID: {query_id}] BASIC Pipeline成功处理")
                     label = PipelineType.BASIC.value
                     return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
 
             # 2. BASIC失败,尝试INTERMEDIATE Pipeline
+            self.logger.debug(f"[ID: {query_id}] BASIC失败, 尝试INTERMEDIATE Pipeline...")
             result = await self.intermediate_pipeline.process(
                 query=item["question"],
                 database_schema=self.intermediate_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
@@ -89,10 +105,12 @@ class Labeler:
                 is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
                 
                 if is_correct:
+                    self.logger.info(f"[ID: {query_id}] INTERMEDIATE Pipeline成功处理")
                     label = PipelineType.INTERMEDIATE.value
                     return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
 
             # 3. INTERMEDIATE失败,尝试ADVANCED Pipeline
+            self.logger.debug(f"[ID: {query_id}] INTERMEDIATE失败, 尝试ADVANCED Pipeline...")
             result = await self.advanced_pipeline.process(
                 query=item["question"],
                 database_schema=self.advanced_pipeline.schema_manager.get_schema(db_id, db_path).to_dict(),
@@ -105,15 +123,17 @@ class Labeler:
                 is_correct = check_sql_result[0] if isinstance(check_sql_result, tuple) else check_sql_result
                 
                 if is_correct:
+                    self.logger.info(f"[ID: {query_id}] ADVANCED Pipeline成功处理")
                     label = PipelineType.ADVANCED.value
                     return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
 
             # 4. 所有Pipeline都失败
+            self.logger.warning(f"[ID: {query_id}] 所有Pipeline都失败")
             label = PipelineType.UNSOLVED.value
             return self._create_result_dict(item, label, enhanced_linked_schema_wo_info)
             
         except Exception as e:
-            print(f"Error processing question {query_id}: {str(e)}")
+            self.logger.error(f"[ID: {query_id}] 处理样例时发生错误: {str(e)}")
             return None
 
     def _create_result_dict(self, item: Dict, label: int, enhanced_schema: Dict) -> Dict:
@@ -135,6 +155,9 @@ class Labeler:
         # 使用配置路径
         data_file = str(Config().data_dir / Path(data_file))
         output_file = str(Config().data_dir / Path(output_file))
+        
+        self.logger.info(f"开始处理数据文件: {data_file}")
+        self.logger.info(f"输出文件: {output_file}")
         
         # 加载数据集
         dataset = load_json(data_file)
@@ -173,7 +196,71 @@ class Labeler:
                         f.write(json.dumps(result, ensure_ascii=False) + "\n")
                 pbar.update(1)
                 
+        # 记录标注统计信息
+        self._log_labeling_stats(labeled_results)
         return labeled_results
+
+    def _log_labeling_stats(self, results: List[Dict]):
+        """记录标注统计信息"""
+        total = len(results)
+        label_counts = {label.name: 0 for label in PipelineType}
+        source_stats = {}
+        difficulty_stats = {}
+        
+        for result in results:
+            # 统计标签分布
+            pipeline_type = result["pipeline_type"]
+            label_counts[pipeline_type] += 1
+            
+            # 按来源统计
+            source = result["source"]
+            if source not in source_stats:
+                source_stats[source] = {label.name: 0 for label in PipelineType}
+            source_stats[source][pipeline_type] += 1
+            
+            # 按难度统计
+            if "difficulty" in result:
+                difficulty = result["difficulty"]
+                if difficulty not in difficulty_stats:
+                    difficulty_stats[difficulty] = {label.name: 0 for label in PipelineType}
+                difficulty_stats[difficulty][pipeline_type] += 1
+        
+        # 准备统计信息
+        stats_lines = [
+            "="*50,
+            "标注统计信息",
+            "="*50,
+            f"总样本数: {total}",
+            "\n标签分布:"
+        ]
+        
+        for label, count in label_counts.items():
+            percentage = (count / total) * 100
+            stats_lines.append(f"{label}: {count} ({percentage:.2f}%)")
+            
+        stats_lines.append("\n按来源统计:")
+        for source, stats in source_stats.items():
+            stats_lines.append(f"\n{source}:")
+            source_total = sum(stats.values())
+            for label, count in stats.items():
+                percentage = (count / source_total) * 100
+                stats_lines.append(f"  {label}: {count} ({percentage:.2f}%)")
+                
+        if difficulty_stats:
+            stats_lines.append("\n按难度统计:")
+            for difficulty, stats in difficulty_stats.items():
+                stats_lines.append(f"\n{difficulty}:")
+                diff_total = sum(stats.values())
+                for label, count in stats.items():
+                    percentage = (count / diff_total) * 100
+                    stats_lines.append(f"  {label}: {count} ({percentage:.2f}%)")
+        
+        stats_lines.append("="*50)
+        
+        # 同时记录到日志和打印到控制台
+        stats_text = "\n".join(stats_lines)
+        self.stats_logger.info(stats_text)
+        print("\n" + stats_text)
 
 async def main():
     # 初始化LLM
@@ -184,12 +271,20 @@ async def main():
     
     # 标注数据集
     await labeler.label_dataset_parallel(
-        # data_file="sampled_bird_demo.json",
-        # output_file="labeled/sampled_bird_demo_pipeline_preference.jsonl",
         data_file="formatted_bird_dev.json",
         output_file="labeled/bird_dev_pipeline_label.jsonl",
-        max_workers=100
+        max_workers=10
     )
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    # 1. 设置新的事件循环
+    policy = asyncio.get_event_loop_policy()
+    policy.set_event_loop(policy.new_event_loop())
+
+    # 2. 设置线程池大小
+    loop = asyncio.get_event_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=300))
+
+    # 3. 运行与关闭
+    loop.run_until_complete(main())
+    loop.close()

@@ -21,8 +21,10 @@ class ElephantSQLPipeline:
     def __init__(self,
                  schema_linker: SchemaLinkerBase,
                  sql_generator: SQLGeneratorBase,
-                 post_processor: PostProcessorBase):
-        self.pipeline_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+                 post_processor: PostProcessorBase,
+                 pipeline_id: str = datetime.now().strftime("%Y%m%d_%H%M%S")):
+        
+        self.pipeline_id = pipeline_id
         
         # 初始化日志管理器
         self.logger_manager = LoggerManager(self.pipeline_id)
