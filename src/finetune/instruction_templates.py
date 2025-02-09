@@ -3,22 +3,39 @@ from typing import Dict
 class PipelineClassificationTemplates:
     """Pipeline分类任务的提示词模板"""
     
+#     @staticmethod
+#     def get_classifier_template() -> str:
+#         """获取分类头模型的提示词模板"""
+#         return """Task Description:
+# This is a pipeline selection task for text-to-SQL generation. Given a natural language question and its corresponding database schema, we need to classify which SQL generation pipeline is most suitable:
+# 1. Basic: For simple queries involving basic operations
+# 2. Intermediate: For medium complexity queries that benefit from divide-and-conquer strategy
+# 3. Advanced: For complex queries requiring both divide-and-conquer and online synthesis
+
+# Schema Analysis:
+# {schema_analysis}
+
+# Question: {question}
+
+# Database Schema:
+# {schema_str}"""
+
+    # @staticmethod
+    # def get_classifier_template() -> str:
+    #     """获取分类头模型的提示词模板"""
+    #     return """User Question: {question} {schema_analysis}"""
+
     @staticmethod
     def get_classifier_template() -> str:
         """获取分类头模型的提示词模板"""
-        return """Task Description:
-This is a pipeline selection task for text-to-SQL generation. Given a natural language question and its corresponding database schema, we need to classify which SQL generation pipeline is most suitable:
-1. Basic: For simple queries involving basic operations
-2. Intermediate: For medium complexity queries that benefit from divide-and-conquer strategy
-3. Advanced: For complex queries requiring both divide-and-conquer and online synthesis
+        return """
+Database Schema Related to the Question:
+{schema_str}
 
 Schema Analysis:
 {schema_analysis}
 
-Question: {question}
-
-Database Schema:
-{schema_str}"""
+Question: {question}"""
 
     @staticmethod
     def get_generator_template() -> str:
@@ -55,9 +72,9 @@ Classification:"""
                 f"{f' with {pks} primary key(s)' if pks else ''}"
             )
         
-        analysis = f"The schema contains {total_tables} table{'s' if total_tables > 1 else ''} "
+        analysis = f"The schema related to the user question contains {total_tables} table{'s' if total_tables > 1 else ''} "
         analysis += f"with a total of {total_columns} columns.\n"
-        analysis += "Schema details:\n- " + "\n- ".join(table_details)
+        # analysis += "Schema details:\n- " + "\n- ".join(table_details)
             
         return analysis
         

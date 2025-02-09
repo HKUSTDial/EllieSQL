@@ -12,4 +12,4 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 torchrun --nproc_per_node=4 --master_port=29500 -m src.finetune.qwen_gen_sft
 
 # 推理示例
-python -m src.finetune.qwen_gen_inference
+# python -m src.finetune.qwen_gen_inference

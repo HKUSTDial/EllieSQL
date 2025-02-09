@@ -13,7 +13,7 @@ class LoggerManager:
             pipeline_id = datetime.now().strftime("%Y%m%d_%H%M%S")
             
         # 使用配置的路径
-        self.log_dir = Config().logs_dir / pipeline_id
+        self.log_dir = Config().logs_dir / "run" / pipeline_id
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # 移除默认的sink

@@ -8,7 +8,8 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     Trainer,
-    PreTrainedModel
+    PreTrainedModel,
+    TrainerCallback
 )
 from peft import (
     prepare_model_for_kbit_training,
@@ -21,6 +22,9 @@ from ..core.config import Config
 from typing import Optional, Tuple, Dict
 import torch.distributed as dist
 from transformers.modeling_outputs import SequenceClassifierOutput
+import json
+from pathlib import Path
+from datetime import datetime
 
 # 设置多进程启动方式为spawn
 multiprocessing.set_start_method('spawn', force=True)
@@ -103,6 +107,16 @@ class QwenClassifierTrainer:
         # 设置设备
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
         
+        # 添加日志文件路径
+        self.log_file = None
+        
+    def _log_to_file(self, message: str):
+        """写入日志到文件"""
+        if self.log_file and self.local_rank == 0:  # 只在主进程写日志
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"[{timestamp}] {message}\n")
+                
     def load_model_and_tokenizer(self):
         """加载模型和分词器"""
         # 加载tokenizer
@@ -127,10 +141,11 @@ class QwenClassifierTrainer:
         # 配置LoRA
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
-            r=8,
-            lora_alpha=32,
+            r=64,
+            lora_alpha=128,
             lora_dropout=0.1,
             target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+            # target_modules=["q_proj", "v_proj"], # Only on attention modules
             bias="none",
         )
         
@@ -157,9 +172,12 @@ class QwenClassifierTrainer:
                 return_tensors=None
             )
             # 确保标签是正确的类型和范围
-            labels = [int(label) for label in examples["label"]]  # 已经是0-based的标签
-            # 验证标签范围
-            assert all(0 <= label < 3 for label in labels), f"Invalid label found in {labels}"
+            labels = [int(label) for label in examples["label"]]
+            # 验证标签范围并打印异常值
+            for i, label in enumerate(labels):
+                if not (0 <= label < 3):
+                    print(f"Warning: Invalid label {label} at index {i}")
+            assert all(0 <= label < 3 for label in labels), f"Invalid labels found: {labels}"
             tokenized["labels"] = torch.tensor(labels, dtype=torch.long)
             return tokenized
             
@@ -182,52 +200,208 @@ class QwenClassifierTrainer:
         total = len(labels)
         accuracy = float(correct) / total
         
-        return {"accuracy": accuracy}
+        # 添加更详细的指标
+        class_correct = {i: 0 for i in range(3)}
+        class_total = {i: 0 for i in range(3)}
+        pred_dist = {i: 0 for i in range(3)}  # 预测标签的分布
+        
+        for pred, label in zip(predictions, labels):
+            class_total[label] += 1
+            pred_dist[pred] += 1
+            if pred == label:
+                class_correct[label] += 1
+        
+        # 计算每个类别的准确率
+        class_accuracy = {}
+        for i in range(3):
+            if class_total[i] > 0:
+                class_accuracy[f"class_{i}_accuracy"] = float(class_correct[i]) / class_total[i]
+            else:
+                class_accuracy[f"class_{i}_accuracy"] = 0.0
+        
+        # 计算验证集上的预测标签分布和实际标签分布
+        pred_dist_pct = {
+            f"pred_dist_{i}": float(count) / total 
+            for i, count in pred_dist.items()
+        }
+        true_dist_pct = {
+            f"true_dist_{i}": float(class_total[i]) / total 
+            for i in range(3)
+        }
+        
+        # 返回tensorboard兼容的指标
+        return {
+            "accuracy": accuracy,
+            **class_accuracy,
+            **pred_dist_pct,  # 预测标签的分布
+            **true_dist_pct   # 实际标签的分布
+        }
         
     def train(self):
-        """训练模型"""
         try:
             self.load_model_and_tokenizer()
             tokenized_datasets = self.prepare_dataset()
             
-            training_args = TrainingArguments(
-                output_dir=self.save_dir,
-                per_device_train_batch_size=8,
-                per_device_eval_batch_size=8,
-                gradient_accumulation_steps=2,
-                num_train_epochs=3,
-                learning_rate=2e-4,
-                fp16=True,
-                save_steps=100,
-                eval_steps=100,
-                logging_steps=10,
-                eval_strategy="steps",
-                save_strategy="steps",
-                load_best_model_at_end=True,
-                metric_for_best_model="accuracy",
-                ddp_find_unused_parameters=False,
-                report_to="none",
-                local_rank=self.local_rank,
-                dataloader_num_workers=0,
-                remove_unused_columns=False
+            # 计算合适的评估步数
+            num_train_samples = len(tokenized_datasets["train"])
+            # batch_size = 8
+            num_gpu = torch.cuda.device_count()
+            steps_per_epoch = num_train_samples // (8 * num_gpu)
+            
+            # 设置checkpoint和训练日志保存路径
+            checkpoint_dir = self.save_dir / "qwen_classifier_checkpoints"
+            checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            self.log_file = checkpoint_dir / "training.log"
+            
+            # 记录训练开始信息
+            self._log_to_file(
+                f"Training started with:\n"
+                f"- Number of GPUs: {num_gpu}\n"
+                f"- Number of training samples: {num_train_samples}\n"
+                f"- Number of validation samples: {len(tokenized_datasets['validation'])}\n"
+                # f"- Steps per epoch: {steps_per_epoch}\n"
             )
             
+            # 配置训练参数
+            training_args = TrainingArguments(
+                output_dir=str(checkpoint_dir),  # checkpoint保存路径
+                per_device_train_batch_size=1,
+                per_device_eval_batch_size=8,
+                gradient_accumulation_steps=1,
+                num_train_epochs=20,
+                learning_rate=1e-4,
+                lr_scheduler_type="cosine",
+                fp16=True,
+                # eval_steps=max(steps_per_epoch, 1),
+                # save_steps=max(steps_per_epoch, 1),
+                # eval_steps=100,
+                # save_steps=100,
+                eval_strategy="epoch",
+                save_strategy="epoch",
+                # 日志相关配置
+                logging_dir=str(self.config.logs_dir / "sft" / "qwen_classifier"),
+                logging_strategy="epoch",
+                # logging_steps=max(steps_per_epoch // 2, 1),
+                logging_first_step=True,
+                report_to=["tensorboard"],
+                # checkpoint相关配置
+                load_best_model_at_end=True,
+                metric_for_best_model="accuracy",
+                greater_is_better=True,
+                save_total_limit=5,
+                # 其他配置
+                ddp_find_unused_parameters=False,
+                local_rank=self.local_rank,
+                dataloader_num_workers=0,
+                remove_unused_columns=False,
+                warmup_ratio=0.2,
+                weight_decay=0.01,
+                max_grad_norm=1.0
+            )
+            
+            # 创建带日志功能的trainer
             trainer = Trainer(
                 model=self.model,
                 args=training_args,
                 train_dataset=tokenized_datasets["train"],
                 eval_dataset=tokenized_datasets["validation"],
-                compute_metrics=self.compute_metrics
+                compute_metrics=self.compute_metrics,
+                callbacks=[TrainingCallback(self._log_to_file)]  # 添加回调来记录训练过程
             )
             
-            trainer.train()
+            # 开始训练
+            train_result = trainer.train()
             
+            # 最终评估
+            final_metrics = trainer.evaluate()
+            
+            # 记录最终评估结果
+            self._log_to_file("\n\n\nFinal Evaluation Results:")
+            for metric_name, value in final_metrics.items():
+                self._log_to_file(f"{metric_name}: {value:.4f}")
+            
+            # 保存最终模型和结果
             if self.local_rank == 0:
-                trainer.save_model(self.save_dir / "final_model_classifier")
+                # 保存最终模型
+                final_model_dir = self.save_dir / "final_model_classifier"
+                trainer.save_model(final_model_dir)
+                
+                # 保存训练结果
+                results_file = checkpoint_dir / "training_results.json"
+                results_data = {
+                    "train_results": train_result.metrics,
+                    "eval_results": final_metrics,
+                    "train_samples": num_train_samples,
+                    "eval_samples": len(tokenized_datasets["validation"]),
+                    "training_args": training_args.to_dict()
+                }
+                
+                with open(results_file, "w") as f:
+                    json.dump(results_data, f, indent=2)
+                
+                completion_message = (
+                    f"\nTraining completed!\n"
+                    f"- Model saved to: {final_model_dir}\n"
+                    f"- Results saved to: {results_file}\n"
+                    f"- Log saved to: {self.log_file}"
+                )
+                print(completion_message)
+                self._log_to_file(completion_message)
                 
         except Exception as e:
-            print(f"Training error: {str(e)}")
+            error_message = f"Training error: {str(e)}"
+            print(error_message)
+            self._log_to_file(f"\nERROR: {error_message}")
             raise e
+
+class TrainingCallback(TrainerCallback):
+    """用于记录训练过程的回调"""
+    def __init__(self, log_func):
+        self.log_func = log_func
+        
+    def on_epoch_begin(self, args, state, control, **kwargs):
+        self.log_func(f"\n\n<< Epoch {state.epoch:.2f} started >>")
+        
+    def on_evaluate(self, args, state, control, metrics, **kwargs):
+        # 提取基本指标: 准确率, 每个类别的准确率, 验证集上的预测标签分布情况和实际标签分布
+        accuracy = metrics.get('eval_accuracy', 'N/A')
+        class_accuracies = [
+            metrics.get(f'eval_class_{i}_accuracy', 'N/A') 
+            for i in range(3)
+        ]
+        pred_dist = [
+            metrics.get(f'eval_pred_dist_{i}', 'N/A') 
+            for i in range(3)
+        ]
+        true_dist = [
+            metrics.get(f'eval_true_dist_{i}', 'N/A') 
+            for i in range(3)
+        ]
+        
+        # 构建评估日志
+        eval_log = (
+            f"Evaluation at Step {state.global_step} (epoch {state.epoch:.2f}):\n"
+            f"[Overall Accuracy   ] {accuracy:.5f}\n"
+            f"[Acc for Classes    ] "
+            f"Basic: {class_accuracies[0]:.5f} | "
+            f"Inter: {class_accuracies[1]:.5f} | "
+            f"Advan: {class_accuracies[2]:.5f}\n"
+            f"[Predict Label Dist ] "
+            f"Basic: {pred_dist[0]:.5f} | Inter: {pred_dist[1]:.5f} | Advan: {pred_dist[2]:.5f}\n"
+            f"[Actual Label Dist  ] "
+            f"Basic: {true_dist[0]:.5f} | Inter: {true_dist[1]:.5f} | Advan: {true_dist[2]:.5f}"
+        )
+        
+        self.log_func(eval_log)
+        
+    def on_log(self, args, state, control, logs, **kwargs):
+        # 记录训练损失等信息
+        if "loss" in logs:
+            self.log_func(
+                f"Step {state.global_step}: "
+                f"loss = {logs['loss']:.5f}, "
+                f"learning_rate = {logs.get('learning_rate', 'N/A')}"
+            )
 
 def main():
     is_distributed = False

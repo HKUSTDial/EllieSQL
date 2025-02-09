@@ -40,8 +40,8 @@ async def main():
     
     # 运行pipeline
     await pipeline.run_pipeline_parallel(
-        data_file="./data/sampled_bird_demo.json",
-        max_workers=10
+        data_file="./data/formatted_bird_dev.json",
+        max_workers=100
     )
 
 if __name__ == "__main__":
