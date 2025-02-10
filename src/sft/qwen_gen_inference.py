@@ -8,7 +8,7 @@ class QwenGenerator:
     def __init__(self):
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.lora_path = self.config.finetune_save_dir / "final_model_gen"
+        self.lora_path = self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()
         
         # 加载模型和tokenizer

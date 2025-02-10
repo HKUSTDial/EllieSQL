@@ -6,8 +6,8 @@ from peft import PeftModel
 from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
-from ..finetune.qwen_classifier_sft import QwenForSequenceClassification
-from ..finetune.instruction_templates import PipelineClassificationTemplates
+from ..sft.qwen_classifier_sft import QwenForSequenceClassification
+from ..sft.instruction_templates import PipelineClassificationTemplates
 
 class QwenClassifierRouter(RouterBase):
     """添加了分类头并使用LoRA SFT的Qwen路由器"""
@@ -16,7 +16,7 @@ class QwenClassifierRouter(RouterBase):
         super().__init__(name)
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.lora_path = self.config.finetune_save_dir / "final_model_classifier"
+        self.lora_path = self.config.sft_save_dir / "final_model_classifier"
         self.templates = PipelineClassificationTemplates()
         
         # 设置随机种子以确保可重复性

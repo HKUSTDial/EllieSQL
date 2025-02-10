@@ -5,8 +5,8 @@ from peft import PeftModel
 from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
-from ..finetune.qwen_classifier_sft import QwenForSequenceClassification
-from ..finetune.instruction_templates import PipelineClassificationTemplates
+from ..sft.qwen_classifier_sft import QwenForSequenceClassification
+from ..sft.instruction_templates import PipelineClassificationTemplates
 import torch.nn.functional as F
 
 class QwenRouter(RouterBase):
@@ -19,9 +19,9 @@ class QwenRouter(RouterBase):
         self.classifier_head = classifier_head
         # 根据模式选择不同的模型权重路径
         if self.classifier_head:
-            self.lora_path = self.config.finetune_save_dir / "final_model_classifier"
+            self.lora_path = self.config.sft_save_dir / "final_model_classifier"
         else:
-            self.lora_path = self.config.finetune_save_dir / "final_model_gen"
+            self.lora_path = self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()
         
         # 设置随机种子以确保可重复性

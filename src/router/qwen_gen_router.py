@@ -5,7 +5,7 @@ from peft import PeftModel
 from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
-from ..finetune.instruction_templates import PipelineClassificationTemplates
+from ..sft.instruction_templates import PipelineClassificationTemplates
 
 class QwenGenRouter(RouterBase):
     """基于生成式的Qwen路由器"""

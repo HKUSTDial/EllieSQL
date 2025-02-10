@@ -35,7 +35,7 @@ data/*.json
 data/labeled/*.jsonl
 data/merged_databases/**
 data/gold_schema_linking/**
-data/finetune/**
+data/sft/**
 
 # 不忽略配置文件示例
 !config/config_example.yaml

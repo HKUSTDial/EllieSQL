@@ -45,8 +45,8 @@ class QwenClassifierTrainer:
     def __init__(self):
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.finetune_data_dir = self.config.finetune_data_dir
-        self.save_dir = self.config.finetune_save_dir
+        self.finetune_data_dir = self.config.sft_data_dir
+        self.save_dir = self.config.sft_save_dir
         
         # 创建保存目录
         os.makedirs(self.save_dir, exist_ok=True)

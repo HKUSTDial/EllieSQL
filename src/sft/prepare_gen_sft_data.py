@@ -12,7 +12,7 @@ class GeneratorDataProcessor:
     
     def __init__(self, seed: int = 42):
         self.config = Config()
-        self.finetune_dir = self.config.data_dir / "finetune"
+        self.finetune_dir = self.config.data_dir / "sft"
         self.finetune_dir.mkdir(parents=True, exist_ok=True)
         self.templates = PipelineClassificationTemplates()
         self.seed = seed

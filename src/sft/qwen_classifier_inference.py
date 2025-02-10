@@ -28,7 +28,7 @@ class QwenClassifier:
         
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.lora_path = self.config.finetune_save_dir / "final_model_classifier"
+        self.lora_path = self.config.sft_save_dir / "final_model_classifier"
         self.templates = PipelineClassificationTemplates()
         
         # 加载模型和tokenizer
@@ -146,6 +146,6 @@ def test_deterministic():
     label, probabilities = classifier.classify(question, schema)
     print(f"Predicted Label: {label}, Probabilities: {probabilities}")
     
-    
+
 if __name__ == "__main__":
     test_deterministic() 

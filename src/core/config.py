@@ -43,9 +43,9 @@ class Config:
         return Path(self.config["paths"]["model_dir"])
     
     @property
-    def finetune_data_dir(self) -> Path:
-        return Path(self.config["paths"]["finetune_data_dir"])
+    def sft_data_dir(self) -> Path:
+        return Path(self.config["paths"]["sft_data_dir"])
     
     @property
-    def finetune_save_dir(self) -> Path:
-        return Path(self.config["paths"]["finetune_save_dir"])
+    def sft_save_dir(self) -> Path:
+        return Path(self.config["paths"]["sft_save_dir"])
