@@ -273,7 +273,7 @@ async def main():
     await labeler.label_dataset_parallel(
         data_file="formatted_bird_dev.json",
         output_file="labeled/bird_dev_pipeline_label.jsonl",
-        max_workers=10
+        max_workers=100
     )
 
 if __name__ == "__main__":

@@ -94,6 +94,15 @@ class QwenForSequenceClassification(PreTrainedModel):
             attentions=outputs.attentions
         )
 
+    def get_classifier_config(self):
+        """获取分类头配置"""
+        return {
+            "num_labels": self.num_labels,
+            "hidden_size": self.qwen.config.hidden_size,
+            "classifier_dropout": 0.1,  # 如果使用了dropout
+            "model_type": "QwenForSequenceClassification"
+        }
+
 class QwenClassifierTrainer:
     def __init__(self):
         self.config = Config()
@@ -326,6 +335,17 @@ class QwenClassifierTrainer:
                 final_model_dir = self.save_dir / "final_model_classifier"
                 trainer.save_model(final_model_dir)
                 
+                # 保存分类头配置和权重
+                classifier_config = self.model.get_classifier_config()
+                classifier_state = self.model.classifier.state_dict()
+                
+                classifier_save = {
+                    "config": classifier_config,
+                    "state_dict": classifier_state
+                }
+                
+                torch.save(classifier_save, final_model_dir / "classifier.pt")
+                
                 # 保存训练结果
                 results_file = checkpoint_dir / "training_results.json"
                 results_data = {
@@ -333,7 +353,8 @@ class QwenClassifierTrainer:
                     "eval_results": final_metrics,
                     "train_samples": num_train_samples,
                     "eval_samples": len(tokenized_datasets["validation"]),
-                    "training_args": training_args.to_dict()
+                    "training_args": training_args.to_dict(),
+                    "classifier_config": classifier_config  # 也包含在训练结果中
                 }
                 
                 with open(results_file, "w") as f:

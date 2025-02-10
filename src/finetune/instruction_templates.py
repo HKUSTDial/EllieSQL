@@ -31,10 +31,8 @@ class PipelineClassificationTemplates:
         return """
 Database Schema Related to the Question:
 {schema_str}
-
 Schema Analysis:
 {schema_analysis}
-
 Question: {question}"""
 
     @staticmethod
@@ -63,16 +61,16 @@ Classification:"""
         total_tables = len(tables)
         total_columns = sum(len(table["columns"]) for table in tables)
         
-        table_details = []
-        for table in tables:
-            cols = len(table["columns"])
-            pks = len(table.get("primary_keys", []))
-            table_details.append(
-                f"Table '{table['table']}' has {cols} columns"
-                f"{f' with {pks} primary key(s)' if pks else ''}"
-            )
+        # table_details = []
+        # for table in tables:
+        #     cols = len(table["columns"])
+            # pks = len(table.get("primary_keys", []))
+            # table_details.append(
+            #     f"Table '{table['table']}' has {cols} columns"
+            #     f"{f' with {pks} primary key(s)' if pks else ''}"
+            # )
         
-        analysis = f"The schema related to the user question contains {total_tables} table{'s' if total_tables > 1 else ''} "
+        analysis = f"The database schema related to the user question contains {total_tables} table{'s' if total_tables > 1 else ''} "
         analysis += f"with a total of {total_columns} columns.\n"
         # analysis += "Schema details:\n- " + "\n- ".join(table_details)
             
@@ -83,13 +81,14 @@ Classification:"""
         """格式化schema为字符串"""
         result = []
         for table in schema["tables"]:
-            result.append(f"Table: {table['table']}")
-            result.append(f"Columns: {', '.join(table['columns'])}")
-            if "primary_keys" in table:
-                result.append(f"Primary keys: {', '.join(table['primary_keys'])}")
+            result.append(f"Table: {table['table']}; Columns: {', '.join(table['columns'])}\n")
+            # result.append(f"Table: {table['table']}")
+            # result.append(f"Columns: {', '.join(table['columns'])}")
+            # if "primary_keys" in table:
+            #     result.append(f"Primary keys: {', '.join(table['primary_keys'])}")
             result.append("")
             
-        return "\n".join(result)
+        return "".join(result)
         
     @classmethod
     def create_classifier_prompt(cls, question: str, schema: Dict) -> str:

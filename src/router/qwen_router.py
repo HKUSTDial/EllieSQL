@@ -50,14 +50,33 @@ class QwenRouter(RouterBase):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
         if self.classifier_head:
-            # 加载分类头模型
+            # 加载分类头配置和权重
+            classifier_path = self.lora_path / "classifier.pt"
+            if not classifier_path.exists():
+                raise FileNotFoundError(f"找不到分类头文件: {classifier_path}")
+            
+            classifier_save = torch.load(classifier_path, map_location='cpu', weights_only=True)
+            classifier_config = classifier_save["config"]
+            classifier_state = classifier_save["state_dict"]
+            
+            # 加载基础模型
             base_model = AutoModel.from_pretrained(
                 self.model_path,
                 trust_remote_code=True,
                 torch_dtype=torch.float16,
                 device_map="auto"
             )
-            self.model = QwenForSequenceClassification(base_model)
+            
+            # 使用保存的配置创建分类模型
+            self.model = QwenForSequenceClassification(
+                base_model,
+                num_labels=classifier_config["num_labels"]
+            )
+            
+            # 加载分类头权重
+            self.model.classifier.load_state_dict(classifier_state)
+            
+            # 转换为float16
             self.model.classifier = self.model.classifier.half()
         else:
             # 加载生成式模型
@@ -86,7 +105,7 @@ class QwenRouter(RouterBase):
     def _predict_with_head(self, question: str, schema: dict) -> tuple[int, dict]:
         """使用分类头模型进行预测"""
         input_text = self.templates.create_classifier_prompt(question, schema)
-        
+        # print(input_text)
         inputs = self.tokenizer(
             input_text,
             padding=True,
@@ -112,7 +131,7 @@ class QwenRouter(RouterBase):
                 "intermediate": float(probs[0][1]),
                 "advanced": float(probs[0][2])
             }
-        
+        # print("[QwenRouter] predicted_class:", predicted_class, "probabilities:", probabilities)
         return predicted_class, probabilities
         
     def _predict_with_gen(self, question: str, schema: dict) -> int:

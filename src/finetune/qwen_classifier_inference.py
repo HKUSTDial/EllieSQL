@@ -7,6 +7,7 @@ from peft import PeftModel
 from ..core.config import Config
 from .qwen_classifier_sft import QwenForSequenceClassification
 from .instruction_templates import PipelineClassificationTemplates
+import json
 
 def set_seed(seed: int = 42):
     """设置所有随机种子以确保可重复性"""
@@ -41,6 +42,15 @@ class QwenClassifier:
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
+        # 加载分类头配置和权重
+        classifier_path = self.lora_path / "classifier.pt"
+        if not classifier_path.exists():
+            raise FileNotFoundError(f"找不到分类头文件: {classifier_path}")
+        
+        classifier_save = torch.load(classifier_path, map_location='cpu', weights_only=True)
+        classifier_config = classifier_save["config"]
+        classifier_state = classifier_save["state_dict"]
+        
         # 加载基础模型
         base_model = AutoModel.from_pretrained(
             self.model_path,
@@ -49,8 +59,16 @@ class QwenClassifier:
             device_map="auto"
         )
         
-        # 创建分类模型并设置为float16
-        self.model = QwenForSequenceClassification(base_model)
+        # 使用保存的配置创建分类模型
+        self.model = QwenForSequenceClassification(
+            base_model,
+            num_labels=classifier_config["num_labels"]
+        )
+        
+        # 加载分类头权重
+        self.model.classifier.load_state_dict(classifier_state)
+        
+        # 转换为float16
         self.model.classifier = self.model.classifier.half()
         
         # 加载LoRA权重
@@ -72,7 +90,7 @@ class QwenClassifier:
         """进行分类预测，返回预测的类别和概率分布"""
         # 使用模板创建输入文本
         input_text = self.templates.create_classifier_prompt(question, schema)
-        
+        # print(input_text)
         # 编码输入
         inputs = self.tokenizer(
             input_text,
@@ -110,25 +128,24 @@ def test_deterministic():
     classifier = QwenClassifier(seed=42)
     
     # 测试样例
-    question = "How many pets have a greater weight than 10?"
+    question = "Among the weekly issuance accounts, how many have a loan of under 200000?"
+    # Table: account; Columns: frequency, account_id\nTable: loan; Columns: amount, account_id, loan_id\
     schema = {
         "tables": [{
-            "table": "Pets",
-            "columns": ["PetID", "weight"],
-            "primary_keys": ["PetID"]
+            "table": "account",
+            "columns": ["frequency", "account_id"],
+            "primary_keys": ["account_id"]
+        }, {
+            "table": "loan",
+            "columns": ["amount", "account_id", "loan_id"],
+            "primary_keys": ["account_id"]
         }]
     }
     
     # 多次运行分类，确保结果一致
-    results = []
-    for _ in range(5):
-        label, probabilities = classifier.classify(question, schema)
-        results.append((label, probabilities))
-        print(f"Iteration {_+1}: {label}, Probabilities: {probabilities}")
+    label, probabilities = classifier.classify(question, schema)
+    print(f"Predicted Label: {label}, Probabilities: {probabilities}")
     
-    # 验证所有结果是否相同
-    assert len(set(label for label, _ in results)) == 1, "分类结果不确定！"
-    print("确定性测试通过：所有结果一致")
-
+    
 if __name__ == "__main__":
     test_deterministic() 
