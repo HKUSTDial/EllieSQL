@@ -25,6 +25,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 import json
 from pathlib import Path
 from datetime import datetime
+import argparse
 
 # 设置多进程启动方式为spawn
 multiprocessing.set_start_method('spawn', force=True)
@@ -104,19 +105,16 @@ class QwenForSequenceClassification(PreTrainedModel):
         }
 
 class QwenClassifierTrainer:
-    def __init__(self):
+    def __init__(self, sft_dataset: str):
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.finetune_data_dir = self.config.sft_data_dir
+        # 使用指定的数据集目录
+        self.sft_dataset_dir = self.config.sft_data_dir / sft_dataset
+        # 保存目录保持不变
         self.save_dir = self.config.sft_save_dir
         
-        # 创建保存目录
         os.makedirs(self.save_dir, exist_ok=True)
-        
-        # 设置设备
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
-        
-        # 添加日志文件路径
         self.log_file = None
         
     def _log_to_file(self, message: str):
@@ -167,8 +165,8 @@ class QwenClassifierTrainer:
         dataset = load_dataset(
             'json',
             data_files={
-                'train': str(self.finetune_data_dir / 'classifier_train.json'),
-                'validation': str(self.finetune_data_dir / 'classifier_valid.json')
+                'train': str(self.sft_dataset_dir / 'classifier_train.json'),
+                'validation': str(self.sft_dataset_dir / 'classifier_valid.json')
             }
         )
         
@@ -425,10 +423,15 @@ class TrainingCallback(TrainerCallback):
             )
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sft_dataset', type=str, required=True,
+                       help='Name of the specified SFT dataset directory under data/sft/')
+    args = parser.parse_args()
+    
     is_distributed = False
     try:
         is_distributed = setup_distributed()
-        trainer = QwenClassifierTrainer()
+        trainer = QwenClassifierTrainer(sft_dataset=args.sft_dataset)
         trainer.train()
     finally:
         if is_distributed:

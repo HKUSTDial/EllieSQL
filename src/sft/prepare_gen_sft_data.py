@@ -12,8 +12,8 @@ class GeneratorDataProcessor:
     
     def __init__(self, seed: int = 42):
         self.config = Config()
-        self.finetune_dir = self.config.data_dir / "sft"
-        self.finetune_dir.mkdir(parents=True, exist_ok=True)
+        self.sft_data_dir = self.config.sft_data_dir
+        self.sft_data_dir.mkdir(parents=True, exist_ok=True)
         self.templates = PipelineClassificationTemplates()
         self.seed = seed
         
@@ -74,8 +74,8 @@ class GeneratorDataProcessor:
     def _save_and_analyze_samples(self, train_samples: List[Dict], valid_samples: List[Dict]):
         """保存数据集并分析分布"""
         # 保存数据集
-        train_file = self.finetune_dir / "gen_train.json"
-        valid_file = self.finetune_dir / "gen_valid.json"
+        train_file = self.sft_data_dir / "gen_train.json"
+        valid_file = self.sft_data_dir / "gen_valid.json"
         
         # 移除分析用的label字段
         train_save = [{k: v for k, v in s.items() if k != 'label'} for s in train_samples]
@@ -145,7 +145,7 @@ class GeneratorDataProcessor:
         print("Training set:", train_dist["sources"])
         print("Validation set:", valid_dist["sources"])
         
-        print(f"\nData saved to {self.finetune_dir}")
+        print(f"\nData saved to {self.sft_data_dir}")
 
 def main():
     processor = GeneratorDataProcessor(seed=42)

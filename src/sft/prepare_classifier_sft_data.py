@@ -6,14 +6,16 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from ..core.config import Config
 from .instruction_templates import PipelineClassificationTemplates
 from ..core.utils import load_jsonl
+import argparse
 
 class ClassifierDataProcessor:
     """处理标注数据生成微调数据集 (用于添加了分类头模型的分类任务)"""
     
-    def __init__(self, seed: int = 42):
+    def __init__(self, sft_dataset: str, seed: int = 42):
         self.config = Config()
-        self.finetune_dir = self.config.data_dir / "sft"
-        self.finetune_dir.mkdir(parents=True, exist_ok=True)
+        # 在sft_data_dir下创建指定的数据集目录
+        self.sft_dataset_dir = self.config.sft_data_dir / sft_dataset
+        self.sft_dataset_dir.mkdir(parents=True, exist_ok=True)
         self.templates = PipelineClassificationTemplates()
         self.seed = seed
         
@@ -40,8 +42,7 @@ class ClassifierDataProcessor:
                 "text": input_text,
                 "label": label,
                 "question_id": item["question_id"],
-                "source": item["source"],
-                "difficulty": item["difficulty"]
+                "source": item.get("source", "unknown")
             })
             labels.append(label)
             
@@ -71,9 +72,9 @@ class ClassifierDataProcessor:
             
     def _save_and_analyze_samples(self, train_samples: List[Dict], valid_samples: List[Dict]):
         """保存数据集并分析分布"""
-        # 保存数据集
-        train_file = self.finetune_dir / "classifier_train.json"
-        valid_file = self.finetune_dir / "classifier_valid.json"
+        # 保存数据集到指定的数据集目录
+        train_file = self.sft_dataset_dir / "classifier_train.json"
+        valid_file = self.sft_dataset_dir / "classifier_valid.json"
         
         with open(train_file, 'w', encoding='utf-8') as f:
             json.dump(train_samples, f, ensure_ascii=False, indent=2)
@@ -92,14 +93,6 @@ class ClassifierDataProcessor:
                     "percentage": count/total*100
                 }
                 
-            # 难度分布
-            difficulty_dist = {}
-            for s in samples:
-                diff = s["difficulty"]
-                if diff not in difficulty_dist:
-                    difficulty_dist[diff] = 0
-                difficulty_dist[diff] += 1
-                
             # 来源分布
             source_dist = {}
             for s in samples:
@@ -111,7 +104,6 @@ class ClassifierDataProcessor:
             return {
                 "total": total,
                 "labels": label_dist,
-                "difficulties": difficulty_dist,
                 "sources": source_dist
             }
             
@@ -131,20 +123,22 @@ class ClassifierDataProcessor:
         for label, stats in valid_dist["labels"].items():
             print(f"  {label}: {stats['count']} ({stats['percentage']:.1f}%)")
             
-        print("\nDifficulty Distribution:")
-        print("Training set:", train_dist["difficulties"])
-        print("Validation set:", valid_dist["difficulties"])
-        
         print("\nSource Distribution:")
         print("Training set:", train_dist["sources"])
         print("Validation set:", valid_dist["sources"])
         
-        print(f"\nData saved to {self.finetune_dir}")
+        print(f"\nData saved to {self.sft_dataset_dir}")
 
 def main():
-    processor = ClassifierDataProcessor(seed=42)
-    labeled_file = "data/labeled/bird_dev_pipeline_label.jsonl"
-    processor.prepare_data(labeled_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sft_dataset', type=str, required=True,
+                       help='Name of the specified SFT dataset directory under data/sft/')
+    parser.add_argument('--labeled_file', type=str, required=True,
+                       help='Path to the dataset with labells which is to be used for SFT dataset preparation')
+    args = parser.parse_args()
+    
+    processor = ClassifierDataProcessor(sft_dataset=args.sft_dataset, seed=42)
+    processor.prepare_data(args.labeled_file)
 
 if __name__ == "__main__":
     main() 

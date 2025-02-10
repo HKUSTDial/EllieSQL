@@ -45,7 +45,7 @@ class QwenClassifierTrainer:
     def __init__(self):
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.finetune_data_dir = self.config.sft_data_dir
+        self.sft_data_dir = self.config.sft_data_dir
         self.save_dir = self.config.sft_save_dir
         
         # 创建保存目录
@@ -92,8 +92,8 @@ class QwenClassifierTrainer:
         dataset = load_dataset(
             'json',
             data_files={
-                'train': str(self.finetune_data_dir / 'gen_train.json'),
-                'validation': str(self.finetune_data_dir / 'gen_valid.json')
+                'train': str(self.sft_data_dir / 'gen_train.json'),
+                'validation': str(self.sft_data_dir / 'gen_valid.json')
             }
         )
         
