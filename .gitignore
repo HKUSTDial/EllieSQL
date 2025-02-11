@@ -37,8 +37,9 @@ data/merged_databases/**
 data/gold_schema_linking/**
 data/sft/**
 
-# 不忽略配置文件示例
+# 不忽略配置文件示例和sft_config.yaml
 !config/config_example.yaml
+!config/sft_config.yaml
 
 examples/m2.py
 examples/m3.py

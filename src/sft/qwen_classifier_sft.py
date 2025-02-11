@@ -26,6 +26,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 import argparse
+import yaml
 
 # 设置多进程启动方式为spawn
 multiprocessing.set_start_method('spawn', force=True)
@@ -44,6 +45,14 @@ def cleanup_distributed():
     """清理分布式训练环境"""
     if torch.distributed.is_initialized():
         torch.distributed.destroy_process_group()
+
+def load_sft_config(config_name: str):
+    """加载SFT配置"""
+    config_path = Path("config") / f"{config_name}.yaml"
+    if not config_path.exists():
+        raise FileNotFoundError(f"找不到配置文件: {config_path}")
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
 
 class QwenForSequenceClassification(PreTrainedModel):
     """
@@ -105,17 +114,20 @@ class QwenForSequenceClassification(PreTrainedModel):
         }
 
 class QwenClassifierTrainer:
-    def __init__(self, sft_dataset: str):
+    def __init__(self, sft_dataset: str, sft_config: str):
         self.config = Config()
         self.model_path = self.config.model_dir
-        # 使用指定的数据集目录
         self.sft_dataset_dir = self.config.sft_data_dir / sft_dataset
-        # 保存目录保持不变
         self.save_dir = self.config.sft_save_dir
         
         os.makedirs(self.save_dir, exist_ok=True)
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
         self.log_file = None
+        
+        # 加载指定的配置文件
+        self.sft_config = load_sft_config(sft_config)
+        if self.local_rank == 0:
+            print(f"Using SFT config: {sft_config}")
         
     def _log_to_file(self, message: str):
         """写入日志到文件"""
@@ -148,11 +160,10 @@ class QwenClassifierTrainer:
         # 配置LoRA
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
-            r=64,
-            lora_alpha=128,
-            lora_dropout=0.1,
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
-            # target_modules=["q_proj", "v_proj"], # Only on attention modules
+            r=self.sft_config["lora_r"],
+            lora_alpha=self.sft_config["lora_alpha"],
+            lora_dropout=self.sft_config["lora_dropout"],
+            target_modules=self.sft_config["target_modules"],
             bias="none",
         )
         
@@ -175,7 +186,7 @@ class QwenClassifierTrainer:
                 examples["text"],
                 padding="max_length",
                 truncation=True,
-                max_length=512,
+                max_length=self.sft_config["max_length"],
                 return_tensors=None
             )
             # 确保标签是正确的类型和范围
@@ -271,39 +282,34 @@ class QwenClassifierTrainer:
             
             # 配置训练参数
             training_args = TrainingArguments(
-                output_dir=str(checkpoint_dir),  # checkpoint保存路径
-                per_device_train_batch_size=1,
-                per_device_eval_batch_size=8,
-                gradient_accumulation_steps=1,
-                num_train_epochs=20,
-                learning_rate=1e-4,
-                lr_scheduler_type="cosine",
-                fp16=True,
-                # eval_steps=max(steps_per_epoch, 1),
-                # save_steps=max(steps_per_epoch, 1),
-                # eval_steps=100,
-                # save_steps=100,
-                eval_strategy="epoch",
-                save_strategy="epoch",
+                output_dir=str(checkpoint_dir),
+                per_device_train_batch_size=self.sft_config["per_device_train_batch_size"],
+                per_device_eval_batch_size=self.sft_config["per_device_eval_batch_size"],
+                gradient_accumulation_steps=self.sft_config["gradient_accumulation_steps"],
+                num_train_epochs=self.sft_config["num_train_epochs"],
+                learning_rate=self.sft_config["learning_rate"],
+                lr_scheduler_type=self.sft_config["lr_scheduler_type"],
+                fp16=self.sft_config["fp16"],
+                eval_strategy=self.sft_config["eval_strategy"],
+                save_strategy=self.sft_config["save_strategy"],
                 # 日志相关配置
                 logging_dir=str(self.config.logs_dir / "sft" / "qwen_classifier"),
-                logging_strategy="epoch",
-                # logging_steps=max(steps_per_epoch // 2, 1),
-                logging_first_step=True,
+                logging_strategy=self.sft_config["logging_strategy"],
+                logging_first_step=self.sft_config["logging_first_step"],
                 report_to=["tensorboard"],
                 # checkpoint相关配置
-                load_best_model_at_end=True,
-                metric_for_best_model="accuracy",
-                greater_is_better=True,
-                save_total_limit=5,
+                load_best_model_at_end=self.sft_config["load_best_model_at_end"],
+                metric_for_best_model=self.sft_config["metric_for_best_model"],
+                greater_is_better=self.sft_config["greater_is_better"],
+                save_total_limit=self.sft_config["save_total_limit"],
                 # 其他配置
-                ddp_find_unused_parameters=False,
+                ddp_find_unused_parameters=self.sft_config["ddp_find_unused_parameters"],
                 local_rank=self.local_rank,
-                dataloader_num_workers=0,
-                remove_unused_columns=False,
-                warmup_ratio=0.2,
-                weight_decay=0.01,
-                max_grad_norm=1.0
+                dataloader_num_workers=self.sft_config["dataloader_num_workers"],
+                remove_unused_columns=self.sft_config["remove_unused_columns"],
+                warmup_ratio=self.sft_config["warmup_ratio"],
+                weight_decay=self.sft_config["weight_decay"],
+                max_grad_norm=self.sft_config["max_grad_norm"]
             )
             
             # 创建带日志功能的trainer
@@ -424,6 +430,8 @@ class TrainingCallback(TrainerCallback):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--sft_config', type=str, default='sft_config',
+                       help='Name of the SFT config file under config/ (without .yaml)')
     parser.add_argument('--sft_dataset', type=str, required=True,
                        help='Name of the specified SFT dataset directory under data/sft/')
     args = parser.parse_args()
@@ -431,7 +439,10 @@ def main():
     is_distributed = False
     try:
         is_distributed = setup_distributed()
-        trainer = QwenClassifierTrainer(sft_dataset=args.sft_dataset)
+        trainer = QwenClassifierTrainer(
+            sft_config=args.sft_config,
+            sft_dataset=args.sft_dataset
+        )
         trainer.train()
     finally:
         if is_distributed:
