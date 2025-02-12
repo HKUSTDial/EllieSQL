@@ -36,10 +36,12 @@ data/labeled/*.jsonl
 data/merged_databases/**
 data/gold_schema_linking/**
 data/sft/**
+data/dpo/**
 
-# 不忽略配置文件示例和sft_config.yaml
+# 不忽略配置文件示例和训练配置文件
 !config/config_example.yaml
 !config/sft_config.yaml
+!config/dpo_config.yaml
 
 examples/m2.py
 examples/m3.py

@@ -42,6 +42,7 @@ class QwenClassifier:
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
+        # NOTE: 从手动保存的classifier.pt中加载分类头, 确保训练和推理时使用相同的分类头
         # 加载分类头配置和权重
         classifier_path = self.lora_path / "classifier.pt"
         if not classifier_path.exists():
@@ -123,29 +124,78 @@ class QwenClassifier:
         # 转换回1-based标签
         return predicted_class + 1, probabilities
 
-def test_deterministic():
-    """测试分类结果的确定性"""
+def test():
+    """测试分类器推理"""
     classifier = QwenClassifier(seed=42)
     
     # 测试样例
-    question = "Among the weekly issuance accounts, how many have a loan of under 200000?"
-    # Table: account; Columns: frequency, account_id\nTable: loan; Columns: amount, account_id, loan_id\
-    schema = {
-        "tables": [{
-            "table": "account",
-            "columns": ["frequency", "account_id"],
-            "primary_keys": ["account_id"]
-        }, {
-            "table": "loan",
-            "columns": ["amount", "account_id", "loan_id"],
-            "primary_keys": ["account_id"]
-        }]
-    }
-    
-    # 多次运行分类，确保结果一致
-    label, probabilities = classifier.classify(question, schema)
-    print(f"Predicted Label: {label}, Probabilities: {probabilities}")
+    test_cases = [
+        {
+            "question": "How many pets have a greater weight than 10?",
+            "schema": {
+                "tables": [{
+                    "table": "Pets",
+                    "columns": ["PetID", "weight"],
+                    "primary_keys": ["PetID"]
+                }]
+            }
+        },
+        {
+            "question": "Give the publisher ID of Star Trek.",
+            "schema": {
+                "tables": [{
+                    "table": "publisher",
+                    "columns": ["publisher_name", "id"],
+                    "primary_keys": ["id"]
+                }]
+            }
+        },
+        {
+            "question": "What is the border color of card \"Ancestor's Chosen\"?",
+            "schema": {
+                "tables": [{
+                    "table": "cards",
+                    "columns": ["id", "borderColor", "name"],
+                    "primary_keys": ["id"]
+                }]
+            }
+        },
+        {
+            "question": "How many patients with an Ig G higher than normal?",
+            "schema": {
+                "tables": [{
+                    "table": "Laboratory",
+                    "columns": ["ID", "IGG", "Date"],
+                    "primary_keys": ["ID", "Date"]
+                }, {
+                    "table": "Patient",
+                    "columns": ["ID"],
+                    "primary_keys": ["ID"]
+                }]
+            }
+        },
+        {
+            "question": "What is the eligible free or reduced price meal rate for the top 5 schools in grades 1-12 with the highest free or reduced price meal count of the schools with the ownership code 66?",
+            "schema": {
+                "tables": [{
+                    "table": "frpm",
+                    "columns": ["Enrollment (K-12)", "CDSCode", "FRPM Count (K-12)"],
+                    "primary_keys": ["CDSCode"]
+                }, {
+                    "table": "schools",
+                    "columns": ["SOC", "CDSCode"],
+                    "primary_keys": ["CDSCode"]
+                }]
+            }
+        }
+    ]
+
+    # 对每个测试用例进行分类
+    print(f"Supposed to be: 1, 1, 1, 3, 3")
+    for i, test_case in enumerate(test_cases, 1):
+        label, probabilities = classifier.classify(test_case["question"], test_case["schema"])
+        print(f"[Test Case {i}] Predicted Label: {label}, Probabilities: {probabilities}")
     
 
 if __name__ == "__main__":
-    test_deterministic() 
+    test() 

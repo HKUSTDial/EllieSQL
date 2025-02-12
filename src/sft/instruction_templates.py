@@ -35,6 +35,14 @@ Schema Analysis:
 {schema_analysis}
 Question: {question}"""
 
+#     @staticmethod
+#     def get_classifier_template() -> str:
+#         """获取分类头模型的提示词模板"""
+#         return """
+# Database Schema Related to the Question:
+# {schema_str}
+# Question: {question}"""
+
     @staticmethod
     def get_generator_template() -> str:
         """获取生成式模型的提示词模板"""

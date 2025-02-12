@@ -49,3 +49,11 @@ class Config:
     @property
     def sft_save_dir(self) -> Path:
         return Path(self.config["paths"]["sft_save_dir"])
+    
+    @property
+    def dpo_data_dir(self) -> Path:
+        return Path(self.config["paths"]["dpo_data_dir"])
+    
+    @property
+    def dpo_save_dir(self) -> Path:
+        return Path(self.config["paths"]["dpo_save_dir"])

@@ -41,7 +41,7 @@ async def main():
     # 运行pipeline
     await pipeline.run_pipeline_parallel(
         data_file="./data/formatted_bird_dev.json",
-        max_workers=100
+        max_workers=200
     )
 
 if __name__ == "__main__":
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     # 2. 设置线程池大小
     loop = asyncio.get_event_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=300))
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=600))
 
     # 3. 运行与关闭
     loop.run_until_complete(main())

@@ -209,25 +209,36 @@ class QwenClassifierTrainer:
         return tokenized_datasets
         
     def compute_metrics(self, eval_pred):
-        """计算评估指标"""
+        """计算评估指标, 对于将复杂问题错误分类到简单pipeline的情况增加惩罚"""
         predictions = eval_pred.predictions[0] if isinstance(eval_pred.predictions, tuple) else eval_pred.predictions
-        predictions = predictions.argmax(-1)
-        labels = eval_pred.label_ids
+        predictions = predictions.argmax(-1)  # 转换为0-based标签
+        labels = eval_pred.label_ids  # 0-based标签
         
-        correct = (predictions == labels).sum()
         total = len(labels)
-        accuracy = float(correct) / total
+        correct = 0
+        penalty = 0
+        penalty_factor = 0.1 # 惩罚因子, 如为0则不惩罚
         
-        # 添加更详细的指标
+        # 计算每个类别的统计信息
         class_correct = {i: 0 for i in range(3)}
         class_total = {i: 0 for i in range(3)}
-        pred_dist = {i: 0 for i in range(3)}  # 预测标签的分布
+        pred_dist = {i: 0 for i in range(3)}
         
         for pred, label in zip(predictions, labels):
             class_total[label] += 1
             pred_dist[pred] += 1
+            
             if pred == label:
+                # 正确分类
+                correct += 1
                 class_correct[label] += 1
+            elif label > pred and pred == 0:
+                # 惩罚将Intermediate和Advanced分类到Basic的情况
+                penalty += 1 * penalty_factor
+                print(f"******** label: {label}, pred: {pred} **********")
+        
+        # 计算带惩罚的准确率
+        penalized_accuracy = (correct - penalty) / total
         
         # 计算每个类别的准确率
         class_accuracy = {}
@@ -237,7 +248,7 @@ class QwenClassifierTrainer:
             else:
                 class_accuracy[f"class_{i}_accuracy"] = 0.0
         
-        # 计算验证集上的预测标签分布和实际标签分布
+        # 计算分布百分比
         pred_dist_pct = {
             f"pred_dist_{i}": float(count) / total 
             for i, count in pred_dist.items()
@@ -247,12 +258,20 @@ class QwenClassifierTrainer:
             for i in range(3)
         }
         
-        # 返回tensorboard兼容的指标
+        # 记录惩罚信息
+        penalty_info = {
+            "penalty": float(penalty),
+            "raw_accuracy": float(correct) / total,
+            "penalized_accuracy": float(penalized_accuracy)
+        }
+        
+        # 返回所有指标
         return {
-            "accuracy": accuracy,
+            "accuracy": penalized_accuracy,  # 使用带惩罚的准确率
             **class_accuracy,
-            **pred_dist_pct,  # 预测标签的分布
-            **true_dist_pct   # 实际标签的分布
+            **pred_dist_pct,
+            **true_dist_pct,
+            **penalty_info
         }
         
     def train(self):
@@ -283,6 +302,7 @@ class QwenClassifierTrainer:
             # 配置训练参数
             training_args = TrainingArguments(
                 output_dir=str(checkpoint_dir),
+                # 训练策略配置
                 per_device_train_batch_size=self.sft_config["per_device_train_batch_size"],
                 per_device_eval_batch_size=self.sft_config["per_device_eval_batch_size"],
                 gradient_accumulation_steps=self.sft_config["gradient_accumulation_steps"],
@@ -290,18 +310,28 @@ class QwenClassifierTrainer:
                 learning_rate=self.sft_config["learning_rate"],
                 lr_scheduler_type=self.sft_config["lr_scheduler_type"],
                 fp16=self.sft_config["fp16"],
+                
+                # 评估策略配置
                 eval_strategy=self.sft_config["eval_strategy"],
+                eval_steps=self.sft_config.get("eval_steps", None),  # 如果是"epoch"模式则不需要
+                
+                # 保存策略配置
                 save_strategy=self.sft_config["save_strategy"],
+                save_steps=self.sft_config.get("save_steps", None),  # 如果是"epoch"模式则不需要
+                
                 # 日志相关配置
                 logging_dir=str(self.config.logs_dir / "sft" / "qwen_classifier"),
                 logging_strategy=self.sft_config["logging_strategy"],
+                logging_steps=self.sft_config.get("logging_steps", None),  # 如果是"epoch"模式则不需要
                 logging_first_step=self.sft_config["logging_first_step"],
                 report_to=["tensorboard"],
+                
                 # checkpoint相关配置
                 load_best_model_at_end=self.sft_config["load_best_model_at_end"],
                 metric_for_best_model=self.sft_config["metric_for_best_model"],
                 greater_is_better=self.sft_config["greater_is_better"],
                 save_total_limit=self.sft_config["save_total_limit"],
+                
                 # 其他配置
                 ddp_find_unused_parameters=self.sft_config["ddp_find_unused_parameters"],
                 local_rank=self.local_rank,
@@ -388,16 +418,21 @@ class TrainingCallback(TrainerCallback):
         self.log_func(f"\n\n<< Epoch {state.epoch:.2f} started >>")
         
     def on_evaluate(self, args, state, control, metrics, **kwargs):
-        # 提取基本指标: 准确率, 每个类别的准确率, 验证集上的预测标签分布情况和实际标签分布
-        accuracy = metrics.get('eval_accuracy', 'N/A')
+        # 提取指标
+        penalized_accuracy = metrics.get('eval_accuracy', 'N/A')
+        raw_accuracy = metrics.get('eval_raw_accuracy', 'N/A')
+        penalty = metrics.get('eval_penalty', 'N/A')
+        
         class_accuracies = [
             metrics.get(f'eval_class_{i}_accuracy', 'N/A') 
             for i in range(3)
         ]
+        
         pred_dist = [
             metrics.get(f'eval_pred_dist_{i}', 'N/A') 
             for i in range(3)
         ]
+        
         true_dist = [
             metrics.get(f'eval_true_dist_{i}', 'N/A') 
             for i in range(3)
@@ -406,14 +441,16 @@ class TrainingCallback(TrainerCallback):
         # 构建评估日志
         eval_log = (
             f"Evaluation at Step {state.global_step} (epoch {state.epoch:.2f}):\n"
-            f"[Overall Accuracy   ] {accuracy:.5f}\n"
-            f"[Acc for Classes    ] "
+            f"[Raw Accuracy      ] {raw_accuracy:.5f}\n"
+            f"[Penalty          ] {penalty:.5f}\n"
+            f"[Penalized Acc    ] {penalized_accuracy:.5f}\n"
+            f"[Acc for Classes  ] "
             f"Basic: {class_accuracies[0]:.5f} | "
             f"Inter: {class_accuracies[1]:.5f} | "
             f"Advan: {class_accuracies[2]:.5f}\n"
-            f"[Predict Label Dist ] "
+            f"[Predict Label Dist] "
             f"Basic: {pred_dist[0]:.5f} | Inter: {pred_dist[1]:.5f} | Advan: {pred_dist[2]:.5f}\n"
-            f"[Actual Label Dist  ] "
+            f"[Actual Label Dist ] "
             f"Basic: {true_dist[0]:.5f} | Inter: {true_dist[1]:.5f} | Advan: {true_dist[2]:.5f}"
         )
         
