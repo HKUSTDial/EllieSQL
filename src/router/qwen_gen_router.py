@@ -14,7 +14,7 @@ class QwenGenRouter(RouterBase):
     def __init__(self, name: str = "QwenGenRouter", lora_path: str = None, seed: int = 42):
         super().__init__(name)
         self.config = Config()
-        self.model_path = self.config.model_dir
+        self.model_path = self.config.qwen_dir
         # 使用指定的LoRA路径或默认路径
         self.lora_path = Path(lora_path) if lora_path else self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()

@@ -8,7 +8,7 @@ from .instruction_templates import PipelineClassificationTemplates
 class QwenGenerator:
     def __init__(self, lora_path: str = None):
         self.config = Config()
-        self.model_path = self.config.model_dir
+        self.model_path = self.config.qwen_dir
         self.lora_path = Path(lora_path) if lora_path else self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()
         

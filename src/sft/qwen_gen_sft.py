@@ -44,7 +44,7 @@ class QwenClassifierTrainer:
         
     def __init__(self):
         self.config = Config()
-        self.model_path = self.config.model_dir
+        self.model_path = self.config.qwen_dir
         self.sft_data_dir = self.config.sft_data_dir
         self.save_dir = self.config.sft_save_dir
         

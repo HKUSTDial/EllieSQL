@@ -28,7 +28,7 @@ class QwenClassifier:
         set_seed(seed)
         
         self.config = Config()
-        self.model_path = self.config.model_dir
+        self.model_path = self.config.qwen_dir
         self.lora_path = Path(lora_path) if lora_path else self.config.sft_save_dir / "final_model_classifier"
         self.templates = PipelineClassificationTemplates()
         

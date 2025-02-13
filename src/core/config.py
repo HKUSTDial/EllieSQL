@@ -39,8 +39,12 @@ class Config:
         return Path(self.config["paths"]["gold_schema_linking_dir"]) 
     
     @property
-    def model_dir(self) -> Path:
-        return Path(self.config["paths"]["model_dir"])
+    def qwen_dir(self) -> Path:
+        return Path(self.config["paths"]["qwen_dir"])
+    
+    @property
+    def roberta_dir(self) -> Path:
+        return Path(self.config["paths"]["roberta_dir"])
     
     @property
     def sft_data_dir(self) -> Path:

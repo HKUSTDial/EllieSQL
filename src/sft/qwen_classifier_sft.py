@@ -116,7 +116,7 @@ class QwenForSequenceClassification(PreTrainedModel):
 class QwenClassifierTrainer:
     def __init__(self, sft_dataset: str, sft_config: str):
         self.config = Config()
-        self.model_path = self.config.model_dir
+        self.model_path = self.config.qwen_dir
         self.sft_dataset_dir = self.config.sft_data_dir / sft_dataset
         self.save_dir = self.config.sft_save_dir
         
