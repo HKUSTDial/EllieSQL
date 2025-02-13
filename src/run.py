@@ -10,6 +10,7 @@ from .modules.post_processing.skip_post_processing import SkipPostProcessor
 from .pipeline import ElephantSQLPipeline
 from src.router.table_count_router import TableCountRouter
 from src.router.qwen_classifier_router import QwenClassifierRouter
+from src.router.knn_classifier_router import KNNClassifierRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 async def main():
@@ -17,7 +18,7 @@ async def main():
     llm = LLMBase()
     
     # 创建pipeline工厂
-    factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
+    factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
     
     # 创建router
     # router = TableCountRouter()
@@ -25,6 +26,7 @@ async def main():
         seed=42,
         lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier"  # 可选参数
     )
+    # router = KNNClassifierRouter()
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 

@@ -213,7 +213,7 @@ if __name__ == "__main__":
     # merge_dev_demo_file = "./data/sampled_bird_dev.json"
     # merge_dev_demo_file = "./data/sampled_merged.json"
     merge_dev_demo_file = "./data/formatted_bird_dev.json"
-    #merge_dev_demo_file = "./data/merge_dev_demo.json"
+    # merge_dev_demo_file = "./data/merge_dev_demo.json"
     time_path = "./results/intermediate_results/"
 
     compute_EX_source_difficulty_based(merge_dev_demo_file, time_path)

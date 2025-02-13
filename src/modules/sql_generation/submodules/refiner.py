@@ -97,7 +97,7 @@ class FeedbackBasedRefiner(RefinerBase):
                 }
                 return result
 
-            print("需要refine")
+            # print("需要refine")
             messages = [
                 {"role": "system", "content": REFINER_SYSTEM},
                 {"role": "user", "content": REFINER_USER.format(

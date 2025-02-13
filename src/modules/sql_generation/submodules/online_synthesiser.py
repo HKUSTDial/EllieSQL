@@ -59,7 +59,7 @@ class OnlineSynthesiser():
         #     max_tokens=generator.max_tokens,
         #     module_name="EnhancedSQLGenerator"
         # )
-        print("生成examples完成")
+        # print("生成examples完成")
         return result  # 返回完整的结果字典
 
                 
@@ -95,7 +95,7 @@ class OnlineSynthesiser():
         # raw_output = result["response"]
         # extracted_sql = self.extractor.extract_sql(raw_output)
 
-        print("OS完成了候选sql生成")
+        # print("OS完成了候选sql生成")
 
         result["input_tokens"] += examples_result["input_tokens"]
         result["output_tokens"] += examples_result["output_tokens"]

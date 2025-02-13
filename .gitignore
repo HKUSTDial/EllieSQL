@@ -31,6 +31,8 @@ results/important_results/
 logs/
 
 # 忽略data下的databases和部分文件
+data/bird_dev_gold_empty_count.txt
+data/bird_train_gold_empty_count.txt
 data/*.json
 data/labeled/*.jsonl
 data/merged_databases/**
