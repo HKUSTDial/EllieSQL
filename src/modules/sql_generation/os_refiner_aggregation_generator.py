@@ -3,6 +3,7 @@ from .online_synthesis_refiner_generator import OSRefinerSQLGenerator
 from ...core.llm import LLMBase
 from .prompts.aggregator_prompts import AGGREGATOR_SYSTEM, AGGREGATOR_USER
 from ...core.utils import load_json
+from .submodules.refiner import *
 
 class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
     """使用多个OSRefiner生成候选并聚合的SQL生成器，继承自OSRefinerSQLGenerator"""
@@ -29,7 +30,8 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
         # 记录每个步骤的token统计
         step_tokens = {
             "candidates": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
-            "aggregator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            "aggregator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
         
         # 加载schema linking的结果
@@ -90,7 +92,7 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
             return "```sql\nSELECT 1;\n```"  # 返回一个简单的fallback SQL
             
         # 2. 聚合候选SQL (使用原始的低temperature)
-        candidates_str = "\n".join(f"Candidate {i+1}:\n{sql}" for i, sql in enumerate(candidates))
+        candidates_str = "\n".join(f"# Candidate {i+1}:\n{sql}" for i, sql in enumerate(candidates))
         
         messages = [
             {"role": "system", "content": AGGREGATOR_SYSTEM},
@@ -119,13 +121,36 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
         raw_output = result["response"]
         aggregated_sql = self.extractor.extract_sql(raw_output)
         # print('\nraw_output: ', raw_output)
-        
-        # 计算总token使用量
+
+        # refiner
+        refiner = FeedbackBasedRefiner(llm=self.llm, 
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                module_name=self.name)
+
+        refine_result = await refiner.process_sql(aggregated_sql, data_file, query_id)
+
+        step_tokens["refine"]["input_tokens"] = refine_result["input_tokens"]
+        step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
+        step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
+
+        refiner_raw_output = refine_result["response"]
+        extracted_refined_sql = self.extractor.extract_sql(refiner_raw_output)
+
+
+        # 计算总token
         total_tokens = {
-            "input_tokens": step_tokens["candidates"]["input_tokens"] + step_tokens["aggregator"]["input_tokens"],
-            "output_tokens": step_tokens["candidates"]["output_tokens"] + step_tokens["aggregator"]["output_tokens"],
-            "total_tokens": step_tokens["candidates"]["total_tokens"] + step_tokens["aggregator"]["total_tokens"]
+            "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
+            "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
+            "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
+        # # 计算总token使用量
+        # total_tokens = {
+        #     "input_tokens": step_tokens["candidates"]["input_tokens"] + step_tokens["aggregator"]["input_tokens"],
+        #     "output_tokens": step_tokens["candidates"]["output_tokens"] + step_tokens["aggregator"]["output_tokens"],
+        #     "total_tokens": step_tokens["candidates"]["total_tokens"] + step_tokens["aggregator"]["total_tokens"]
+        # }
         
         # 保存中间结果
         self.save_intermediate(
@@ -137,6 +162,7 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
             output_data={
                 "raw_output": raw_output,
                 "aggregated_sql": aggregated_sql,
+                "extracted_sql": extracted_refined_sql,
                 "all_candidates": candidates
             },
             model_info={
@@ -156,7 +182,7 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
                 "formatted_schema": formatted_schema,
                 "candidates": candidates
             },
-            output_data=raw_output
+            output_data=refiner_raw_output
         )
         
-        return raw_output 
+        return refiner_raw_output 

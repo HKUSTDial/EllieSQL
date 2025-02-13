@@ -158,8 +158,8 @@ class RouterAnalyzer:
 
 
 def main():
-    router_file = "results/intermediate_results/20250212_014634/QwenClassifierRouter.jsonl"
-    ground_truth = "data/labeled/bird_dev_pipeline_label.jsonl"
+    router_file = "results/intermediate_results/20250212_213659/KNNClassifierRouter.jsonl"
+    ground_truth = "./data/labeled/bird_dev_pipeline_label.jsonl"
     analyzer = RouterAnalyzer()
     analyzer.analyze(router_file, ground_truth)
 
