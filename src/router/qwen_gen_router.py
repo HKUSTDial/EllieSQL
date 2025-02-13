@@ -6,15 +6,17 @@ from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
 from ..sft.instruction_templates import PipelineClassificationTemplates
+from pathlib import Path
 
 class QwenGenRouter(RouterBase):
     """基于生成式的Qwen路由器"""
     
-    def __init__(self, name: str = "QwenGenRouter", seed: int = 42):
+    def __init__(self, name: str = "QwenGenRouter", lora_path: str = None, seed: int = 42):
         super().__init__(name)
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.lora_path = self.config.sft_save_dir / "final_model_gen"
+        # 使用指定的LoRA路径或默认路径
+        self.lora_path = Path(lora_path) if lora_path else self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()
         
         # 设置随机种子以确保可重复性

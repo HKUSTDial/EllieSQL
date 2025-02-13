@@ -8,20 +8,26 @@ from ..core.config import Config
 from ..sft.qwen_classifier_sft import QwenForSequenceClassification
 from ..sft.instruction_templates import PipelineClassificationTemplates
 import torch.nn.functional as F
+from pathlib import Path
 
 class QwenRouter(RouterBase):
     """基于微调的Qwen模型进行路由的路由器，支持分类头和生成式两种模式"""
     
-    def __init__(self, name: str = "QwenRouter", classifier_head: bool = True, seed: int = 42):
+    def __init__(self, name: str = "QwenRouter", classifier_head: bool = True, lora_path: str = None, seed: int = 42):
         super().__init__(name)
         self.config = Config()
         self.model_path = self.config.model_dir
         self.classifier_head = classifier_head
-        # 根据模式选择不同的模型权重路径
-        if self.classifier_head:
-            self.lora_path = self.config.sft_save_dir / "final_model_classifier"
+        
+        # 使用指定的LoRA路径或默认路径
+        if lora_path:
+            self.lora_path = Path(lora_path)
         else:
-            self.lora_path = self.config.sft_save_dir / "final_model_gen"
+            # 根据模式选择不同的默认模型权重路径
+            if self.classifier_head:
+                self.lora_path = self.config.sft_save_dir / "final_model_classifier"
+            else:
+                self.lora_path = self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()
         
         # 设置随机种子以确保可重复性

@@ -21,7 +21,10 @@ async def main():
     
     # 创建router
     # router = TableCountRouter()
-    router = QwenClassifierRouter(seed=42)
+    router = QwenClassifierRouter(
+        seed=42,
+        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier"  # 可选参数
+    )
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 

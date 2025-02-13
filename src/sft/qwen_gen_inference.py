@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
@@ -5,10 +6,10 @@ from ..core.config import Config
 from .instruction_templates import PipelineClassificationTemplates
 
 class QwenGenerator:
-    def __init__(self):
+    def __init__(self, lora_path: str = None):
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.lora_path = self.config.sft_save_dir / "final_model_gen"
+        self.lora_path = Path(lora_path) if lora_path else self.config.sft_save_dir / "final_model_gen"
         self.templates = PipelineClassificationTemplates()
         
         # 加载模型和tokenizer

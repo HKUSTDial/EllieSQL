@@ -235,7 +235,7 @@ class QwenClassifierTrainer:
             elif label > pred and pred == 0:
                 # 惩罚将Intermediate和Advanced分类到Basic的情况
                 penalty += 1 * penalty_factor
-                print(f"******** label: {label}, pred: {pred} **********")
+                # print(f"******** label: {label}, pred: {pred} **********")
         
         # 计算带惩罚的准确率
         penalized_accuracy = (correct - penalty) / total

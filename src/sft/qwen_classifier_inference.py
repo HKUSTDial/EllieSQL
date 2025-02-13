@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import torch
 import torch.nn.functional as F
 import random
@@ -7,7 +9,6 @@ from peft import PeftModel
 from ..core.config import Config
 from .qwen_classifier_sft import QwenForSequenceClassification
 from .instruction_templates import PipelineClassificationTemplates
-import json
 
 def set_seed(seed: int = 42):
     """设置所有随机种子以确保可重复性"""
@@ -22,13 +23,13 @@ def set_seed(seed: int = 42):
 class QwenClassifier:
     """用于分类推理的Qwen分类器: """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, lora_path: str = None, seed: int = 42):
         # 设置随机种子
         set_seed(seed)
         
         self.config = Config()
         self.model_path = self.config.model_dir
-        self.lora_path = self.config.sft_save_dir / "final_model_classifier"
+        self.lora_path = Path(lora_path) if lora_path else self.config.sft_save_dir / "final_model_classifier"
         self.templates = PipelineClassificationTemplates()
         
         # 加载模型和tokenizer
@@ -126,7 +127,10 @@ class QwenClassifier:
 
 def test():
     """测试分类器推理"""
-    classifier = QwenClassifier(seed=42)
+    classifier = QwenClassifier(
+        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier",
+        seed=42
+    )
     
     # 测试样例
     test_cases = [
