@@ -24,8 +24,7 @@ __pycache__/
 config/*
 
 # 忽略中间结果
-results/intermediate_results/
-results/important_results/
+results/**
 
 # 忽略日志文件
 logs/
@@ -44,6 +43,7 @@ data/dpo/**
 !config/config_example.yaml
 !config/sft_config.yaml
 !config/dpo_config.yaml
+!config/roberta_config.yaml
 
 examples/m2.py
 examples/m3.py

@@ -61,3 +61,9 @@ class Config:
     @property
     def dpo_save_dir(self) -> Path:
         return Path(self.config["paths"]["dpo_save_dir"])
+    
+    @property
+    def roberta_save_dir(self) -> Path:
+        return Path(self.config["paths"]["roberta_save_dir"])
+    
+    

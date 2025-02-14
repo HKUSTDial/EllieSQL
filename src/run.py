@@ -9,8 +9,9 @@ from .modules.sql_generation.online_synthesis_refiner_generator import OSRefiner
 from .modules.post_processing.skip_post_processing import SkipPostProcessor
 from .pipeline import ElephantSQLPipeline
 from src.router.table_count_router import TableCountRouter
-from src.router.qwen_classifier_router import QwenClassifierRouter
 from src.router.knn_classifier_router import KNNClassifierRouter
+from src.router.qwen_classifier_router import QwenClassifierRouter
+from src.router.roberta_classifier_router import RoBERTaClassifierRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 async def main():
@@ -22,11 +23,15 @@ async def main():
     
     # 创建router
     # router = TableCountRouter()
-    router = QwenClassifierRouter(
-        seed=42,
-        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier"  # 可选参数
-    )
     # router = KNNClassifierRouter()
+    # router = QwenClassifierRouter(
+    #     seed=42,
+    #     lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier"
+    # )
+    router = RoBERTaClassifierRouter(
+        seed=42,
+        model_path="/data/zhuyizhang/saves/RoBERTa-router/final_model_roberta"
+    )
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 

@@ -60,7 +60,7 @@ class DivideConqueror():
         
         # Initialize an empty set Ssql to store partial SQL queries for each sub-question
         ssql = [] 
-        print("divide结束")
+        # print("divide结束")
         # 2. conquer:
         # for each sub-question qi in Sq
         for sub_question in sub_questions:
@@ -92,7 +92,7 @@ class DivideConqueror():
             # ssql.append(extracted_sql)
             ssql.append(raw_output)
 
-        print("Conquer 完成，开始assemble")
+        # print("Conquer 完成，开始assemble")
         # 3. assemble:
         # Assemble the final SQL query Sf from all sub-queries in Ssql
         sub_prompt = ""
@@ -125,7 +125,7 @@ class DivideConqueror():
         # raw_output = assemble_result["response"]
         # extracted_sql = self.extractor.extract_sql(raw_output)
 
-        print("DC完成了候选sql生成")
+        # print("DC完成了候选sql生成")
 
         assemble_result["input_tokens"] += input_tokens
         assemble_result["output_tokens"] += output_tokens

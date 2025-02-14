@@ -1,0 +1,36 @@
+# Training hyperparameters
+per_device_train_batch_size: 16
+per_device_eval_batch_size: 64
+gradient_accumulation_steps: 2
+num_train_epochs: 20
+learning_rate: 0.00005
+lr_scheduler_type: "linear"
+fp16: true
+
+# Penalty factor for penalized accuracy
+penalty_factor: 0.25
+
+# Evaluation and saving strategy
+eval_strategy: "epoch"
+save_strategy: "epoch"
+
+# Logging configuration
+logging_strategy: "epoch"
+logging_first_step: true
+
+# Checkpoint configuration
+load_best_model_at_end: true
+metric_for_best_model: "accuracy"
+greater_is_better: true
+save_total_limit: 5
+
+# Other configurations
+ddp_find_unused_parameters: false
+dataloader_num_workers: 4
+remove_unused_columns: false
+warmup_ratio: 0.1
+weight_decay: 0.1
+max_grad_norm: 1.0
+
+# Model configuration
+max_length: 512

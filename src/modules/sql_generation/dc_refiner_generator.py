@@ -168,7 +168,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
-        print("schema linking 完成，开始divide")
+        # print("schema linking 完成，开始divide")
         data_file = self.data_file
         dataset_examples = load_json(data_file)
 
@@ -215,7 +215,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
         # Initialize an empty set Ssql to store partial SQL queries for each sub-question
         ssql = [] 
         #print(sub_questions)
-        print("divide结束")
+        # print("divide结束")
         # 2. conquer:
         
         # for each sub-question qi in Sq
@@ -248,7 +248,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
             # ssql.append(extracted_sql)
             ssql.append(raw_output)
 
-        print("Conquer 完成，开始assemble")
+        # print("Conquer 完成，开始assemble")
         # 3. assemble:
         # Assemble the final SQL query Sf from all sub-queries in Ssql
         sub_prompt = ""
@@ -284,7 +284,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
         # print('-------------')
         # print(raw_output)
 
-        print("完成了初步sql生成")
+        # print("完成了初步sql生成")
 
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
@@ -300,7 +300,7 @@ class DCRefinerSQLGenerator(SQLGeneratorBase):
 
         refiner_raw_output = refine_result["response"]
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
-        print("sql refine完成")
+        # print("sql refine完成")
         # print('-------------')
         # print(refiner_raw_output)
       

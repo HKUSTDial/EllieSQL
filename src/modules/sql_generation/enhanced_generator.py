@@ -64,7 +64,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
-        print("schema linking 完成，开始divide")
+        # print("schema linking 完成，开始divide")
         data_file = self.data_file
         dataset_examples = load_json(data_file)
 
@@ -111,7 +111,8 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         # Initialize an empty set Ssql to store partial SQL queries for each sub-question
         ssql = [] 
         #print(sub_questions)
-        print("divide结束")
+        # print("divide结束")
+
         # 2. conquer:
         ## online synthesis examples for few-shot
         #online_synthesiser=OnlineSynthesis(llm=self.llm, model=self.model, temperature=self.temperature, max_tokens=self.max_tokens)
@@ -156,7 +157,8 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             extracted_sql = self.extractor.extract_sql(raw_output)
             ssql.append(extracted_sql)
 
-        print("Conquer 完成，开始assemble")
+        # print("Conquer 完成，开始assemble")
+
         # 3. assemble:
         # Assemble the final SQL query Sf from all sub-queries in Ssql
         sub_prompt = ""
@@ -175,6 +177,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 subs = sub_prompt
             )}
         ]
+
         # 4. Assemble阶段
         assemble_result = await self.llm.call_llm(
             assemble_prompt,
@@ -190,7 +193,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         raw_output = assemble_result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
-        print("完成了初步sql生成")
+        # print("完成了初步sql生成")
 
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
@@ -198,6 +201,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 max_tokens=self.max_tokens,
                 module_name=self.name)
         # print(111)
+
         # 5. Refine阶段
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
 
@@ -209,7 +213,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["input_tokens"] = refine_result["input_tokens"]
         step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
-        print("sql refine完成")
+        # print("sql refine完成")
       
         # 计算总token
         total_tokens = {
