@@ -6,6 +6,11 @@ num_train_epochs: 10
 learning_rate: 0.0001
 lr_scheduler_type: "cosine"
 fp16: true
+
+# Penalty factor for penalized accuracy
+penalty_factor: 0.1
+
+# Evaluation and saving strategy
 eval_strategy: "epoch"
 save_strategy: "epoch"
 

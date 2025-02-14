@@ -121,8 +121,8 @@ class RoBERTaClassifierTrainer:
             if pred == label:
                 correct += 1
                 class_correct[label] += 1
-            elif label > pred:
-                # 惩罚将复杂问题错误分类到简单pipeline的情况
+            elif label > pred and pred == 0:
+                # 惩罚将Intermediate和Advanced分类到Basic的情况
                 penalty += 1 * penalty_factor
         
         # 计算带惩罚的准确率

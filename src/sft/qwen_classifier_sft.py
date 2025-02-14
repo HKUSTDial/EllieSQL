@@ -217,7 +217,7 @@ class QwenClassifierTrainer:
         total = len(labels)
         correct = 0
         penalty = 0
-        penalty_factor = 0.1 # 惩罚因子, 如为0则不惩罚
+        penalty_factor = self.sft_config["penalty_factor"] # 惩罚因子, 如为0则不惩罚
         
         # 计算每个类别的统计信息
         class_correct = {i: 0 for i in range(3)}
@@ -235,7 +235,6 @@ class QwenClassifierTrainer:
             elif label > pred and pred == 0:
                 # 惩罚将Intermediate和Advanced分类到Basic的情况
                 penalty += 1 * penalty_factor
-                # print(f"******** label: {label}, pred: {pred} **********")
         
         # 计算带惩罚的准确率
         penalized_accuracy = (correct - penalty) / total
