@@ -19,19 +19,19 @@ async def main():
     llm = LLMBase()
     
     # 创建pipeline工厂
-    factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
+    factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
     
     # 创建router
     # router = TableCountRouter()
     # router = KNNClassifierRouter()
-    # router = QwenClassifierRouter(
-    #     seed=42,
-    #     lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier"
-    # )
-    router = RoBERTaClassifierRouter(
+    router = QwenClassifierRouter(
         seed=42,
-        model_path="/data/zhuyizhang/saves/RoBERTa-router/final_model_roberta"
+        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_train_penalty/final_model_classifier"
     )
+    # router = RoBERTaClassifierRouter(
+    #     seed=42,
+    #     model_path="/data/zhuyizhang/saves/RoBERTa-router/final_model_roberta_lora"
+    # )
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 

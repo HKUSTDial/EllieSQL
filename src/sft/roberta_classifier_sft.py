@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+import multiprocessing
 from datasets import load_dataset
 from transformers import (
     RobertaTokenizer,
@@ -9,12 +10,35 @@ from transformers import (
     Trainer,
     TrainerCallback
 )
+from peft import (
+    LoraConfig,
+    get_peft_model,
+    TaskType
+)
 from ..core.config import Config
 from datetime import datetime
 import json
 from pathlib import Path
 import yaml
 import argparse
+
+# 设置多进程启动方式为spawn
+multiprocessing.set_start_method('spawn', force=True)
+
+def setup_distributed():
+    """设置分布式训练环境"""
+    if 'LOCAL_RANK' not in os.environ:
+        return False
+    
+    local_rank = int(os.environ['LOCAL_RANK'])
+    torch.cuda.set_device(local_rank)
+    torch.distributed.init_process_group(backend='nccl')
+    return True
+
+def cleanup_distributed():
+    """清理分布式训练环境"""
+    if torch.distributed.is_initialized():
+        torch.distributed.destroy_process_group()
 
 def load_sft_config(config_name: str):
     """加载SFT配置"""
@@ -25,11 +49,12 @@ def load_sft_config(config_name: str):
         return yaml.safe_load(f)
 
 class RoBERTaClassifierTrainer:
-    def __init__(self, sft_dataset: str, sft_config: str):
+    def __init__(self, sft_dataset: str, sft_config: str, training_mode: str = 'lora'):
         self.config = Config()
         self.model_path = self.config.roberta_dir
         self.sft_dataset_dir = self.config.sft_data_dir / sft_dataset
         self.save_dir = self.config.roberta_save_dir
+        self.training_mode = training_mode
         
         os.makedirs(self.save_dir, exist_ok=True)
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
@@ -39,6 +64,7 @@ class RoBERTaClassifierTrainer:
         self.sft_config = load_sft_config(sft_config)
         if self.local_rank == 0:
             print(f"Using SFT config: {sft_config}")
+            print(f"Training mode: {training_mode}")
             
     def _log_to_file(self, message: str):
         """写入日志到文件"""
@@ -60,6 +86,31 @@ class RoBERTaClassifierTrainer:
             num_labels=3,  # Basic, Intermediate, Advanced
             problem_type="single_label_classification"
         )
+        
+        if self.training_mode == 'lora':
+            # 配置LoRA
+            lora_config = LoraConfig(
+                task_type=TaskType.SEQ_CLS,  # 使用序列分类任务类型
+                r=self.sft_config["lora_r"],
+                lora_alpha=self.sft_config["lora_alpha"],
+                lora_dropout=self.sft_config["lora_dropout"],
+                target_modules=self.sft_config["target_modules"],
+                bias="none",
+            )
+            
+            # 准备模型
+            self.model = get_peft_model(self.model, lora_config)
+            
+            if self.local_rank == 0:
+                print("Using LoRA fine-tuning")
+                # 打印参数训练状态
+                print("\nParameter training status:")
+                print("Classifier parameters:")
+                for name, param in self.model.classifier.named_parameters():
+                    print(f"  {name}: requires_grad = {param.requires_grad}")
+        else:
+            if self.local_rank == 0:
+                print("Using full parameter fine-tuning")
         
     def prepare_dataset(self):
         """准备数据集"""
@@ -168,7 +219,7 @@ class RoBERTaClassifierTrainer:
             tokenized_datasets = self.prepare_dataset()
             
             # 设置checkpoint和训练日志保存路径
-            checkpoint_dir = self.save_dir / "roberta_classifier_checkpoints"
+            checkpoint_dir = self.save_dir / f"roberta_classifier_checkpoints_{self.training_mode}"
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = checkpoint_dir / "training.log"
             
@@ -188,7 +239,7 @@ class RoBERTaClassifierTrainer:
                 num_train_epochs=self.sft_config["num_train_epochs"],
                 learning_rate=self.sft_config["learning_rate"],
                 lr_scheduler_type=self.sft_config["lr_scheduler_type"],
-                fp16=self.sft_config["fp16"],
+                fp16=self.sft_config["fp16"] if self.training_mode == 'lora' else False,
                 
                 # 评估策略配置
                 eval_strategy=self.sft_config["eval_strategy"],
@@ -199,7 +250,7 @@ class RoBERTaClassifierTrainer:
                 save_steps=self.sft_config.get("save_steps", None),
                 
                 # 日志相关配置
-                logging_dir=str(self.config.logs_dir / "sft" / "roberta_classifier"),
+                logging_dir=str(self.config.logs_dir / "sft" / f"roberta_classifier_{self.training_mode}"),
                 logging_strategy=self.sft_config["logging_strategy"],
                 logging_steps=self.sft_config.get("logging_steps", None),
                 logging_first_step=self.sft_config["logging_first_step"],
@@ -245,8 +296,24 @@ class RoBERTaClassifierTrainer:
             # 保存最终模型和结果
             if self.local_rank == 0:
                 # 保存最终模型
-                final_model_dir = self.save_dir / "final_model_roberta"
+                final_model_dir = self.save_dir / f"final_model_roberta_{self.training_mode}"
                 trainer.save_model(final_model_dir)
+                
+                # 保存分类头配置和权重
+                classifier_config = {
+                    "num_labels": 3,
+                    "hidden_size": self.model.config.hidden_size,
+                    "classifier_dropout": self.model.config.hidden_dropout_prob,
+                    "model_type": "RobertaForSequenceClassification"
+                }
+                classifier_state = self.model.classifier.state_dict()
+                
+                classifier_save = {
+                    "config": classifier_config,
+                    "state_dict": classifier_state
+                }
+                
+                torch.save(classifier_save, final_model_dir / "classifier.pt")
                 
                 # 保存训练结果
                 results_file = checkpoint_dir / "training_results.json"
@@ -338,13 +405,22 @@ def main():
                        help='Name of the SFT config file under config/ (without .yaml)')
     parser.add_argument('--sft_dataset', type=str, required=True,
                        help='Name of the specified SFT dataset directory under data/sft/')
+    parser.add_argument('--training_mode', type=str, default='lora',
+                       help='Training mode: lora or full')
     args = parser.parse_args()
     
-    trainer = RoBERTaClassifierTrainer(
-        sft_config=args.sft_config,
-        sft_dataset=args.sft_dataset
-    )
-    trainer.train()
+    is_distributed = False
+    try:
+        is_distributed = setup_distributed()
+        trainer = RoBERTaClassifierTrainer(
+            sft_config=args.sft_config,
+            sft_dataset=args.sft_dataset,
+            training_mode=args.training_mode
+        )
+        trainer.train()
+    finally:
+        if is_distributed:
+            cleanup_distributed()
 
 if __name__ == "__main__":
     main() 

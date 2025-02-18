@@ -26,7 +26,7 @@ class RoBERTaClassifier:
         set_seed(seed)
         
         self.config = Config()
-        self.model_path = Path(model_path) if model_path else self.config.roberta_save_dir / "final_model_roberta"
+        self.model_path = Path(model_path) if model_path else self.config.roberta_save_dir / "final_model_roberta_lora"
         self.templates = PipelineClassificationTemplates()
         
         # 加载模型和tokenizer
@@ -97,7 +97,10 @@ class RoBERTaClassifier:
 
 def test():
     """测试分类器推理"""
-    classifier = RoBERTaClassifier(seed=42)
+    classifier = RoBERTaClassifier(
+        model_path="/data/zhuyizhang/saves/RoBERTa-router/final_model_roberta_lora",
+        seed=42
+    )
     
     # 测试样例
     test_cases = [

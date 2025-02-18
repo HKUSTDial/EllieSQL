@@ -1,10 +1,10 @@
 # Training hyperparameters
 per_device_train_batch_size: 16
 per_device_eval_batch_size: 64
-gradient_accumulation_steps: 2
+gradient_accumulation_steps: 1
 num_train_epochs: 20
-learning_rate: 0.00005
-lr_scheduler_type: "linear"
+learning_rate: 0.0001
+lr_scheduler_type: "cosine"
 fp16: true
 
 # Penalty factor for penalized accuracy
@@ -34,3 +34,9 @@ max_grad_norm: 1.0
 
 # Model configuration
 max_length: 512
+
+# LoRA configuration
+lora_r: 64
+lora_alpha: 128
+lora_dropout: 0.1
+target_modules: ["query", "value"]  # RoBERTa的attention模块名称

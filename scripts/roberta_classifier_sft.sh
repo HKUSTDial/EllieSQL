@@ -10,6 +10,8 @@ LABELED_FILE="data/labeled/bird_train_pipeline_label.jsonl"
 # LABELED_FILE="data/labeled/bird_dev_pipeline_label.jsonl"
 # Specify the SFT config file
 SFT_CONFIG="roberta_config"  # 使用 config/roberta_config.yaml
+# Specify training mode (lora or full)
+TRAINING_MODE="lora"
 
 # 运行数据处理脚本
 python -m src.sft.prepare_classifier_sft_data \
@@ -25,7 +27,8 @@ export CUDA_VISIBLE_DEVICES=4,5,6,7
 torchrun --nproc_per_node=4 --master_port=29500 \
     -m src.sft.roberta_classifier_sft \
     --sft_config ${SFT_CONFIG} \
-    --sft_dataset ${SFT_DATASET}
+    --sft_dataset ${SFT_DATASET} \
+    --training_mode ${TRAINING_MODE}
 
 # 推理示例
 echo -e "\n\n----------------- Inference example of RoBERTa Classifier SFT -----------------\n"

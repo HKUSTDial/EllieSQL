@@ -128,7 +128,7 @@ class QwenClassifier:
 def test():
     """测试分类器推理"""
     classifier = QwenClassifier(
-        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_dev_penalty/final_model_classifier",
+        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/sft/final_model_classifier",
         seed=42
     )
     
