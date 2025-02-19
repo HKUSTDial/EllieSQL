@@ -55,7 +55,7 @@ class Config:
         return Path(self.config["paths"]["sft_save_dir"])
     
     @property
-    def dpo_data_dir(self) -> Path:
+    def pairwise_data_dir(self) -> Path:
         return Path(self.config["paths"]["dpo_data_dir"])
     
     @property
@@ -65,5 +65,13 @@ class Config:
     @property
     def roberta_save_dir(self) -> Path:
         return Path(self.config["paths"]["roberta_save_dir"])
+    
+    @property
+    def pairwise_data_dir(self) -> Path:
+        return Path(self.config["paths"]["pairwise_data_dir"])
+    
+    @property
+    def pairwise_save_dir(self) -> Path:
+        return Path(self.config["paths"]["pairwise_save_dir"])
     
     

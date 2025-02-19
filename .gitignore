@@ -38,12 +38,14 @@ data/merged_databases/**
 data/gold_schema_linking/**
 data/sft/**
 data/dpo/**
+data/pairwise/**
 
 # 不忽略配置文件示例和训练配置文件
 !config/config_example.yaml
 !config/sft_config.yaml
 !config/dpo_config.yaml
 !config/roberta_config.yaml
+!config/pairwise_config.yaml
 
 examples/m2.py
 examples/m3.py
