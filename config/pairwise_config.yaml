@@ -20,7 +20,7 @@ logging_first_step: true
 
 # checkpoint相关配置
 load_best_model_at_end: true
-metric_for_best_model: "ranking_accuracy"
+metric_for_best_model: "accuracy"
 greater_is_better: true
 save_total_limit: 3
 

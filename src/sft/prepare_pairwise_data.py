@@ -50,27 +50,35 @@ class PairwiseDataProcessor:
         }
         
     def prepare_data(self, labeled_file: str, train_ratio: float = 0.8):
-        """准备pairwise训练数据集"""
+        """准备pairwise训练数据集，但保持验证集为原始分类格式"""
         # 加载数据
         data = load_jsonl(labeled_file)
         
-        # 构造pairwise样本
-        pairwise_samples = []
-        for item in data:
+        # 随机打乱数据
+        np.random.shuffle(data)
+        
+        # 划分训练集和验证集
+        split_idx = int(len(data) * train_ratio)
+        train_data = data[:split_idx]
+        valid_data = data[split_idx:]
+        
+        # 构造训练集的pairwise样本
+        train_samples = []
+        for item in train_data:
             input_text = self.templates.create_classifier_prompt(
                 question=item["question"],
                 schema=item["enhanced_linked_schema_wo_info"]
             )
             
-            # 获取标签(1-based)
-            label = item["label"]
+            # 获取标签(1-based)并转换为0-based
+            label = item["label"] - 1
             
             # 获取该标签对应的偏序对
-            preference_pairs = self.preference_pairs[label]
+            preference_pairs = self.preference_pairs[item["label"]]
             
             # 为每个偏序对创建一个样本
             for chosen, rejected in preference_pairs:
-                pairwise_samples.append({
+                train_samples.append({
                     "question_id": item["question_id"],
                     "input": input_text,
                     "chosen_idx": self.pipeline_to_idx[chosen],
@@ -78,16 +86,22 @@ class PairwiseDataProcessor:
                     "chosen": chosen,
                     "rejected": rejected,
                     "source": item.get("source", "unknown"),
-                    "original_label": label
+                    "original_label": item["label"]
                 })
         
-        # 随机打乱数据
-        np.random.shuffle(pairwise_samples)
-        
-        # 划分训练集和验证集
-        split_idx = int(len(pairwise_samples) * train_ratio)
-        train_samples = pairwise_samples[:split_idx]
-        valid_samples = pairwise_samples[split_idx:]
+        # 构造验证集（保持原始分类格式以便计算原始准确率）
+        valid_samples = []
+        for item in valid_data:
+            input_text = self.templates.create_classifier_prompt(
+                question=item["question"],
+                schema=item["enhanced_linked_schema_wo_info"]
+            )
+            valid_samples.append({
+                "question_id": item["question_id"],
+                "input": input_text,
+                "label": item["label"] - 1,  # 转换为0-based
+                "source": item.get("source", "unknown")
+            })
         
         # 保存数据集
         self._save_and_analyze_samples(train_samples, valid_samples)
@@ -98,10 +112,34 @@ class PairwiseDataProcessor:
         train_file = self.pairwise_dataset_dir / "pairwise_train.json"
         valid_file = self.pairwise_dataset_dir / "pairwise_valid.json"
         
+        # 将验证集样本转换为与训练集相同的格式, 生成"伪"的pairwise样本 (用9999表示伪选择)
+        formatted_valid_samples = []
+        for item in valid_samples:
+            # 根据label
+            label = item["label"] + 1  # 转回1-based
+            # 获取该标签对应的第一个偏序对
+            chosen, rejected = self.preference_pairs[label][0]
+            
+            formatted_valid_samples.append({
+                "question_id": item["question_id"],
+                "input": item["input"],
+                "chosen_idx": 999, #self.pipeline_to_idx[chosen],
+                "rejected_idx": 999, #self.pipeline_to_idx[rejected],
+                "chosen": chosen,
+                "rejected": rejected,
+                "source": item["source"],
+                "original_label": label,
+                "is_validation": True  # 添加标记以区分验证集
+            })
+        
+        # 为训练集添加标记
+        for item in train_samples:
+            item["is_validation"] = False
+        
         with open(train_file, 'w', encoding='utf-8') as f:
             json.dump(train_samples, f, ensure_ascii=False, indent=2)
         with open(valid_file, 'w', encoding='utf-8') as f:
-            json.dump(valid_samples, f, ensure_ascii=False, indent=2)
+            json.dump(formatted_valid_samples, f, ensure_ascii=False, indent=2)
             
         # 分析分布
         def analyze_distribution(samples: List[Dict]) -> Dict:
@@ -130,7 +168,7 @@ class PairwiseDataProcessor:
             }
             
         train_dist = analyze_distribution(train_samples)
-        valid_dist = analyze_distribution(valid_samples)
+        valid_dist = analyze_distribution(formatted_valid_samples)
         
         # 打印分析结果
         print(f"\nTotal preference pairs: {len(train_samples) + len(valid_samples)}")

@@ -85,7 +85,7 @@ class QwenForPairwiseRank(PreTrainedModel):
         self,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,  # labels现在是[batch_size, 2]的tensor
+        labels: Optional[torch.LongTensor] = None,
         **kwargs
     ) -> SequenceClassifierOutput:
         # 获取最后一层隐藏状态
@@ -104,15 +104,17 @@ class QwenForPairwiseRank(PreTrainedModel):
         
         loss = None
         if labels is not None:
-            # 从labels中提取chosen_idx和rejected_idx
-            chosen_idx = labels[:, 0]  # [batch_size]
-            rejected_idx = labels[:, 1]  # [batch_size]
-            
-            # 计算pairwise ranking loss
-            chosen_idx = chosen_idx.to(logits.device)
-            rejected_idx = rejected_idx.to(logits.device)
-            loss = self.compute_pairwise_loss(logits, chosen_idx, rejected_idx)
-            
+            if labels.dim() == 2:  # 训练集：pairwise format [batch_size, 2]
+                chosen_idx = labels[:, 0]
+                rejected_idx = labels[:, 1]
+                chosen_idx = chosen_idx.to(logits.device)
+                rejected_idx = rejected_idx.to(logits.device)
+                loss = self.compute_pairwise_loss(logits, chosen_idx, rejected_idx)
+            else:  # 验证集：普通分类 [batch_size]
+                labels = labels.to(logits.device)
+                loss_fct = nn.CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        
         return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
@@ -200,40 +202,28 @@ class QwenPairwiseRankTrainer:
         def preprocess_function(examples):
             # 对输入文本进行编码
             tokenized = self.tokenizer(
-                examples["input"],  # 注意这里使用"input"而不是"text"
+                examples["input"],
                 padding="max_length",
                 truncation=True,
                 max_length=self.pairwise_config["max_length"],
                 return_tensors=None
             )
             
-            # 添加chosen_idx和rejected_idx
-            chosen_idx = [int(idx) for idx in examples["chosen_idx"]]
-            rejected_idx = [int(idx) for idx in examples["rejected_idx"]]
+            # 检查是否为验证集样本: 如果是验证集, 则使用original_label作为标签, 否则使用pairwise格式
+            is_validation = examples.get("is_validation", [False])[0]
+            if is_validation:
+                # 验证集：使用original_label作为标签
+                labels = torch.tensor([int(label-1) for label in examples["original_label"]], dtype=torch.long)
+            else:
+                # 训练集：使用pairwise格式
+                chosen_idx = [int(idx) for idx in examples["chosen_idx"]]
+                rejected_idx = [int(idx) for idx in examples["rejected_idx"]]
+                labels = torch.stack([
+                    torch.tensor(chosen_idx, dtype=torch.long),
+                    torch.tensor(rejected_idx, dtype=torch.long)
+                ], dim=1)
             
-            # 验证索引范围
-            for i, (chosen, rejected) in enumerate(zip(chosen_idx, rejected_idx)):
-                if not (0 <= chosen < 3 and 0 <= rejected < 3):
-                    print(f"Warning: Invalid index at position {i}: chosen={chosen}, rejected={rejected}")
-            assert all(0 <= idx < 3 for idx in chosen_idx + rejected_idx), "Invalid indices found"
-            
-            # 将索引转换为tensor
-            tokenized["chosen_idx"] = torch.tensor(chosen_idx, dtype=torch.long)
-            tokenized["rejected_idx"] = torch.tensor(rejected_idx, dtype=torch.long)
-            
-            # 将chosen_idx和rejected_idx组合成一个labels tensor
-            labels = torch.stack([
-                tokenized["chosen_idx"],
-                tokenized["rejected_idx"]
-            ], dim=1)  # shape: [batch_size, 2]
-            
-            # 使用labels字段，因为这是Trainer默认寻找的字段名
             tokenized["labels"] = labels
-            
-            # 删除原始的idx字段，避免冲突
-            del tokenized["chosen_idx"]
-            del tokenized["rejected_idx"]
-            
             return tokenized
             
         tokenized_datasets = dataset.map(
@@ -246,46 +236,59 @@ class QwenPairwiseRankTrainer:
         return tokenized_datasets
         
     def compute_metrics(self, eval_pred):
-        """计算pairwise ranking的评估指标"""
-        logits = eval_pred.predictions[0] if isinstance(eval_pred.predictions, tuple) else eval_pred.predictions
-        labels = eval_pred.label_ids  # 这里包含chosen_idx和rejected_idx
+        """
+        为贴近真实使用场景, 使用原始验证集的penalized accuracy作为分类评估方式, 而不使用pairwise ranking accuracy
+        """
+        predictions = eval_pred.predictions[0] if isinstance(eval_pred.predictions, tuple) else eval_pred.predictions
+        labels = eval_pred.label_ids
         
-        # 从labels中分离出chosen_idx和rejected_idx
-        chosen_idx = labels[:, 0]  # 假设第一列是chosen_idx
-        rejected_idx = labels[:, 1]  # 假设第二列是rejected_idx
+        # 获取预测的类别
+        predicted_classes = np.argmax(predictions, axis=1)
         
-        # 计算每个样本的预测分数
-        batch_size = logits.shape[0]
-        chosen_scores = logits[np.arange(batch_size), chosen_idx]
-        rejected_scores = logits[np.arange(batch_size), rejected_idx]
+        penalty = 0
+        total = len(labels)
+        penalty_factor = self.pairwise_config["penalty_factor"]
         
-        # 计算正确排序的比例 (chosen_score > rejected_score)
-        correct_ranking = (chosen_scores > rejected_scores).sum()
-        ranking_accuracy = float(correct_ranking) / batch_size
+        # 计算原始准确率
+        correct = (predicted_classes == labels).sum()
+        raw_accuracy = correct / total
         
-        # 计算平均margin
-        margin = chosen_scores - rejected_scores
-        avg_margin = float(margin.mean())
+        # 计算每个类别的准确率
+        class_accuracies = []
+        pred_dist = []
+        true_dist = []
         
-        # 计算各pipeline被选为preferred的分布
-        pipeline_preferred = {
-            "basic_preferred": float((chosen_idx == 0).sum()) / batch_size,
-            "intermediate_preferred": float((chosen_idx == 1).sum()) / batch_size,
-            "advanced_preferred": float((chosen_idx == 2).sum()) / batch_size
-        }
+        for i in range(3):  # 3个类别
+            class_mask = (labels == i)
+            if class_mask.sum() > 0:
+                class_acc = (predicted_classes[class_mask] == labels[class_mask]).mean()
+            else:
+                class_acc = 0.0
+            class_accuracies.append(class_acc)
+            
+            # 计算预测和真实的分布
+            pred_dist.append((predicted_classes == i).mean())
+            true_dist.append((labels == i).mean())
         
-        # 计算各pipeline被选为rejected的分布
-        pipeline_rejected = {
-            "basic_rejected": float((rejected_idx == 0).sum()) / batch_size,
-            "intermediate_rejected": float((rejected_idx == 1).sum()) / batch_size,
-            "advanced_rejected": float((rejected_idx == 2).sum()) / batch_size
-        }
+        # 计算惩罚项：将复杂问题错误分类为简单的惩罚
+        for i, pred_class in enumerate(predicted_classes):
+            true_class = labels[i]
+            if pred_class < true_class and pred_class == 0:
+                # 惩罚将Intermediate和Advanced分类到Basic的情况
+                penalty += 1
+            else:
+                penalty += 0
+        
+        penalty = penalty * penalty_factor
+        penalized_accuracy = (correct - penalty) / total
         
         return {
-            "ranking_accuracy": ranking_accuracy,  # 主要指标：正确排序的比例
-            "avg_margin": avg_margin,  # 平均margin
-            **pipeline_preferred,  # preferred pipeline的分布
-            **pipeline_rejected,  # rejected pipeline的分布
+            'accuracy': penalized_accuracy,  # 主要指标
+            'raw_accuracy': raw_accuracy,
+            'penalty': penalty,
+            **{f'class_{i}_accuracy': acc for i, acc in enumerate(class_accuracies)},
+            **{f'pred_dist_{i}': dist for i, dist in enumerate(pred_dist)},
+            **{f'true_dist_{i}': dist for i, dist in enumerate(true_dist)}
         }
         
     def train(self):
@@ -342,7 +345,7 @@ class QwenPairwiseRankTrainer:
                 
                 # checkpoint相关配置
                 load_best_model_at_end=self.pairwise_config["load_best_model_at_end"],
-                metric_for_best_model="ranking_accuracy",
+                metric_for_best_model=self.pairwise_config["metric_for_best_model"],
                 greater_is_better=self.pairwise_config["greater_is_better"],
                 save_total_limit=self.pairwise_config["save_total_limit"],
                 
@@ -455,17 +458,17 @@ class TrainingCallback(TrainerCallback):
         # 构建评估日志
         eval_log = (
             f"Evaluation at Step {state.global_step} (epoch {state.epoch:.2f}):\n"
-            # f"[Raw Accuracy      ] {raw_accuracy:.5f}\n"
-            # f"[Penalty          ] {penalty:.5f}\n"
-            # f"[Penalized Acc    ] {penalized_accuracy:.5f}\n"
-            # f"[Acc for Classes  ] "
-            # f"Basic: {class_accuracies[0]:.5f} | "
-            # f"Inter: {class_accuracies[1]:.5f} | "
-            # f"Advan: {class_accuracies[2]:.5f}\n"
-            # f"[Predict Label Dist] "
-            # f"Basic: {pred_dist[0]:.5f} | Inter: {pred_dist[1]:.5f} | Advan: {pred_dist[2]:.5f}\n"
-            # f"[Actual Label Dist ] "
-            # f"Basic: {true_dist[0]:.5f} | Inter: {true_dist[1]:.5f} | Advan: {true_dist[2]:.5f}"
+            f"[Raw Accuracy      ] {raw_accuracy:.5f}\n"
+            f"[Penalty          ] {penalty:.5f}\n"
+            f"[Penalized Acc    ] {penalized_accuracy:.5f}\n"
+            f"[Acc for Classes  ] "
+            f"Basic: {class_accuracies[0]:.5f} | "
+            f"Inter: {class_accuracies[1]:.5f} | "
+            f"Advan: {class_accuracies[2]:.5f}\n"
+            f"[Predict Label Dist] "
+            f"Basic: {pred_dist[0]:.5f} | Inter: {pred_dist[1]:.5f} | Advan: {pred_dist[2]:.5f}\n"
+            f"[Actual Label Dist ] "
+            f"Basic: {true_dist[0]:.5f} | Inter: {true_dist[1]:.5f} | Advan: {true_dist[2]:.5f}"
         )
         
         self.log_func(eval_log)
