@@ -62,8 +62,8 @@ class PairwiseDataProcessor:
                 schema=item["enhanced_linked_schema_wo_info"]
             )
             
-            # 获取标签(1-based)
-            label = item["label"]
+            # 获取标签(1-based), 标签4转化3
+            label = min(item["label"], 3)
             
             # 获取该标签对应的偏序对
             preference_pairs = self.preference_pairs[label]
