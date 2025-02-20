@@ -70,11 +70,11 @@ class PairwiseDataProcessor:
                 schema=item["enhanced_linked_schema_wo_info"]
             )
             
-            # 获取标签(1-based)并转换为0-based
-            label = item["label"] - 1
+            # 获取标签并处理标签4, 将4转换为3
+            label = min(item["label"], 3)
             
             # 获取该标签对应的偏序对
-            preference_pairs = self.preference_pairs[item["label"]]
+            preference_pairs = self.preference_pairs[label]
             
             # 为每个偏序对创建一个样本
             for chosen, rejected in preference_pairs:
@@ -86,20 +86,22 @@ class PairwiseDataProcessor:
                     "chosen": chosen,
                     "rejected": rejected,
                     "source": item.get("source", "unknown"),
-                    "original_label": item["label"]
+                    "original_label": label
                 })
         
-        # 构造验证集（保持原始分类格式以便计算原始准确率）
+        # 构造验证集（保持原始分类格式）
         valid_samples = []
         for item in valid_data:
             input_text = self.templates.create_classifier_prompt(
                 question=item["question"],
                 schema=item["enhanced_linked_schema_wo_info"]
             )
+            # 处理标签4
+            label = min(item["label"], 3) - 1  # 将标签4转换为3，然后转为0-based
             valid_samples.append({
                 "question_id": item["question_id"],
                 "input": input_text,
-                "label": item["label"] - 1,  # 转换为0-based
+                "label": label,  # 确保标签在0-2范围内
                 "source": item.get("source", "unknown")
             })
         
@@ -119,7 +121,6 @@ class PairwiseDataProcessor:
             label = item["label"] + 1  # 转回1-based
             # 获取该标签对应的第一个偏序对
             chosen, rejected = self.preference_pairs[label][0]
-            
             formatted_valid_samples.append({
                 "question_id": item["question_id"],
                 "input": item["input"],
