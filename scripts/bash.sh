@@ -15,4 +15,4 @@ python -m src.classifier.basic_classifier
 
 python -m src.dpo.prepare_dpo_data
 python -m src.dpo.generate_dpo_pairs
-python -m src.dpo.dpo_train_17_18
+python -m src.dpo.qwen_dpo_train
