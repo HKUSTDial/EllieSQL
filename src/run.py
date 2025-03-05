@@ -13,6 +13,7 @@ from src.router.knn_classifier_router import KNNClassifierRouter
 from src.router.qwen_classifier_router import QwenClassifierRouter
 from src.router.qwen_pairwise_router import QwenPairwiseRouter
 from src.router.roberta_classifier_router import RoBERTaClassifierRouter
+from src.router.roberta_cascade_router import RoBERTaCascadeRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 async def main():
@@ -22,22 +23,30 @@ async def main():
     # 创建pipeline工厂
     factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
     
-    # 创建router
     # router = TableCountRouter()
+
     # router = KNNClassifierRouter()
+    
     # router = RoBERTaClassifierRouter(
     #     seed=42,
     #     model_path="/data/zhuyizhang/saves/RoBERTa-router/final_model_roberta_lora"
     # )
+
     # router = QwenClassifierRouter(
     #     seed=42,
     #     lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/important/qwen_classifier_on_bird_train_penalty/final_model_classifier"
     # )
-    router = QwenPairwiseRouter(
+
+    # router = QwenPairwiseRouter(
+    #     seed=42,
+    #     lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/pairwise/rank_acc_metric/on_train_10ep/final_model_classifier"
+    # )
+
+    router = RoBERTaCascadeRouter(
         seed=42,
-        lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/pairwise/rank_acc_metric/on_train_10ep/final_model_classifier"
+        confidence_threshold=0.5,
+        model_path="/data/zhuyizhang/saves/RoBERTa-router/cascade"
     )
-    
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 
@@ -57,7 +66,7 @@ async def main():
     # 运行pipeline
     await pipeline.run_pipeline_parallel(
         data_file="./data/formatted_bird_dev.json",
-        max_workers=200
+        max_workers=128
     )
 
 if __name__ == "__main__":
@@ -67,7 +76,7 @@ if __name__ == "__main__":
 
     # 2. 设置线程池大小
     loop = asyncio.get_event_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=600))
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=128))
 
     # 3. 运行与关闭
     loop.run_until_complete(main())

@@ -1,12 +1,13 @@
 from typing import Dict
 import torch
 import torch.nn.functional as F
+from pathlib import Path
 from transformers import RobertaTokenizer, RobertaForSequenceClassification
 from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
 from ..sft.instruction_templates import PipelineClassificationTemplates
-from pathlib import Path
+
 
 class RoBERTaClassifierRouter(RouterBase):
     """使用RoBERTa进行分类的路由器"""

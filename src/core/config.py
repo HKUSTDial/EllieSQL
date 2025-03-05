@@ -74,4 +74,16 @@ class Config:
     def pairwise_save_dir(self) -> Path:
         return Path(self.config["paths"]["pairwise_save_dir"])
     
+    @property
+    def cascade_data_dir(self) -> Path:
+        return Path(self.config["paths"]["cascade_data_dir"])
+    
+    @property
+    def cascade_qwen_save_dir(self) -> Path:
+        return Path(self.config["paths"]["cascade_qwen_save_dir"])
+    
+    @property
+    def cascade_roberta_save_dir(self) -> Path:
+        return Path(self.config["paths"]["cascade_roberta_save_dir"])
+    
     

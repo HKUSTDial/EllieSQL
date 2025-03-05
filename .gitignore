@@ -39,6 +39,7 @@ data/gold_schema_linking/**
 data/sft/**
 data/dpo/**
 data/pairwise/**
+data/cascade/**
 
 # 不忽略配置文件示例和训练配置文件
 !config/config_example.yaml
