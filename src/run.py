@@ -45,7 +45,7 @@ async def main():
     router = RoBERTaCascadeRouter(
         seed=42,
         confidence_threshold=0.5,
-        model_path="/data/zhuyizhang/saves/RoBERTa-router/cascade"
+        model_path="/data/zhuyizhang/saves/RoBERTa-router/cascade/on_dev"
     )
     
     # 注册生成器

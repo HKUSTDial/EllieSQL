@@ -12,7 +12,10 @@ CASCADE_CONFIG="roberta_config"
 # 运行数据处理脚本
 python -m src.sft.prepare_cascade_data \
     --cascade_dataset ${CASCADE_DATASET} \
-    --labeled_file ${LABELED_FILE}
+    --labeled_file ${LABELED_FILE} \
+    --basic_balance false \
+    --intermediate_balance true \
+    --advanced_balance true
 
 
 # 设置环境变量
