@@ -47,6 +47,8 @@ data/cascade/**
 !config/dpo_config.yaml
 !config/roberta_config.yaml
 !config/pairwise_config.yaml
+!config/qwen_cascade_config.yaml
+!config/roberta_cascade_config.yaml
 
 examples/m2.py
 examples/m3.py

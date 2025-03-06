@@ -1,0 +1,40 @@
+# Training hyperparameters
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 16
+gradient_accumulation_steps: 1
+num_train_epochs: 10
+learning_rate: 0.0001
+lr_scheduler_type: "cosine"
+fp16: true
+
+# Penalty factor for penalized accuracy
+penalty_factor: 0.1
+
+# Evaluation and saving strategy
+eval_strategy: "epoch"
+save_strategy: "epoch"
+
+# 日志相关配置
+logging_strategy: "epoch"
+logging_first_step: true
+
+# checkpoint相关配置
+load_best_model_at_end: true
+metric_for_best_model: "precision"
+greater_is_better: true
+save_total_limit: 3
+
+# 其他配置
+ddp_find_unused_parameters: false
+dataloader_num_workers: 0
+remove_unused_columns: false
+warmup_ratio: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+# LoRA SFT configuration
+max_length: 512
+lora_r: 64
+lora_alpha: 128
+lora_dropout: 0.1
+target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"] 

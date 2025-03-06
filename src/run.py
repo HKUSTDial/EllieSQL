@@ -14,6 +14,7 @@ from src.router.qwen_classifier_router import QwenClassifierRouter
 from src.router.qwen_pairwise_router import QwenPairwiseRouter
 from src.router.roberta_classifier_router import RoBERTaClassifierRouter
 from src.router.roberta_cascade_router import RoBERTaCascadeRouter
+from src.router.qwen_cascade_router import QwenCascadeRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 async def main():
@@ -21,7 +22,7 @@ async def main():
     llm = LLMBase()
     
     # 创建pipeline工厂
-    factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
+    factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
     
     # router = TableCountRouter()
 
@@ -42,10 +43,16 @@ async def main():
     #     lora_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/pairwise/rank_acc_metric/on_train_10ep/final_model_classifier"
     # )
 
-    router = RoBERTaCascadeRouter(
+    # router = RoBERTaCascadeRouter(
+    #     seed=42,
+    #     confidence_threshold=0.6,
+    #     model_path="/data/zhuyizhang/saves/RoBERTa-router/cascade/on_train"
+    # )
+
+    router = QwenCascadeRouter(
         seed=42,
-        confidence_threshold=0.5,
-        model_path="/data/zhuyizhang/saves/RoBERTa-router/cascade/on_dev"
+        confidence_threshold=0.6,
+        model_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/cascade/temp"
     )
     
     # 注册生成器
@@ -76,7 +83,7 @@ if __name__ == "__main__":
 
     # 2. 设置线程池大小
     loop = asyncio.get_event_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=128))
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=256))
 
     # 3. 运行与关闭
     loop.run_until_complete(main())
