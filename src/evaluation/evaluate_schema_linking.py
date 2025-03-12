@@ -267,7 +267,8 @@ if __name__ == '__main__':
     golden_files.append(golden_file_spider_test)
     golden_files.append(golden_file_bird_dev)
     
-    dev_file = str(Config().results_dir / "intermediate_results/20250206_213324/linked_schema_results.jsonl")
+    # dev_file = str(Config().results_dir / "raw_results/knn_20250212_211131/linked_schema_results.jsonl")
+    dev_file = str(Config().results_dir / "raw_results/knn_20250212_211131/error_schema_results.jsonl")
 
     # dev_file_count_origin = "./data/sampled_merged.json"
     dev_file_count_origin = "data/formatted_bird_dev.json"
@@ -287,7 +288,7 @@ if __name__ == '__main__':
     nsr, srr = calculate_nsr_srr(golden_files, dev_file)
 
     print(f"nsr(非严格召回率)： {nsr:.4f}")
-    print(f"nsr(严格召回率)： {srr:.4f}")
+    print(f"srr(严格召回率)： {srr:.4f}")
 
 
 

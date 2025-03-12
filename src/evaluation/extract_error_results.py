@@ -5,6 +5,8 @@ from ..core.utils import load_json, load_jsonl
 from ..core.sql_execute import *
 from ..core.config import Config
 
+import json
+
 def compare_sql_results(db_path, sql1, sql2, timeout=10):
     """
     Compare the ex results for two sqls.
@@ -85,47 +87,54 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file: str, result_path: st
     global_total_cnt = 0
     global_correct_cnt = 0
 
-    for item in merge_dev_demo_data:
-        question_id = item.get("question_id")
-        source = item.get("source", "")
-        difficulty = item.get("difficulty")
-        db_id = item.get("db_id", "")
-        db_folder = f"{source}_{db_id}"
-        db_file = f"{db_id}.sqlite"
-        db_path = str(Config().database_dir / db_folder / db_file)
+    with open(output_path, 'w', encoding='utf-8') as outfile:
+        for item in merge_dev_demo_data:
+            question_id = item.get("question_id")
+            source = item.get("source", "")
+            difficulty = item.get("difficulty")
+            db_id = item.get("db_id", "")
+            db_folder = f"{source}_{db_id}"
+            db_file = f"{db_id}.sqlite"
+            db_path = str(Config().database_dir / db_folder / db_file)
 
-        gold_sql = item.get("gold_SQL")
-        generated_sql = ""
+            gold_sql = item.get("gold_SQL")
+            generated_sql = ""
+            it=None
 
-        for i in generated_sql_data:
-            if i.get("question_id") == question_id:
-                generated_sql = i.get("generated_sql")
-                break
 
-        curr_res = compare_sql_results(db_path, gold_sql, generated_sql)
-        # Initialize the source in the dictionary if not already present
-        if source not in source_stats:
-            source_stats[source] = {"total_cnt": 0, "correct_cnt": 0}
+            for i in generated_sql_data:
+                if i.get("question_id") == question_id:
+                    generated_sql = i.get("generated_sql")
+                    it = i
+                    break
 
-        # For 'bird_dev', further group by difficulty
-        if source == "bird_dev":
-            if "difficulty_stats" not in source_stats[source]:
-                source_stats[source]["difficulty_stats"] = {}
-            if difficulty not in source_stats[source]["difficulty_stats"]:
-                source_stats[source]["difficulty_stats"][difficulty] = {"total_cnt": 0, "correct_cnt": 0}
 
-            source_stats[source]["difficulty_stats"][difficulty]["total_cnt"] += 1
+            curr_res = compare_sql_results(db_path, gold_sql, generated_sql)
+            if(not curr_res):
+                outfile.write(json.dumps(it, ensure_ascii=False) + "\n")
+            # Initialize the source in the dictionary if not already present
+            if source not in source_stats:
+                source_stats[source] = {"total_cnt": 0, "correct_cnt": 0}
+
+            # For 'bird_dev', further group by difficulty
+            if source == "bird_dev":
+                if "difficulty_stats" not in source_stats[source]:
+                    source_stats[source]["difficulty_stats"] = {}
+                if difficulty not in source_stats[source]["difficulty_stats"]:
+                    source_stats[source]["difficulty_stats"][difficulty] = {"total_cnt": 0, "correct_cnt": 0}
+
+                source_stats[source]["difficulty_stats"][difficulty]["total_cnt"] += 1
+                if curr_res:
+                    source_stats[source]["difficulty_stats"][difficulty]["correct_cnt"] += 1
+
+            source_stats[source]["total_cnt"] += 1
             if curr_res:
-                source_stats[source]["difficulty_stats"][difficulty]["correct_cnt"] += 1
+                source_stats[source]["correct_cnt"] += 1
 
-        source_stats[source]["total_cnt"] += 1
-        if curr_res:
-            source_stats[source]["correct_cnt"] += 1
-
-        # Update global counters
-        global_total_cnt += 1
-        if curr_res:
-            global_correct_cnt += 1
+            # Update global counters
+            global_total_cnt += 1
+            if curr_res:
+                global_correct_cnt += 1
 
     # Calculate EX for each source and difficulty (for 'bird_dev')
     ex_results = {}
@@ -154,11 +163,10 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file: str, result_path: st
     return ex_results
 
 if __name__ == "__main__":
-    # merge_dev_demo_file = "./data/sampled_bird_dev.json"
-    # merge_dev_demo_file = "./data/sampled_merged.json"
+    output_path = "results/raw_results/roberta_classifier_sft/roberta_error_sql_results.jsonl"
+
+
     merge_dev_demo_file = "./data/formatted_bird_dev.json"
-    #merge_dev_demo_file = "./data/merge_dev_demo.json"
-    # merge_dev_demo_file = "./data/formatted_spider_dev.json"
 
     # result_path = "results/raw_results/qwen_cascade/haiku_sql_results.jsonl"
     # print("结果1：qwen_cascade")
@@ -183,13 +191,9 @@ if __name__ == "__main__":
     # print("结果5：roberta_classifier_sft")
     # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
 
-    result_path = "results/raw_results/knn_20250212_211131/haiku_sql_results.jsonl"
-    print("结果1：knn haiku_sql_results")
+    result_path = "results/raw_results/roberta_classifier_sft/generated_sql_results.jsonl"
+    print("结果1：reberta generated_sql_results")
     compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-
-
-
 
 
 

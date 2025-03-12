@@ -10,6 +10,18 @@ python -m src.evaluation.delete_empty_item
 python -m src.evaluation.evaluate_schema_linking
 python -m src.evaluation.analyze_router
 
+
+# for error analysis (from error_analysis main to find readme)
+python -m src.evaluation.extract_error_results
+python -m src.evaluation.extract_error_schema
+python -m src.evaluation.error_analysis
+
+
+
+
+
+
+
 python -m src.classifier.basic_classifier
 
 

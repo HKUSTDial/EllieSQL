@@ -137,7 +137,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
-
+#
     # pipeline_dcr = ElephantSQLPipeline(
     #     schema_linker=EnhancedSchemaLinker(
     #         llm, 
@@ -151,9 +151,8 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     #         llm, 
     #         model=backbone_model, 
     #         temperature=0.0, 
-    #         max_tokens=5000,
+    #         max_tokens=10000,
     #         max_retries=10
-
     #     ),
     #     post_processor=SkipPostProcessor()
     # )
@@ -251,5 +250,7 @@ if __name__ == "__main__":
     loop.set_default_executor(ThreadPoolExecutor(max_workers=300))
 
     # 3. 运行与关闭
-    loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
+    loop.run_until_complete(main(backbone_model="claude-3-haiku-20240307"))
+    # loop.run_until_complete(main(backbone_model="gpt-4o-mini-2024-07-18"))
+    # loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
     loop.close() 

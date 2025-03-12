@@ -15,6 +15,7 @@ from src.router.qwen_pairwise_router import QwenPairwiseRouter
 from src.router.roberta_classifier_router import RoBERTaClassifierRouter
 from src.router.roberta_cascade_router import RoBERTaCascadeRouter
 from src.router.qwen_cascade_router import QwenCascadeRouter
+from src.router.dpo_qwen_router import DPOClassifierRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 async def main():
@@ -22,7 +23,11 @@ async def main():
     llm = LLMBase()
     
     # 创建pipeline工厂
-    factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
+    # factory = PipelineFactory(llm, backbone_model="gpt-3.5-turbo", temperature=0.0, max_retries=10)
+    # factory = PipelineFactory(llm, backbone_model="gpt-4o-mini-2024-07-18", temperature=0.0, max_retries=10)
+    factory = PipelineFactory(llm, backbone_model="claude-3-haiku-20240307", temperature=0.0, max_retries=10)
+
+
     
     # router = TableCountRouter()
 
@@ -49,11 +54,13 @@ async def main():
     #     model_path="/data/zhuyizhang/saves/RoBERTa-router/cascade/on_train"
     # )
 
-    router = QwenCascadeRouter(
-        seed=42,
-        confidence_threshold=0.6,
-        model_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/cascade/temp"
-    )
+    # router = QwenCascadeRouter(
+    #     seed=42,
+    #     confidence_threshold=0.6,
+    #     model_path="/data/zhuyizhang/saves/Qwen2.5-0.5B-router/cascade/temp"
+    # )
+
+    router = DPOClassifierRouter()
     
     # 注册生成器
     router.register_generator(PipelineLevel.BASIC.value, 
@@ -73,7 +80,7 @@ async def main():
     # 运行pipeline
     await pipeline.run_pipeline_parallel(
         data_file="./data/formatted_bird_dev.json",
-        max_workers=128
+        max_workers=2
     )
 
 if __name__ == "__main__":

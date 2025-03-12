@@ -25,13 +25,18 @@ class DPOClassifierRouter(RouterBase):
         #self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b/checkpoint-1800"
         #self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2211"
         #self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2200"
-        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0219/checkpoint-3600"
-        self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset_simplified/dpo-qwen2.5-0.5b_0220/checkpoint-3300"
+        self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0219/checkpoint-3600"
+        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset_simplified/dpo-qwen2.5-0.5b_0220/checkpoint-3300"
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.trained_model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
 
-
+        # 设置 GPU 设备，优先使用 CUDA
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # 如果有多块 GPU，则使用 DataParallel 封装模型，利用 gpu0,1,2,3
+        if torch.cuda.device_count() > 1:
+            self.trained_model = torch.nn.DataParallel(self.trained_model, device_ids=[0, 1, 2, 3])
+        self.trained_model.to(self.device)
 
     def _predict(self, question: str, schema: dict) -> tuple[int, dict]:
         """使用dpo-qwen模型进行预测"""
@@ -44,6 +49,8 @@ class DPOClassifierRouter(RouterBase):
 
         # 使用 tokenizer 对 prompt 分词
         encoded_input = self.tokenizer(input_text, return_tensors="pt", truncation=True, padding="max_length", max_length=512)
+        
+        encoded_input = {k: v.to(self.device) for k, v in encoded_input.items()}
         # 模型输出 logits
         with torch.no_grad():
             outputs = self.trained_model(**encoded_input)
