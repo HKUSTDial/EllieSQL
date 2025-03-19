@@ -1,9 +1,9 @@
 import json
 
 # 文件路径
-file1_path = "results/raw_results/roberta_classifier_sft/roberta_error_sql_results.jsonl"       # error sql路径
-file2_path = "results/raw_results/roberta_classifier_sft/linked_schema_results.jsonl"     # linked schema 路径
-output_file_path = "results/raw_results/roberta_classifier_sft/error_schema_results.jsonl"      # 输出文件路径（文件3）
+file1_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"       # error sql路径
+file2_path = "results/raw_results/qwen_classifier_sft/linked_schema_results.jsonl"     # linked schema 路径
+output_file_path = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"      # 输出文件路径（文件3）
 
 # 先读取文件2，将所有对象存入字典，以 query_id 为 key 方便查找
 query_mapping = {}

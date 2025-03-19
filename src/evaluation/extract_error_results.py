@@ -163,10 +163,13 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file: str, result_path: st
     return ex_results
 
 if __name__ == "__main__":
-    output_path = "results/raw_results/roberta_classifier_sft/roberta_error_sql_results.jsonl"
-
+    output_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"
 
     merge_dev_demo_file = "./data/formatted_bird_dev.json"
+
+    result_path = "results/raw_results/qwen_classifier_sft/generated_sql_results.jsonl"
+    # print("结果1：vanilla generated_sql_results")
+    compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
 
     # result_path = "results/raw_results/qwen_cascade/haiku_sql_results.jsonl"
     # print("结果1：qwen_cascade")
@@ -190,13 +193,6 @@ if __name__ == "__main__":
     # result_path = "results/raw_results/roberta_classifier_sft/haiku_sql_results.jsonl"
     # print("结果5：roberta_classifier_sft")
     # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-    result_path = "results/raw_results/roberta_classifier_sft/generated_sql_results.jsonl"
-    print("结果1：reberta generated_sql_results")
-    compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-
-
 
 
 

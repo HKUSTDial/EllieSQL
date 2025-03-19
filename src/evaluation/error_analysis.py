@@ -320,7 +320,7 @@ if __name__ == "__main__":
     """
 
 
-    error_results_path = "results/raw_results/roberta_classifier_sft/roberta_error_sql_results.jsonl"
+    error_results_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"
     update_error_value(error_results_path)
 
 # 2.2 判断有没有语法错误
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     check_valid_error(merge_dev_demo_file, error_results_path)
 
 # 2.1 判断有没有schema linking错误
-    error_sl_file = "results/raw_results/roberta_classifier_sft/error_schema_results.jsonl"
+    error_sl_file = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"
     golden_file_bird_dev = str(Config().gold_schema_linking_dir / "bird_dev_gold_schema_linking.json")
     check_sl_error(golden_file_bird_dev, error_sl_file, error_results_path)
 
