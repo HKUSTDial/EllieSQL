@@ -52,7 +52,9 @@ class ExecuteSQLThread(threading.Thread):
         
     def run(self) -> None:
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            # 使用URI和只读模式打开数据库, 确保只读访问防止数据库在执行过程中被篡改
+            uri = f"file:{self.db_path}?mode=ro"
+            with sqlite3.connect(uri, uri=True) as conn:
                 cursor = conn.cursor()
                 cursor.execute(self.sql)
                 self.result = cursor.fetchall()
