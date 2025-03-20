@@ -18,11 +18,6 @@ python -m src.evaluation.extract_error_schema
 python -m src.evaluation.error_analysis
 
 
-
-
-
-
-
 python -m src.classifier.basic_classifier
 
 

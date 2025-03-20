@@ -2,12 +2,32 @@ api:
   base_url: "your_base_url"
   api_key: "your_api_key"
 
+local_models:
+  "qwen2.5-coder-3b-instruct":
+    path: "/path/to/Qwen2.5-Coder-3B-Instruct"
+    prompt_format: "qwen"
+  "qwen2.5-coder-7b-instruct":
+    path: "/path/to/Qwen2.5-Coder-7B-Instruct"
+    prompt_format: "qwen"
+  "llama-3.2-3b-instruct":
+    path: "/path/to/Llama-3.2-3B-Instruct"
+    prompt_format: "llama"
+
 paths:
   data_dir: "./data"
   database_dir: "./data/merged_databases"
   gold_schema_linking_dir: "./data/gold_schema_linking"
   results_dir: "./results"
   logs_dir: "./logs"
-  model_dir: "/data/xxx/models/Qwen2.5-0.5B"
+  qwen_dir: "/path/to/Qwen2.5-0.5B"
+  roberta_dir: "/path/to/roberta-base"
   sft_data_dir: "./data/sft"
-  sft_save_dir: "/data/xxx/saves/Qwen2.5-0.5B-router/sft"
+  sft_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/sft"
+  dpo_data_dir: "./data/dpo"
+  dpo_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/dpo"
+  roberta_save_dir: "/path/to/saves/RoBERTa-router"
+  pairwise_data_dir: "./data/pairwise"
+  pairwise_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/pairwise"
+  cascade_data_dir: "./data/cascade"
+  cascade_qwen_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/cascade"
+  cascade_roberta_save_dir: "/path/to/saves/RoBERTa-router/cascade"
