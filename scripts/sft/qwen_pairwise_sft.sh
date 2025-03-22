@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# bash scripts/qwen_pairwise_sft.sh
+# bash scripts/sft/qwen_pairwise_sft.sh
 
 # For test during development
 # PAIRWISE_DATASET="bird_train_test"

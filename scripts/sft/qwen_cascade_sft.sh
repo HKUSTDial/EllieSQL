@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# bash scripts/qwen_cascade_sft.sh
+# bash scripts/sft/qwen_cascade_sft.sh
 
 # Specify the labeled source dataset (for SFT dataset preparation) path
 CASCADE_DATASET="bird_train_cascade"

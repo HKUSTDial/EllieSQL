@@ -22,8 +22,6 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     # 初始化LLM和模块
     llm = LLMBase()
     
-
-    # 创建不同的pipeline组合
     pipeline_v = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
             llm, 
@@ -32,12 +30,12 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
             max_tokens=10000,
             max_retries=10
         ),
-        sql_generator=GPTSQLGenerator(
+        sql_generator=DCRefinerSQLGenerator(
             llm, 
             model='qwen2.5-coder-7b-instruct', # Use local model for SQL generation
             temperature=0.001,
             max_tokens=10000,
-            max_retries=10
+            max_retries=3
         ),
         post_processor=SkipPostProcessor()
     )
@@ -46,7 +44,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     await pipeline_v.run_pipeline_parallel(
         # data_file="./data/sampled_bird_dev.json", # 20% of bird dev
         data_file="./data/formatted_bird_dev.json", # 100% of bird dev
-        max_workers=16
+        max_workers=1
     )
 
 if __name__ == "__main__":
@@ -60,10 +58,8 @@ if __name__ == "__main__":
 
     # 2. 设置线程池大小
     loop = asyncio.get_event_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=32))
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
 
     # 3. 运行与关闭
-    # loop.run_until_complete(main(backbone_model="claude-3-haiku-20240307"))
-    # loop.run_until_complete(main(backbone_model="gpt-4o-mini-2024-07-18"))
     loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
     loop.close() 

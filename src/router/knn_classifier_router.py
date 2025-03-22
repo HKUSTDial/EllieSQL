@@ -1,4 +1,5 @@
 from typing import Dict
+from pathlib import Path
 from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
@@ -29,20 +30,18 @@ def extract_features(data):
 class KNNClassifierRouter(RouterBase):
     """添加了分类头并使用LoRA SFT的Qwen路由器"""
     
-    def __init__(self, name: str = "KNNClassifierRouter", seed: int = 42):
+    def __init__(self, name: str = "KNNClassifierRouter", seed: int = 42, train_file_path: str = None):
         super().__init__(name)
         self.config = Config()
-        self.train_file_path = "./data/labeled/nonempty_bird_train_pipeline_label.jsonl"
+        self.train_file_path = Path(train_file_path) if train_file_path else Path("data/labeled/bird_train_pipeline_label.jsonl")
         self.train_data = load_jsonl(self.train_file_path)
         X_train, y_train = extract_features(self.train_data)
-
 
         print("正在训练KNN分类器。。。")
         self.knn_classifier = KNeighborsClassifier(n_neighbors=5)
         self.knn_classifier.fit(X_train, y_train)
         print("训练完成")
         
-
 
     def _predict(self, question: str, schema: dict) -> tuple[int, dict]:
         """使用KNN模型进行预测"""

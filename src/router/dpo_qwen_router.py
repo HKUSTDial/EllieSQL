@@ -1,35 +1,37 @@
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from typing import Dict
 from .base import RouterBase
 from ..pipeline_factory import PipelineLevel
 from ..core.config import Config
-
 from ..core.utils import load_json, load_jsonl
 from ..sft.instruction_templates import PipelineClassificationTemplates
-# 如果使用非simplified，应该使用sft的template
-
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
+from pathlib import Path
 
 
 
 class DPOClassifierRouter(RouterBase):
     """添加了分类头并使用DPO训练的Qwen路由器"""
     
-    def __init__(self, name: str = "DPOClassifierRouter", seed: int = 42):
+    def __init__(self, name: str = "DPOClassifierRouter", seed: int = 42, model_path: str = None):
         super().__init__(name)
         self.config = Config()
         self.templates = PipelineClassificationTemplates()
 
-        #self.model_name = "data/dpo/bird_dev_dataset/dpo-qwen2.5-0.5b_second/checkpoint-378"
-        #self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b/checkpoint-1800"
-        #self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2211"
-        #self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2200"
-        self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0219/checkpoint-3600"
+        # self.model_name = "data/dpo/bird_dev_dataset/dpo-qwen2.5-0.5b_second/checkpoint-378"
+        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b/checkpoint-1800"
+        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2211"
+        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2200"
+        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0219/checkpoint-3600"
         # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset_simplified/dpo-qwen2.5-0.5b_0220/checkpoint-3300"
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.trained_model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
+        self.model_path = Path(model_path) if model_path else self.config.dpo_save_dir / "final_model_classifier"
+
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        self.trained_model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
+
+        # 设置随机种子以确保可重复性
+        self._set_seed(seed)
 
         # 设置 GPU 设备，优先使用 CUDA
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -37,6 +39,19 @@ class DPOClassifierRouter(RouterBase):
         if torch.cuda.device_count() > 1:
             self.trained_model = torch.nn.DataParallel(self.trained_model, device_ids=[0, 1, 2, 3])
         self.trained_model.to(self.device)
+    
+
+    def _set_seed(self, seed: int):
+        """设置随机种子"""
+        import random
+        import numpy as np
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
 
     def _predict(self, question: str, schema: dict) -> tuple[int, dict]:
         """使用dpo-qwen模型进行预测"""
