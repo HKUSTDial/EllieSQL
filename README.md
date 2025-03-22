@@ -1,6 +1,6 @@
 <h1 align="center">🐘EllieSQL: Cost-Efficient Text-to-SQL <br> with Complexity-Aware Routing</h1>
 
-Official repository for the paper *"EllieSQL: Task-Aware Routing towards Cost-Efficient Natural Language to SQL Generation"*.
+Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Complexity-Aware Routing"*.
 
 ![teaser](asserts/teaser.png)
 
