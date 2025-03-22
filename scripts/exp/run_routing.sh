@@ -26,7 +26,7 @@ python -m src.run_routing \
 echo "Running experiment with Qwen Classifier Router..."
 python -m src.run_routing \
     --router qwen \
-    --router_path "/data/zhuyizhang/ElephantSQL_Checkpoints/qwen_classification_sft/final_model_classifier" \
+    --router_path "/path/to/saves/final_model_qwen_lora" \
     --test_file $TEST_FILE \
     --max_workers $MAX_WORKERS \
     --backbone_model $BACKBONE
@@ -64,7 +64,7 @@ python -m src.run_routing \
 echo "Running experiment with Qwen Pairwise Router..."
 python -m src.run_routing \
     --router qwen_pairwise \
-    --router_path "/path/to/qwen/pairwise//final_model_classifier" \
+    --router_path "/path/to/qwen/pairwise/final_model_classifier" \
     --test_file $TEST_FILE \
     --max_workers $MAX_WORKERS \
     --backbone_model $BACKBONE
@@ -73,7 +73,7 @@ python -m src.run_routing \
 echo "Running experiment with Qwen DPO Router..."
 python -m src.run_routing \
     --router qwen_dpo \
-    --router_path "/data/zhuyizhang/ElephantSQL_Checkpoints/qwen_dpo" \
+    --router_path "/path/to/qwen/dpo/qwen_dpo" \
     --test_file $TEST_FILE \
     --max_workers $MAX_WORKERS \
     --backbone_model $BACKBONE
