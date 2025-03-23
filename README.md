@@ -1,10 +1,11 @@
 <h1 align="center">🐘EllieSQL: Cost-Efficient Text-to-SQL <br> with Complexity-Aware Routing</h1>
+<h4 align="center">🚧 Please note that this repository is still under construction! 🚧</h4>
 
 Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Complexity-Aware Routing"*.
 
 ![teaser](asserts/teaser.png)
 
-## 🎉News
+## 📢News
 
 [March 25, 2025] 🐘EllieSQL is publicly released!
 
@@ -34,7 +35,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 │   │   ├── sql_generation/     # SQL generation modules
 │   │   ├── post_processing/    # Post-processing modules
 │   │   └── base.py             # Base classes for modules
-│   ├── router/                 # Implemnetation of Routers
+│   ├── router/                 # Implementation of Routers
 │   ├── sft/                    # Data preparation for SFT and implementation of SFT
 │   ├── dpo/                    # Data preparation for DPO and implementation of DPO
 │   ├── pipeline.py             # Pipeline management for processing queries
@@ -55,7 +56,12 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
    pip install -r requirements.txt
    ```
 
-2. Configure your settings:
+2. Download required resources:
+
+   - Bird dataset: [Bird Official Website](https://bird-bench.github.io/)
+   - Router checkpoints: Available on [Hugging Face](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
+
+3. Configure your settings:
 
    ```bash
    cp config/config_example.yaml config/config.yaml
@@ -69,10 +75,39 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
    - Model paths
    - Other configurations
 
-3. Download required resources:
-
-   - Bird dataset: [Bird Official Website](https://bird-bench.github.io/)
-   - Router checkpoints: Available on [Hugging Face](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
+   ```yaml
+   # Inference with proprietary LLMs via API
+   api:
+     base_url: "your_base_url"                                # e.g., "https://api.openai.com/v1"
+     api_key: "your_api_key"                                  # e.g., "sk-xxxxxxxxxxxxxxxxxxxxxx"
+   
+   # Inference with local open-source LLMs is also supported
+   local_models:
+     "qwen2.5-coder-7b-instruct":
+       path: "/path/to/Qwen2.5-Coder-7B-Instruct"
+       prompt_format: "qwen"
+     "xxxxx":                                                 # you can also add new models
+     	.....
+   
+   # Set paths and directories
+   paths:
+     data_dir: "./data"                                       # root for data file
+     database_dir: "./data/databases"                         # dir to databases in Bird
+     results_dir: "./results"                                 # dir to store results
+     logs_dir: "./logs"                                       # dir to store logs
+     qwen_dir: "/path/to/Qwen2.5-0.5B"                        # dir to base model to train routers
+     roberta_dir: "/path/to/roberta-base"
+     sft_data_dir: "./data/sft"                               # dir to prepared data to fine-tune routers
+     pairwise_data_dir: "./data/pairwise"
+     cascade_data_dir: "./data/cascade"
+     dpo_data_dir: "./data/dpo"
+     sft_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/sft"   # dir to saved weights after fine-tuning
+     roberta_save_dir: "/path/to/saves/RoBERTa-router"
+     pairwise_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/pairwise"
+     cascade_qwen_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/cascade"
+     cascade_roberta_save_dir: "/path/to/saves/RoBERTa-router/cascade"
+     dpo_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/dpo"
+   ```
 
 ## 💻Hardware Requirements
 
@@ -102,7 +137,7 @@ bash scripts/exp/run_routing.sh
 
 Note: Remember to specify the correct GPU device in the scripts according to your setup.
 
-## 🔥Training Routers
+## ⚗️Training Routers
 
 We provide scripts for training different types of routers:
 
@@ -123,5 +158,5 @@ You can also change hyperparameters in fine-tuning by editing SFT configs in  `c
 If you find our work useful or inspiring, please kindly cite:
 
 ```
-
+Coming soon...
 ```

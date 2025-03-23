@@ -35,7 +35,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
             model='qwen2.5-coder-7b-instruct', # Use local model for SQL generation
             temperature=0.001,
             max_tokens=10000,
-            max_retries=3
+            max_retries=10
         ),
         post_processor=SkipPostProcessor()
     )
@@ -44,7 +44,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     await pipeline_v.run_pipeline_parallel(
         # data_file="./data/sampled_bird_dev.json", # 20% of bird dev
         data_file="./data/formatted_bird_dev.json", # 100% of bird dev
-        max_workers=1
+        max_workers=64
     )
 
 if __name__ == "__main__":
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # 2. 设置线程池大小
     loop = asyncio.get_event_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=64))
 
     # 3. 运行与关闭
     loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
