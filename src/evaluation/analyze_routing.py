@@ -24,22 +24,22 @@ class RouterAnalyzer:
         selected = router_output["output"]["selected_generator"]
         return self.label_map[selected]
     
-    def _extract_ground_truth(self, gt_item: Dict) -> int:
-        """从ground truth中提取真实标签
+    def _extract_oracle_label(self, gt_item: Dict) -> int:
+        """提取oracle标签
         将Unsolved(4)标签映射为Advanced(3)
         """
         label = gt_item["label"]
         # 如果标签是4(Unsolved)，则映射为3(Advanced)
         return min(label, 3)
     
-    def analyze(self, router_file: str, ground_truth_file: str):
+    def analyze(self, router_file: str, oracle_file: str):
         """分析路由结果"""
         # 加载数据
         router_results = load_jsonl(router_file)
-        ground_truth = load_jsonl(ground_truth_file)
+        oracle_labels = load_jsonl(oracle_file)
         
-        # 构建question_id到ground truth的映射
-        gt_map = {item["question_id"]: item for item in ground_truth}
+        # 构建question_id到oracle标签的映射
+        gt_map = {item["question_id"]: item for item in oracle_labels}
         
         # 收集预测和真实标签
         y_true = []
@@ -55,7 +55,7 @@ class RouterAnalyzer:
             
             try:
                 pred_label = self._extract_prediction(result)
-                true_label = self._extract_ground_truth(gt_item)
+                true_label = self._extract_oracle_label(gt_item)
                 
                 y_true.append(true_label)
                 y_pred.append(pred_label)
@@ -92,12 +92,12 @@ class RouterAnalyzer:
         # 打印总体指标
         total_samples = len(y_true)
         correct_predictions = sum(1 for t, p in zip(y_true, y_pred) if t == p)
-        overall_accuracy = correct_predictions / total_samples * 100
+        overall_agreement = correct_predictions / total_samples * 100
         
         print(f"\nOverall Statistics:")
-        print(f"Total Samples    : {total_samples}")
-        print(f"Correct          : {correct_predictions}")
-        print(f"Overall Accuracy : {overall_accuracy:.2f}%")
+        print(f"Total Samples     : {total_samples}")
+        print(f"Match with Oracle : {correct_predictions}")
+        print(f"Overall Agreement : {overall_agreement:.2f}%")
         
         print("\nConfusion Matrix:")
         print("                         Predicted")
@@ -123,11 +123,11 @@ class RouterAnalyzer:
         print(f"Percentage    {col_percentages[0]:5.1f}%     {col_percentages[1]:5.1f}%    {col_percentages[2]:5.1f}%    100%")
 
         # 打印每个类别的准确率
-        print("\nPer-class Accuracy:")
+        print("\nPer-class Agreement:")
         for i in range(3):
-            accuracy = cm[i,i] / row_sums[i] * 100
+            agreement = cm[i,i] / row_sums[i] * 100
             label = ["Basic", "Intermediate", "Advanced"][i]
-            print(f"{label:12s}: {accuracy:6.1f}%")
+            print(f"{label:12s}: {agreement:6.1f}%")
 
         print("\nClassification Report:")
         print(report)
@@ -158,10 +158,15 @@ class RouterAnalyzer:
 
 
 def main():
-    router_file = "results/intermediate_results/20250212_213659/KNNClassifierRouter.jsonl"
-    ground_truth = "./data/labeled/bird_dev_pipeline_label.jsonl"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--router_file', type=str, required=True,
+                       help='Path to router output file')
+    parser.add_argument('--oracle_file', type=str, required=True,
+                       help='Path to oracle file containing correct labels')
+    args = parser.parse_args()
+    
     analyzer = RouterAnalyzer()
-    analyzer.analyze(router_file, ground_truth)
+    analyzer.analyze(args.router_file, args.oracle_file)
 
 if __name__ == "__main__":
     main() 
