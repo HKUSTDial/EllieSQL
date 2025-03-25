@@ -78,6 +78,21 @@ class RouterAnalyzer:
         # 计算混淆矩阵
         cm = confusion_matrix(y_true, y_pred, labels=[1, 2, 3])
         
+        # 计算主对角线及上方的总和（高估）
+        upper_sum = 0
+        for i in range(3):
+            for j in range(i, 3):  # 只计算对角线及上方
+                upper_sum += cm[i, j]
+        
+        # 计算主对角线及下方的总和（低估）
+        lower_sum = 0
+        for i in range(3):
+            for j in range(i + 1):  # 只计算对角线及下方
+                lower_sum += cm[i, j]
+        
+        # 计算总样本数
+        total_samples = cm.sum()
+        
         # 计算详细指标
         report = classification_report(
             y_true, y_pred,
@@ -113,7 +128,6 @@ class RouterAnalyzer:
             row_total = row_sums[i]
             print(f"{label:12s}  {row[0]:6d}      {row[1]:6d}     {row[2]:6d}     {row_total:4d}")
 
-        # 打印列总数和百分比
         print("-------------------------------------------------------")
         col_sums = cm.sum(axis=0)
         total_sum = col_sums.sum()
@@ -121,6 +135,15 @@ class RouterAnalyzer:
         
         col_percentages = col_sums / total_sum * 100
         print(f"Percentage    {col_percentages[0]:5.1f}%     {col_percentages[1]:5.1f}%    {col_percentages[2]:5.1f}%    100%")
+
+        # 打印主对角线上下的分析
+        print("\nDiagonal Analysis:")
+        print(f"Upper Triangle (Overestimation):")
+        print(f"  Sum: {upper_sum}")
+        print(f"  Percentage: {upper_sum/total_samples*100:.2f}%")
+        print(f"Lower Triangle (Underestimation):")
+        print(f"  Sum: {lower_sum}")
+        print(f"  Percentage: {lower_sum/total_samples*100:.2f}%")
 
         # 打印每个类别的准确率
         print("\nPer-class Agreement:")
