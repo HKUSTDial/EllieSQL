@@ -139,7 +139,7 @@ class LocalModelHandler:
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=2048,  # 可以根据需要调整
+            max_length=2048,
             return_attention_mask=True
         )
         
@@ -152,10 +152,13 @@ class LocalModelHandler:
         with torch.no_grad():
             outputs = model.generate(
                 input_ids=input_ids,
-                attention_mask=attention_mask,  # 显式传入attention mask
+                attention_mask=attention_mask,
                 max_new_tokens=max_tokens,
                 temperature=temperature,
                 do_sample=(temperature > 0),
+                top_p=0.8, # According to the report
+                top_k=20,
+                repetition_penalty=1.05,
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
                 use_cache=True
