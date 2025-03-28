@@ -3,6 +3,10 @@
 
 Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Complexity-Aware Routing"*.
 
+[![Homepage](https://img.shields.io/badge/🏠-Homepage-blue)](https://elliesql.github.io/)
+[![arXiv](https://img.shields.io/badge/arXiv-250x.xxxx-<COLOR>.svg)](https://arxiv.org/abs/250x.xxxx)
+[![Checkpoints](https://img.shields.io/badge/🤗-Checkpoints-orange)](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
+
 ![teaser](asserts/teaser.png)
 
 ## 📢News
@@ -13,7 +17,7 @@ Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Co
 
 Text-to-SQL automatically translates natural language queries to SQL, allowing non-technical users to retrieve data from databases without specialized SQL knowledge. Despite the success of advanced LLM-based Text-to-SQL approaches on leaderboards, their unsustainable computational costs—often overlooked—stand as the "elephant in the room" in current leaderboard-driven research, limiting their economic practicability for real-world deployment and widespread adoption. 
 
-To tackle this, we exploratively propose EllieSQL, a complexity-aware routing framework that assigns queries to suitable SQL generation methods based on estimated complexity. We design and investigate multiple routers to direct simple queries to efficient approaches while reserving computationally intensive methods for complex cases. Drawing from economics, we introduce the Token Elasticity of Performance (TEP) metric, capturing cost-efficiency by quantifying how responsive the performance gains relative to token investment in SQL generation. Our experiments on the Bird dataset show that compared to always using the most advanced methods in our study, EllieSQL with the Qwen2.5-0.5B-DPO router reduces token use by over 40% without compromising performance, achieving more than a 2× boost in TEP over non-routing approaches. This not only advances the pursuit of cost-efficient Text-to-SQL but also invites the community to weigh resource efficiency alongside performance, contributing to progress in sustainable Text-to-SQL.
+To tackle this, we exploratively propose EllieSQL, a complexity-aware routing framework that assigns queries to suitable SQL generation pipelines based on estimated complexity. We investigate multiple routers to direct simple queries to efficient approaches while reserving computationally intensive methods for complex cases. Drawing from economics, we introduce the Token Elasticity of Performance (TEP) metric, capturing cost-efficiency by quantifying the responsiveness of performance gains relative to token investment in SQL generation. Experiments show that compared to always using the most advanced methods in our study, EllieSQL with the Qwen2.5-0.5B-DPO router reduces token use by over 40% without compromising performance on Bird development set, achieving more than a 2× boost in TEP over non-routing approaches. This not only advances the pursuit of cost-efficient Text-to-SQL but also invites the community to weigh resource efficiency alongside performance, contributing to progress in sustainable Text-to-SQL.
 
 
 ## 📂Project Structure
@@ -59,7 +63,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 2. Download required resources:
 
    - Bird dataset: [Bird Official Website](https://bird-bench.github.io/)
-   - Router checkpoints: Available on [Hugging Face](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
+   - Router checkpoints: Available on [🤗Hugging Face](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
 
 3. Configure your settings:
 
@@ -87,7 +91,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
        path: "/path/to/Qwen2.5-Coder-7B-Instruct"
        prompt_format: "qwen"
      "xxxxx":                                                 # you can also add new models
-     	.....
+       .....
    
    # Set paths and directories
    paths:
