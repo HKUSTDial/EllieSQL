@@ -4,7 +4,7 @@
 Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Complexity-Aware Routing"*.
 
 [![Homepage](https://img.shields.io/badge/🏠-Homepage-blue)](https://elliesql.github.io/)
-[![arXiv](https://img.shields.io/badge/arXiv-250x.xxxx-<COLOR>.svg)](https://arxiv.org/abs/250x.xxxx)
+[![arXiv](https://img.shields.io/badge/arXiv-2503.22402-<COLOR>.svg)](https://arxiv.org/abs/2503.22402)
 [![Checkpoints](https://img.shields.io/badge/🤗-Checkpoints-orange)](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
 
 ![teaser](asserts/teaser.png)
