@@ -162,5 +162,13 @@ You can also change hyperparameters in fine-tuning by editing SFT configs in  `c
 If you find our work useful or inspiring, please kindly cite:
 
 ```
-Coming soon...
+@misc{zhu2025elliesql,
+      title={EllieSQL: Cost-Efficient Text-to-SQL with Complexity-Aware Routing}, 
+      author={Yizhang Zhu and Runzhi Jiang and Boyan Li and Nan Tang and Yuyu Luo},
+      year={2025},
+      eprint={2503.22402},
+      archivePrefix={arXiv},
+      primaryClass={cs.DB},
+      url={https://arxiv.org/abs/2503.22402}, 
+}
 ```
