@@ -4,64 +4,12 @@ from pathlib import Path
 from ..core.utils import load_json, load_jsonl
 from ..core.sql_execute import *
 from ..core.config import Config
-
+from .compute_ex import compare_sql_results
+import argparse
 import json
 
-def compare_sql_results(db_path, sql1, sql2, timeout=10):
-    """
-    Compare the ex results for two sqls.
-    
-    Args:
-        db_path: The path to the .sqlite file.
-        sql1: The gold sql.
-        sql2: The generated sql.
-    Returns:
-        1 for equal, 0 for not equal.
-    """
-    # 执行第一个 SQL 语句
-    result1 = execute_sql_with_timeout(db_path, sql1, timeout)
-    if result1 is None:
-        print("gold SQL 执行失败!!!! 请检查错误信息。")
-        return 0
-    # 执行第二个 SQL 语句
-    result2 = execute_sql_with_timeout(db_path, sql2, timeout)
-    if result2 is None:
-        print("generated SQL 没有产生结果对象。")
-        return 0
-    
-    # flag, message = validate_sql(db_path, sql2)
-    # if(flag == False):
-    #     print(f"generated SQL 运行flag为False。False信息如下：{message}")
-    #     print(db_path)
-    #     print(sql2)
 
-    if result2.result_type == SQLExecutionResultType.TIMEOUT:
-        print(f"generated SQL 运行超时。错误信息如下：{result2.error_message}")
-        return 0
-    if result2.result_type == SQLExecutionResultType.ERROR:
-        print(f"generated SQL 运行出现报错。错误信息如下：{result2.error_message}")
-        return 0
-    
-    if result1.result is None:
-        print("gold SQL 执行成功但结果为空。")
-        if result2.result is None:
-            # 如果两个SQL都返回空结果，认为它们是相等的
-            return 1
-        return 0
-
-    if result2.result is None:
-        print("generated SQL 执行成功但结果为空。")
-        return 0
-    
-    # 比较结果
-    if set(result1.result) == set(result2.result):
-        return 1
-    else:
-        return 0
-
-
-
-def compute_EX_source_difficulty_based(merge_dev_demo_file: str, result_path: str):
+def extract_error_results(merge_dev_demo_file: str, result_path: str, output_path: str):
     """
     Compute the EX for the latest generated sql results, grouped by source.
     For 'bird_dev' source, further group by difficulty.
@@ -162,61 +110,30 @@ def compute_EX_source_difficulty_based(merge_dev_demo_file: str, result_path: st
 
     return ex_results
 
+
+def main():
+    """
+    Extract the objects whose generation results are wrong from the result file.  
+    """
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--result_path', type=str, required=True,
+                       help='the generated_sql_results.jsonl file')
+    parser.add_argument('--output_path', type=str, required=True,
+                       help='the extracted new file, error_sql_results.jsonl file')
+    parser.add_argument('--merge_dev_demo_file', type=str, required=True,
+                       help='the nl2sql data file ')
+    args = parser.parse_args()
+
+    output_path = args.output_path
+    merge_dev_demo_file = args.merge_dev_demo_file
+    result_path = args.result_path
+    
+    extract_error_results(merge_dev_demo_file, result_path, output_path)
+
+
 if __name__ == "__main__":
-    output_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"
-
-    merge_dev_demo_file = "./data/formatted_bird_dev.json"
-
-    result_path = "results/raw_results/qwen_classifier_sft/generated_sql_results.jsonl"
-    # print("结果1：vanilla generated_sql_results")
-    compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-    # result_path = "results/raw_results/qwen_cascade/haiku_sql_results.jsonl"
-    # print("结果1：qwen_cascade")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-
-    # result_path = "results/raw_results/qwen_classifier_sft/haiku_sql_results.jsonl"
-    # print("结果2：qwen_classifier_sft")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-    # result_path = "results/raw_results/qwen_pairwise_sft/haiku_sql_results.jsonl"
-    # print("结果3：qwen_pairwise_sft")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-
-    # result_path = "results/raw_results/roberta_cascade/haiku_sql_results.jsonl"
-    # print("结果4：roberta_cascade")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-
-    # result_path = "results/raw_results/roberta_classifier_sft/haiku_sql_results.jsonl"
-    # print("结果5：roberta_classifier_sft")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
-
-
-
-    # result_path2 = "./results/intermediate_results/20250207_005858"
-    # merge_dev_demo_file = "./data/formatted_spider_test.json"
-    # print("结果2：spider test vanilla")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path2)
-
-    # result_path3 = "./results/intermediate_results/20250207_012602"
-    # merge_dev_demo_file = "./data/formatted_spider_dev.json"
-    # print("结果3：spider dev dcr")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path3)
-
-    # result_path4 = "./results/intermediate_results/20250207_013041"
-    # print("结果4：spider dev dcosr")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path4)
-
-    # merge_dev_demo_file = "./data/formatted_spider_test.json"
-    # result_path5 = "./results/intermediate_results/20250207_013437"
-    # print("结果5：spider test dcr")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path5)
-
-    # result_path6 = "./results/intermediate_results/20250207_014237"
-    # print("结果6：spider test dcosr")
-    # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path6)
+    main()
 
     exit()

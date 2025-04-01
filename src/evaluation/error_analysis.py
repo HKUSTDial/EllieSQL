@@ -1,7 +1,7 @@
 
 from ..core.utils import load_json, load_jsonl, TextExtractor
 
-from .compute_EX2 import execute_sql_with_timeout
+from .compute_ex import execute_sql_with_timeout
 from ..core.sql_execute import *
 
 import asyncio
@@ -10,7 +10,7 @@ from tqdm import tqdm
 from ..core.llm import LLMBase
 from ..core.config import Config
 from .error_analysis_prompt import ERROR_ANALYSIS_SYSTEM, ERROR_ANALYSIS_USER
-
+import argparse
 
 
 
@@ -203,10 +203,6 @@ def check_sql_run(db_path, sql2, timeout=10):
     return 1
 
 
-
-
-
-
 async def check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_results_path, model, temperature, max_tokens, name):
     """
     并发处理错误分析，每次最多允许 10 个并发任务运行
@@ -311,37 +307,43 @@ async def check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_res
 
 
 
-
 if __name__ == "__main__":
     """
+    Evaluate steps:
     1. extract error sql results (extract_error_results.py)
     2. extract corresponding linked schema (extract_error_schema.py)
     3. do error analysis (error_analysis.py)
     """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--error_sql_path', type=str, required=True,
+                       help='the error_sql_results.jsonl file')
+    parser.add_argument('--merge_dev_demo_file', type=str, required=True,
+                       help='the nl2sql data file')
+    parser.add_argument('--error_schema_results', type=str, required=True,
+                       help='the output path for generated error_schema_results.jsonl')
+    args = parser.parse_args()
 
+    error_sql_path=args.error_sql_path
+    error_schema_results=args.error_schema_results
+    merge_dev_demo_file=args.merge_dev_demo_file
 
-    error_results_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"
-    update_error_value(error_results_path)
+    update_error_value(error_sql_path)
 
 # 2.2 判断有没有语法错误
-    merge_dev_demo_file = "./data/formatted_bird_dev.json"
-    check_valid_error(merge_dev_demo_file, error_results_path)
+    check_valid_error(merge_dev_demo_file, error_sql_path)
 
 # 2.1 判断有没有schema linking错误
-    error_sl_file = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"
+    # error_schema_results = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"
     golden_file_bird_dev = str(Config().gold_schema_linking_dir / "bird_dev_gold_schema_linking.json")
-    check_sl_error(golden_file_bird_dev, error_sl_file, error_results_path)
-
+    check_sl_error(golden_file_bird_dev, error_schema_results, error_sql_path)
 
 
 # 2.3 判断有没有其他错误
-    # model = "gemini-2.0-flash"
     model = "gpt-4o-mini-2024-07-18"
-    # model = "gpt-4o-2024-08-06"
     temperature = 0.0
     max_tokens = 10000
     name = "error_checker"
     golden_file_bird_dev = str(Config().gold_schema_linking_dir / "bird_dev_gold_schema_linking.json")
-    asyncio.run(check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_results_path, model, temperature, max_tokens, name))
+    asyncio.run(check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_sql_path, model, temperature, max_tokens, name))
 
     

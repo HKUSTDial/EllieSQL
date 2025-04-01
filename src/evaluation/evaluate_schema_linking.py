@@ -254,8 +254,6 @@ def calculate_nsr_srr(golden_files, dev_file):
 
 
 
-
-
 if __name__ == '__main__':
     golden_file_spider_dev = str(Config().gold_schema_linking_dir / "spider_dev_gold_schema_linking.json")
     golden_file_spider_test = str(Config().gold_schema_linking_dir / "spider_test_gold_schema_linking.json")
