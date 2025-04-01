@@ -183,8 +183,8 @@ if __name__ == "__main__":
     # print("结果5：roberta_classifier_sft")
     # compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
 
-    result_path = "results/raw_results/vanilla_20250206_203942/generated_sql_results.jsonl"
-    print("结果1：knn vanilla_sql_results")
+    result_path = "results/intermediate_results/20250323_071816/generated_sql_results.jsonl"
+    # print("结果1：knn vanilla_sql_results")
     compute_EX_source_difficulty_based(merge_dev_demo_file, result_path)
 
 

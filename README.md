@@ -65,7 +65,13 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
    - Bird dataset: [Bird Official Website](https://bird-bench.github.io/)
    - Router checkpoints: Available on [🤗Hugging Face](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
 
-3. Configure your settings:
+3. Pre-process dataset file into the format required for this project:
+
+   ```bash
+   python -m src.evaluation.compute_ex
+   ```
+
+4. Configure your settings:
 
    ```bash
    cp config/config_example.yaml config/config.yaml

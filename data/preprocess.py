@@ -1,16 +1,16 @@
 import json
 
-# 加载JSON文件
+# lode JSON file
 def load_json(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
-# 保存JSON文件
+# save JSON file
 def save_json(data, file_path):
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
-# 处理Spider的对象
+# process Spider's objects
 def process_spider(spider_data):
     processed = []
     for item in spider_data:
@@ -24,7 +24,7 @@ def process_spider(spider_data):
         })
     return processed
 
-# 处理BIRD的对象
+# process BIRD's objects
 def process_bird(bird_data):
     processed = []
     for item in bird_data:
@@ -38,7 +38,7 @@ def process_bird(bird_data):
         })
     return processed
 
-# 合并Spider和BIRD数据
+# merge Spider and BIRD data
 def merge_data(spider_file, bird_file, output_file):
     spider_data = load_json(spider_file)
     bird_data = load_json(bird_file)
@@ -50,12 +50,17 @@ def merge_data(spider_file, bird_file, output_file):
 
     save_json(merged_data, output_file)
 
-# 示例文件路径
-spider_file_path = "spider_dev.json"
-bird_file_path = "bird_dev.json"
-output_file_path = "merged_dev.json"
 
-# 合并数据
-merge_data(spider_file_path, bird_file_path, output_file_path)
+if __name__ == "__main__":
+    """
+    Process the Spider and Bird datasets into the format required for this project
+    """
+    # Example file path
+    spider_file_path = "spider_dev.json"
+    bird_file_path = "bird_dev.json"
+    output_file_path = "merged_dev.json"
 
-print(f"合并完成，结果已保存到 {output_file_path}")
+    # merge data
+    merge_data(spider_file_path, bird_file_path, output_file_path)
+
+    print(f"Merge completed, results saved to {output_file_path}")
