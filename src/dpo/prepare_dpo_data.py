@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
 from sklearn.model_selection import StratifiedShuffleSplit
-from ..src.core.config import Config
-from ..src.dpo.instruction_templates import PipelineClassificationTemplates
-from ..src.core.utils import load_jsonl
+from ..core.config import Config
+from .instruction_templates import PipelineClassificationTemplates
+from ..core.utils import load_jsonl
 import argparse
 
 class ClassifierDataProcessor:
@@ -20,7 +20,9 @@ class ClassifierDataProcessor:
         self.sft_dataset_dir.mkdir(parents=True, exist_ok=True)
         self.templates = PipelineClassificationTemplates()
         self.seed = seed
-        
+
+        self.dpo_dataset_dir = self.config.dpo_data_dir / sft_dataset
+        self.dpo_dataset_dir.mkdir(parents=True, exist_ok=True)
         # 设置随机种子
         np.random.seed(self.seed)
         
@@ -75,8 +77,8 @@ class ClassifierDataProcessor:
     def _save_and_analyze_samples(self, train_samples: List[Dict], valid_samples: List[Dict]):
         """保存数据集并分析分布"""
         # 保存数据集到指定的数据集目录
-        train_file = self.sft_dataset_dir / "classifier_train.json"
-        valid_file = self.sft_dataset_dir / "classifier_valid.json"
+        train_file = self.dpo_dataset_dir / "classifier_train_pre.json"
+        valid_file = self.dpo_dataset_dir / "classifier_valid_pre.json"
         
         with open(train_file, 'w', encoding='utf-8') as f:
             json.dump(train_samples, f, ensure_ascii=False, indent=2)
@@ -129,7 +131,7 @@ class ClassifierDataProcessor:
         print("Training set:", train_dist["sources"])
         print("Validation set:", valid_dist["sources"])
         
-        print(f"\nData saved to {self.sft_dataset_dir}")
+        print(f"\nData saved to {self.dpo_dataset_dir}")
 
 def main():
     parser = argparse.ArgumentParser()

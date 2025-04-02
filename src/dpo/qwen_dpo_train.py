@@ -159,8 +159,8 @@ if __name__ == "__main__":
     #     }
     # )
 
-    dataset = load_dataset("json", data_files=dpo_config.train_file)["train"]
-    e_dataset = load_dataset("json", data_files=dpo_config.valid_file)["train"]
+    dataset = load_dataset("json", data_files=dpo_config["train_file"])["train"]
+    e_dataset = load_dataset("json", data_files=dpo_config["valid_file"])["train"]
 
     def preprocess(example):
         return {
@@ -184,28 +184,28 @@ if __name__ == "__main__":
     # 3. 定义训练参数（DPOConfig）
     # =============================
     dpo_train_config = DPOConfig(
-        output_dir=dpo_config.output_dir,  # 模型和检查点保存目录    
-        per_device_train_batch_size=dpo_config.per_device_train_batch_size,    # 每个 GPU 的 batch size（根据显存调整）
-        num_train_epochs=dpo_config.num_train_epochs,                          # 训练轮数
-        fp16=dpo_config.fp16,                                   # 启用 FP16 混合精度训练
-        learning_rate=dpo_config.learning_rate,                          # 学习率
-        loss_type=dpo_config.loss_type,                         # DPO 损失类型，此处使用 sigmoid loss
-        beta=dpo_config.beta,                                    # 控制偏离参考模型的程度
-        max_prompt_length=dpo_config.max_prompt_length,                       # prompt 的最大长度
-        max_completion_length=dpo_config.max_completion_length,                   # 本任务中不使用，但必须给定
-        max_length=dpo_config.max_length,                              # prompt 的最大总长度（用于分词）
-        padding_value=dpo_config.padding_value,        # 填充 token 的 id
-        generate_during_eval=dpo_config.generate_during_eval,                  # 分类任务无需生成
-        dataset_num_proc=dpo_config.dataset_num_proc,                       # 禁用多进程，确保逐条处理
-        remove_unused_columns=dpo_config.remove_unused_columns,                 # 保留所有数据列，避免 Trainer 自动移除自定义标签列
-        logging_steps=dpo_config.logging_steps,                            # 每 50 步打印一次日志
-        save_steps=dpo_config.save_steps,                              # 每 100 步保存一次模型
+        output_dir=dpo_config["output_dir"],  # 模型和检查点保存目录    
+        per_device_train_batch_size=dpo_config["per_device_train_batch_size"],    # 每个 GPU 的 batch size（根据显存调整）
+        num_train_epochs=dpo_config["num_train_epochs"],                          # 训练轮数
+        fp16=dpo_config["fp16"],                                   # 启用 FP16 混合精度训练
+        learning_rate=dpo_config["learning_rate"],                          # 学习率
+        loss_type=dpo_config["loss_type"],                         # DPO 损失类型，此处使用 sigmoid loss
+        beta=dpo_config["beta"],                                    # 控制偏离参考模型的程度
+        max_prompt_length=dpo_config["max_prompt_length"],                       # prompt 的最大长度
+        max_completion_length=dpo_config["max_completion_length"],                   # 本任务中不使用，但必须给定
+        max_length=dpo_config["max_length"],                              # prompt 的最大总长度（用于分词）
+        padding_value=tokenizer.pad_token_id, #dpo_config["padding_value"],        # 填充 token 的 id
+        generate_during_eval=dpo_config["generate_during_eval"],                  # 分类任务无需生成
+        dataset_num_proc=None,#dpo_config["dataset_num_proc"],                       # 禁用多进程，确保逐条处理
+        remove_unused_columns=dpo_config["remove_unused_columns"],                 # 保留所有数据列，避免 Trainer 自动移除自定义标签列
+        logging_steps=dpo_config["logging_steps"],                            # 每 50 步打印一次日志
+        save_steps=dpo_config["save_steps"],                              # 每 100 步保存一次模型
         # save_total_limit=5,
         # metric_for_best_model='loss',
         # greater_is_better=False,
-        eval_strategy=dpo_config.eval_strategy,  # 每隔一定步数评估一次
-        eval_steps=dpo_config.eval_steps,           # 每 100 步进行评估（与保存间隔相同）
-        logging_dir=dpo_config.logging_dir,  # 日志保存目录
+        eval_strategy=dpo_config["eval_strategy"],  # 每隔一定步数评估一次
+        eval_steps=dpo_config["eval_steps"],           # 每 100 步进行评估（与保存间隔相同）
+        logging_dir=dpo_config["logging_dir"],  # 日志保存目录
     )
 
     # =============================
@@ -225,13 +225,15 @@ if __name__ == "__main__":
     # trainer.add_callback(SaveLogCallback(log_file="training_log.txt"))
 
     # 添加自定义 TXT 日志回调，日志将保存到指定文件
-    trainer.add_callback(SaveLogCallback(log_file=os.path.join(dpo_config.output_dir, "training_log.txt")))
+    trainer.add_callback(SaveLogCallback(log_file=os.path.join(dpo_config["output_dir"], "training_log.txt")))
 
     # 开始训练
     trainer.train()
 
     final_metrics = trainer.evaluate()
 
+    outdir = dpo_config["output_dir"]
+
     # 训练结束后，模型和检查点保存至 dpo_config.output_dir 指定的目录
-    print(f"模型和检查点保存至: {dpo_config.output_dir}")
+    print(f"模型和检查点保存至: {outdir}")
 

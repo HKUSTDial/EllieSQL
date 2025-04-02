@@ -4,23 +4,25 @@
 
 
 # Specify the labeled source dataset (for SFT dataset preparation) path
-SFT_DATASET="bird_train_full_qwen"
+SFT_DATASET="bird_train_dataset"
 # Specify the SFT dataset directory
 LABELED_FILE="data/labeled/bird_train_pipeline_label.jsonl"
 
-PREFERENCE_FILE= "data/dpo/bird_train_dataset/classifier_train.json" 
+DPO_DATA_FILE="data/dpo/bird_train_dataset/classifier_train_pre.json"
+
+PREFERENCE_FILE="data/dpo/bird_train_dataset/classifier_train.json" 
 # Specify the DPO config file
 DPO_CONFIG="dpo_config"
 
 
 # 运行数据处理脚本
-python -m src.sft.prepare_classifier_sft_data \
+python -m src.dpo.prepare_dpo_data \
     --sft_dataset ${SFT_DATASET} \
     --labeled_file ${LABELED_FILE}
 
 
 python -m src.dpo.generate_dpo_pairs \
-    --labeled_file ${LABELED_FILE} \
+    --labeled_file ${DPO_DATA_FILE} \
     --preference_file ${PREFERENCE_FILE}
 
 
