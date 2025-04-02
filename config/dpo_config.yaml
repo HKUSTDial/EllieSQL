@@ -1,69 +1,25 @@
+train_file: "data/dpo/bird_train_dataset/classifier_train.json"
+valid_file: "data/dpo/bird_train_dataset/classifier_valid.json"
+
 # Training hyperparameters
-per_device_train_batch_size: 1
-per_device_eval_batch_size: 16
-gradient_accumulation_steps: 1
-num_train_epochs: 10
-learning_rate: 0.0001
-lr_scheduler_type: "cosine"
-fp16: true
-eval_strategy: "epoch"
-save_strategy: "epoch"
+output_dir: "/data/pathto/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset_simplified/dpo-qwen2.5-0.5b_0220"
+per_device_train_batch_size: 8
+num_train_epochs: 12
+fp16: True                                   # 启用 FP16 混合精度训练
+learning_rate: 1e-6                          # 学习率
+loss_type: "sigmoid"                         # DPO 损失类型，此处使用 sigmoid loss
+beta: 0.1                                    # 控制偏离参考模型的程度
+max_prompt_length: 512                       # prompt 的最大长度
+max_completion_length: 128                   # 本任务中不使用，但必须给定
+max_length: 640                              # prompt 的最大总长度（用于分词）
+padding_value: tokenizer.pad_token_id        # 填充 token 的 id
+generate_during_eval: False                  # 分类任务无需生成
+dataset_num_proc: None                       # 禁用多进程，确保逐条处理
+remove_unused_columns: False                 # 保留所有数据列，避免 Trainer 自动移除自定义标签列
+logging_steps: 100                            # 每 50 步打印一次日志
+save_steps: 100                              # 每 100 步保存一次模型
+eval_strategy: "steps"  # 每隔一定步数评估一次
+eval_steps: 100           # 每 100 步进行评估（与保存间隔相同）
+logging_dir: "/data/pathto/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset_simplified/dpo-qwen2.5-0.5b_0220/logs"  # 日志保存目录
 
-# 日志相关配置
-logging_strategy: "epoch"
-logging_first_step: true
 
-# checkpoint相关配置
-load_best_model_at_end: true
-metric_for_best_model: "accuracy"
-greater_is_better: true
-save_total_limit: 5
-
-# 其他配置
-ddp_find_unused_parameters: false
-dataloader_num_workers: 0
-remove_unused_columns: false
-warmup_ratio: 0.1
-weight_decay: 0.01
-max_grad_norm: 1.0
-
-# LoRA DPO configuration
-max_length: 512
-lora_r: 64
-lora_alpha: 128
-lora_dropout: 0.1
-target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
-
-# DPO-specific extra configuration
-beta: 0.1
-model_init_kwargs: {}
-ref_model_init_kwargs: {}
-disable_dropout: false
-gradient_checkpointing: false
-gradient_checkpointing_kwargs: {}
-generate_during_eval: false
-label_pad_token_id: -100
-max_prompt_length: 256
-max_completion_length: 256
-truncation_mode: "keep_end"
-precompute_ref_log_probs: false
-use_logits_to_keep: false
-padding_value: null         # 如果为null，则将在trainer中从processing_class获取
-dataloader_pin_memory: false
-dataset_num_proc: 1
-loss_type: "sigmoid"
-label_smoothing: 0.0
-model_adapter_name: ""
-ref_adapter_name: ""
-reference_free: false
-sync_ref_model: false
-f_divergence_type: "js"
-f_alpha_divergence_coef: 0.0
-use_weighting: false
-rpo_alpha: null           # 如果不使用 RPO，则设为 null
-discopop_tau: 0.5
-precompute_ref_batch_size: 16
-eval_batch_size: 16
-report_to: ["tensorboard"]
-output_dir: "./output"
-device: "cuda"
