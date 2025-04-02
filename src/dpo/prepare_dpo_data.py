@@ -9,7 +9,9 @@ from ..core.utils import load_jsonl
 import argparse
 
 class ClassifierDataProcessor:
-    """处理标注数据生成微调数据集 (用于添加了分类头模型的分类任务)"""
+    """Process the labeled data to generate a fine-tuning dataset 
+    (for classification tasks with a classification head model added)
+    """
     
     def __init__(self, sft_dataset: str, seed: int = 42):
         self.config = Config()
@@ -18,7 +20,9 @@ class ClassifierDataProcessor:
         self.sft_dataset_dir.mkdir(parents=True, exist_ok=True)
         self.templates = PipelineClassificationTemplates()
         self.seed = seed
-        
+
+        self.dpo_dataset_dir = self.config.dpo_data_dir / sft_dataset
+        self.dpo_dataset_dir.mkdir(parents=True, exist_ok=True)
         # 设置随机种子
         np.random.seed(self.seed)
         
@@ -73,8 +77,8 @@ class ClassifierDataProcessor:
     def _save_and_analyze_samples(self, train_samples: List[Dict], valid_samples: List[Dict]):
         """保存数据集并分析分布"""
         # 保存数据集到指定的数据集目录
-        train_file = self.sft_dataset_dir / "classifier_train.json"
-        valid_file = self.sft_dataset_dir / "classifier_valid.json"
+        train_file = self.dpo_dataset_dir / "classifier_train_pre.json"
+        valid_file = self.dpo_dataset_dir / "classifier_valid_pre.json"
         
         with open(train_file, 'w', encoding='utf-8') as f:
             json.dump(train_samples, f, ensure_ascii=False, indent=2)
@@ -127,14 +131,18 @@ class ClassifierDataProcessor:
         print("Training set:", train_dist["sources"])
         print("Validation set:", valid_dist["sources"])
         
-        print(f"\nData saved to {self.sft_dataset_dir}")
+        print(f"\nData saved to {self.dpo_dataset_dir}")
 
 def main():
-    sft_dataset = "bird_train_dataset_simplified"
-    labeled_file = "data/labeled/nonempty_bird_train_pipeline_label.jsonl"
-    
-    processor = ClassifierDataProcessor(sft_dataset=sft_dataset, seed=42)
-    processor.prepare_data(labeled_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sft_dataset', type=str, required=True,
+                       help='Name of the specified SFT dataset directory under data/sft/')
+    parser.add_argument('--labeled_file', type=str, required=True,
+                       help='Path to the dataset with labells which is to be used for SFT dataset preparation')
+    args = parser.parse_args()
+
+    processor = ClassifierDataProcessor(sft_dataset=args.sft_dataset, seed=42)
+    processor.prepare_data(args.labeled_file)
 
 if __name__ == "__main__":
     main() 

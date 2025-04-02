@@ -68,7 +68,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 3. Pre-process dataset file into the format required for this project:
 
    ```bash
-   python -m src.evaluation.compute_ex
+   python -m data.preprocess
    ```
 
 4. Configure your settings:
