@@ -23,6 +23,12 @@ __pycache__/
 # 忽略config下的文件
 config/*
 
+# 忽略examples下的文件
+examples/**
+
+# 忽略tests下的文件
+tests/**
+
 # 忽略中间结果
 results/**
 
@@ -55,7 +61,5 @@ data/cascade/**
 !data/labeled/bird_dev_pipeline_label.jsonl
 !data/labeled/bird_train_pipeline_label.jsonl
 
-examples/m2.py
-examples/m3.py
-examples/m4.py
-examples/gpt api exmaple.py
+# 不忽略examples下的main.py文件
+!examples/main.py
