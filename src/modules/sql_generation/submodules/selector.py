@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Tuple, Callable
 
 
 class DirectSelector():
-    """基于prompt直接从多个候选中选择正确SQL的SQL Selector，使用SQL运行信息和DB Schema"""
+    """SQL Selector that directly selects the correct SQL from multiple candidates based on prompts, using SQL execution information and DB Schema"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -30,11 +30,10 @@ class DirectSelector():
         
     async def select_sql(self, data_file: str, sql_list: List[str], query_id: str) -> str:
         """
-        对生成的多个SQL进行选择，选择一个
+        Select the correct SQL from multiple candidates
         
-        Args:
-            sql_list: 候选SQL列表
-            query_id: 查询ID，用于关联中间结果
+        :param sql_list: The list of candidate SQLs
+        :param query_id: The query ID, used to associate intermediate results
         """
        
         dataset_examples = load_json(data_file)
@@ -53,7 +52,7 @@ class DirectSelector():
                 db_file = f"{db_id}.sqlite"
                 db_path = str(Config().database_dir / db_folder / db_file)
 
-                # 获取schema
+                # Get schema
                 schema_manager = SchemaManager()
                 formatted_schema = schema_manager.get_formatted_enriched_schema(db_id, source)
                 break
@@ -61,7 +60,7 @@ class DirectSelector():
         if db_path is None:
             raise ValueError(f"Could not find query_id {query_id} in dataset")
 
-        # 执行(多个)sql并且返回结果
+        # Execute (multiple) SQLs and return results
         candidate_num = len(sql_list)
         ex_results = []
         for sql in sql_list:
@@ -100,7 +99,9 @@ class DirectSelector():
         )
         
         return result
-        # 保存中间结果
+        
+        # Save intermediate results
+        
         # self.save_intermediate(
         #     input_data={
         #         "question": question,

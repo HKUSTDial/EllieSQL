@@ -2,13 +2,6 @@ import os
 import argparse
 import yaml
 from pathlib import Path
-# -----------------------------
-# 环境变量设置：只使用 GPU4,5,6,7（内部设备编号会重排为 0,1,2,3）
-# 同时设置 NCCL 环境变量以解决 RTX 4000 系列显卡的通信问题
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-# os.environ["NCCL_P2P_DISABLE"] = "1"
-# os.environ["NCCL_IB_DISABLE"] = "1"
-
 import copy
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
@@ -20,36 +13,36 @@ from transformers.trainer_callback import TrainerCallback
 
 
 # =============================
-# 自定义回调：将日志保存到 txt 文件
+# Custom callback: Save logs to txt file
 # =============================
 class SaveLogCallback(TrainerCallback):
     def __init__(self, log_file="training_log.txt"):
         self.log_file = log_file
-        # 初始化时清空文件，并写入表头
+        # Clear the file when initialized, and write the header
         with open(self.log_file, "w") as f:
             f.write("step, train_loss, eval_loss\n")
     def on_log(self, args, state, control, logs=None, **kwargs):
         if logs is not None:
             step = state.global_step
-            # 获取训练 loss 和 eval_loss，如果没有则为 NA
+            # Get the training loss and eval_loss, if not, set to NA
             train_loss = logs.get("loss", "NA")
             eval_loss = logs.get("eval_loss", "NA")
-            # 将日志追加到文件中
+            # Append the log to the file
             with open(self.log_file, "a") as f:
                 f.write(f"{step}, {train_loss}, {eval_loss}\n")
 
 # =============================
-# 自定义 Trainer 类：针对分类任务的 DPOTrainer
+# Custom Trainer class: For classification tasks
 # =============================
 class ClassificationDPOTrainer(DPOTrainer):
     @staticmethod
     def tokenize_row(features, processing_class, max_prompt_length, max_completion_length, add_special_tokens):
         """
-        对 "prompt" 进行分词，生成键 "prompt_input_ids"；
-        同时，将原始的整数标签保存为单元素列表，分别存入 "chosen_input_ids" 和 "rejected_input_ids"。
-        这里的标签取值为 0, 1, 2。
+        Tokenize the "prompt", generate the key "prompt_input_ids";
+        At the same time, save the original integer labels as single-element lists, and store them in "chosen_input_ids" and "rejected_input_ids".
+        The labels here are 0, 1, 2.
         """
-        # 对 prompt 进行分词，设定最大长度和 padding
+        # Tokenize the prompt, set the maximum length and padding
         prompt_encoded = processing_class(
             features["prompt"],
             truncation=True,
@@ -58,7 +51,7 @@ class ClassificationDPOTrainer(DPOTrainer):
             add_special_tokens=add_special_tokens,
         )
         prompt_input_ids = prompt_encoded["input_ids"]
-        # 将整数标签包装为单元素列表（后续 collator 会将其转换为张量形状 [batch, 1]）
+        # Wrap the integer labels as single-element lists (the collator will convert them to tensor shape [batch, 1])
         chosen_input_ids = [features["chosen"]]
         rejected_input_ids = [features["rejected"]]
         return {
@@ -69,38 +62,37 @@ class ClassificationDPOTrainer(DPOTrainer):
 
     def concatenated_forward(self, model, batch):
         """
-        前向传播步骤：
-          1. 从 batch 中取出分词后的 prompt_input_ids 及 attention_mask（如果没有，则自动构造）。
-          2. 调用模型进行前向传播，得到 logits（形状 [batch, num_labels]）。
-          3. 计算 log_softmax 得到各类别的对数概率。
-          4. 根据 batch 中保存的标签（保存在 chosen_input_ids 和 rejected_input_ids，均为 [batch, 1]）利用 gather
-             获取对应的 log-probability。
-          5. 为满足 TRL 内部统计要求，还返回 "mean_chosen_logits" 和 "mean_rejected_logits"（这里直接设为对应 log-prob）。
+        Forward propagation steps:
+          1. Get the tokenized prompt_input_ids and attention_mask (if not, construct automatically) from the batch.
+          2. Call the model for forward propagation, get the logits (shape [batch, num_labels]).
+          3. Calculate the log_softmax to get the log-probability of each category.
+          4. Use gather to get the corresponding log-probability based on the labels saved in the batch (saved in chosen_input_ids and rejected_input_ids, both are [batch, 1]).
+          5. Return "mean_chosen_logits" and "mean_rejected_logits" (set directly to the corresponding log-prob) to meet the internal statistics requirements of TRL.
         """
         input_ids = batch["prompt_input_ids"]  # [batch, seq_len]
-        # 如果 DataCollator 已经生成了 attention mask，则使用之；否则自动生成
+        # If the DataCollator has already generated the attention mask, use it; otherwise, generate it automatically
         attention_mask = batch.get("prompt_attention_mask")
         if attention_mask is None:
             attention_mask = (input_ids != self.args.padding_value).long()
         outputs = model(input_ids=input_ids, attention_mask=attention_mask)
         logits = outputs.logits  # [batch, num_labels]
         logprobs = torch.log_softmax(logits, dim=-1)  # [batch, num_labels]
-        # 将单元素列表转换为张量（形状 [batch, 1]）后 squeeze 得到 [batch] 的标签
+        # Convert the single-element lists to tensors (shape [batch, 1]) and squeeze to get the labels [batch]
         chosen_label = batch["chosen_input_ids"].squeeze(1)
         rejected_label = batch["rejected_input_ids"].squeeze(1)
-        # 利用 gather 获取每个样本对应标签的 log-probability
+        # Use gather to get the log-probability of each sample corresponding to the label
         chosen_logps = logprobs.gather(1, chosen_label.unsqueeze(1)).squeeze(1)
         rejected_logps = logprobs.gather(1, rejected_label.unsqueeze(1)).squeeze(1)
-        # 返回字典中增加 mean_chosen_logits 和 mean_rejected_logits，供后续统计和 loss 计算使用
+        # Add "mean_chosen_logits" and "mean_rejected_logits" to the dictionary for subsequent statistics and loss calculation
         return {
             "chosen_logps": chosen_logps,
             "rejected_logps": rejected_logps,
-            "mean_chosen_logits": chosen_logps,  # 分类任务下，用 logps 代替
+            "mean_chosen_logits": chosen_logps,  # In the classification task, use logps instead of logits
             "mean_rejected_logits": rejected_logps,
         }
     
 def load_dpo_config(config_name: str):
-    """加载DPO配置"""
+    """Load DPO configuration"""
     config_path = Path("config") / f"{config_name}.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"找不到配置文件: {config_path}")
@@ -119,38 +111,38 @@ if __name__ == "__main__":
 
         
     # =============================
-    # 1. 模型和 Tokenizer 的加载及 pad_token 设置
+    # 1. Load the model and Tokenizer and set the pad_token
     # =============================
     
     model_name = config.qwen_dir
-    # 加载模型配置，指定 num_labels=3（类别：0,1,2），模型将自动添加分类头
+    # Load the model configuration, specify num_labels=3 (categories: 0,1,2), the model will automatically add a classification head
     config = AutoConfig.from_pretrained(model_name, num_labels=3)
     model = AutoModelForSequenceClassification.from_pretrained(model_name, config=config)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    # 如果 tokenizer 没有 pad_token，则使用 eos_token；若都没有则添加新 token
+    # If the tokenizer does not have a pad_token, use the eos_token; if neither, add a new token
     if tokenizer.pad_token is None:
         if tokenizer.eos_token is not None:
             tokenizer.pad_token = tokenizer.eos_token
         else:
             tokenizer.add_special_tokens({'pad_token': '[PAD]'})
             model.resize_token_embeddings(len(tokenizer))
-    # 更新 pad_token_id
+    # Update the pad_token_id
     tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
     config.pad_token_id = tokenizer.pad_token_id
     model.config.pad_token_id = tokenizer.pad_token_id
 
-    # 构造参考模型（ref_model），用于计算对比损失。复制后冻结参数。
+    # Construct the reference model (ref_model), for calculating the contrastive loss. Copy and freeze the parameters.
     ref_model = copy.deepcopy(model)
     ref_model.eval()
     for param in ref_model.parameters():
         param.requires_grad = False
 
     # =============================
-    # 2. 数据预处理
+    # 2. Data preprocessing
     # =============================
-    # 假设数据文件中每个样本格式为：
+    # Assume the format of each sample in the data file is:
     #   { "text": "……", "chosen": 0, "rejected": 1 }
-    # 其中 "chosen" 与 "rejected" 为整数标签（类别），取值范围 0,1,2。
+    #   where "chosen" and "rejected" are integer labels (categories), with values 0,1,2.
     # dataset = load_dataset(
     #     'json',
     #     data_files={
@@ -169,7 +161,7 @@ if __name__ == "__main__":
             "rejected": int(example.get("rejected", 0)),
         }
 
-    # 使用 dataset.map 逐条处理数据，同时删除原有所有列，只保留预处理后的键。
+    # Use dataset.map to process the data line by line, while deleting all existing columns and only keeping the processed keys.
     # tokenized_datasets = dataset.map(
     #     preprocess,
     #     batched=True,
@@ -181,35 +173,35 @@ if __name__ == "__main__":
     e_dataset = e_dataset.map(preprocess, batched=False, remove_columns=e_dataset.column_names)
 
     # =============================
-    # 3. 定义训练参数（DPOConfig）
+    # 3. Define training parameters (DPOConfig)
     # =============================
     dpo_train_config = DPOConfig(
-        output_dir=dpo_config["output_dir"],  # 模型和检查点保存目录    
-        per_device_train_batch_size=dpo_config["per_device_train_batch_size"],    # 每个 GPU 的 batch size（根据显存调整）
-        num_train_epochs=dpo_config["num_train_epochs"],                          # 训练轮数
-        fp16=dpo_config["fp16"],                                   # 启用 FP16 混合精度训练
-        learning_rate=dpo_config["learning_rate"],                          # 学习率
-        loss_type=dpo_config["loss_type"],                         # DPO 损失类型，此处使用 sigmoid loss
-        beta=dpo_config["beta"],                                    # 控制偏离参考模型的程度
-        max_prompt_length=dpo_config["max_prompt_length"],                       # prompt 的最大长度
-        max_completion_length=dpo_config["max_completion_length"],                   # 本任务中不使用，但必须给定
-        max_length=dpo_config["max_length"],                              # prompt 的最大总长度（用于分词）
-        padding_value=tokenizer.pad_token_id, #dpo_config["padding_value"],        # 填充 token 的 id
-        generate_during_eval=dpo_config["generate_during_eval"],                  # 分类任务无需生成
-        dataset_num_proc=None,#dpo_config["dataset_num_proc"],                       # 禁用多进程，确保逐条处理
-        remove_unused_columns=dpo_config["remove_unused_columns"],                 # 保留所有数据列，避免 Trainer 自动移除自定义标签列
-        logging_steps=dpo_config["logging_steps"],                            # 每 50 步打印一次日志
-        save_steps=dpo_config["save_steps"],                              # 每 100 步保存一次模型
+        output_dir=dpo_config["output_dir"],  # The directory to save the model and checkpoints
+        per_device_train_batch_size=dpo_config["per_device_train_batch_size"],    # The batch size for each GPU (adjust according to the memory)
+        num_train_epochs=dpo_config["num_train_epochs"],                          # The number of training epochs
+        fp16=dpo_config["fp16"],                                   # Enable FP16 mixed precision training
+        learning_rate=dpo_config["learning_rate"],                          # The learning rate
+        loss_type=dpo_config["loss_type"],                         # The loss type of DPO, here using sigmoid loss
+        beta=dpo_config["beta"],                                    # The degree of deviation from the reference model
+        max_prompt_length=dpo_config["max_prompt_length"],                       # The maximum length of the prompt
+        max_completion_length=dpo_config["max_completion_length"],                   # This task is not used, but must be given
+        max_length=dpo_config["max_length"],                              # The maximum total length of the prompt (for tokenization)
+        padding_value=tokenizer.pad_token_id, #dpo_config["padding_value"],        # The id of the padding token
+        generate_during_eval=dpo_config["generate_during_eval"],                  # The classification task does not need to generate
+        dataset_num_proc=None,#dpo_config["dataset_num_proc"],                       # Disable multi-processing
+        remove_unused_columns=dpo_config["remove_unused_columns"],                 # Keep all data columns, avoid Trainer automatically removing custom label columns
+        logging_steps=dpo_config["logging_steps"],                            # Print logs every 50 steps
+        save_steps=dpo_config["save_steps"],                              # Save the model every 100 steps
         # save_total_limit=5,
         # metric_for_best_model='loss',
         # greater_is_better=False,
-        eval_strategy=dpo_config["eval_strategy"],  # 每隔一定步数评估一次
-        eval_steps=dpo_config["eval_steps"],           # 每 100 步进行评估（与保存间隔相同）
-        logging_dir=dpo_config["logging_dir"],  # 日志保存目录
+        eval_strategy=dpo_config["eval_strategy"],  # Evaluate every certain steps
+        eval_steps=dpo_config["eval_steps"],           # Evaluate every 100 steps (same as the save interval)
+        logging_dir=dpo_config["logging_dir"],  # The directory to save the logs
     )
 
     # =============================
-    # 4. 初始化 Trainer 并开始训练
+    # 4. Initialize Trainer and start training
     # =============================
     trainer = ClassificationDPOTrainer(
         model=model,
@@ -217,23 +209,23 @@ if __name__ == "__main__":
         args=dpo_train_config,
         train_dataset=dataset,
         eval_dataset=e_dataset,
-        processing_class=tokenizer,  # 使用原始 tokenizer，内部 tokenize_row 会处理标签
-        data_collator=None,          # 默认使用 DataCollatorForPreference
+        processing_class=tokenizer,  # Use the original tokenizer, the internal tokenize_row will handle the labels
+        data_collator=None,          # Default using DataCollatorForPreference
     )
 
-    # # 添加自定义回调，将日志写入 txt 文件
+    # # Add a custom callback to write logs to a txt file
     # trainer.add_callback(SaveLogCallback(log_file="training_log.txt"))
 
-    # 添加自定义 TXT 日志回调，日志将保存到指定文件
+    # Add a custom TXT log callback, the logs will be saved to the specified file
     trainer.add_callback(SaveLogCallback(log_file=os.path.join(dpo_config["output_dir"], "training_log.txt")))
 
-    # 开始训练
+    # Start training
     trainer.train()
 
     final_metrics = trainer.evaluate()
 
     outdir = dpo_config["output_dir"]
 
-    # 训练结束后，模型和检查点保存至 dpo_config.output_dir 指定的目录
-    print(f"模型和检查点保存至: {outdir}")
+    # After training, the model and checkpoints will be saved to the directory specified in dpo_config.output_dir
+    print(f"The model and checkpoints will be saved to: {outdir}")
 

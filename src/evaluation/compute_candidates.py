@@ -2,17 +2,16 @@ import os
 
 from ..core.utils import load_json, load_jsonl
 from ..core.sql_execute import *
-from .compute_EX import compare_sql_results
+from .compute_ex import compare_sql_results
 from ..core.config import Config
 
 
-# 统计结果
 def analyze_results(direct_selector_path, sampled_merged_path):
-    # 读取 sampled_merged.json 文件
+    # Read the sampled_merged.json file
     sampled_merged = load_json(sampled_merged_path)
     selector_data = load_jsonl(direct_selector_path)
 
-    # 初始化统计变量
+    # Initialize the statistics variables
     total_objects = 0
     both_correct = 0
     one_correct = 0
@@ -20,7 +19,7 @@ def analyze_results(direct_selector_path, sampled_merged_path):
     only_one_candidate_and_correct = 0
     only_one_candidate_and_wrong = 0
 
-    # 读取 DirectSelector.jsonl 文件
+    # Read the DirectSelector.jsonl file
     for obj in selector_data:
         query_id = obj['query_id']
         candidate_sqls = obj['input']['candidate_sqls']
@@ -36,7 +35,7 @@ def analyze_results(direct_selector_path, sampled_merged_path):
                 db_file = f"{db_id}.sqlite"
                 db_path = str(Config().database_dir / db_folder / db_file)
                 gold_sql = item.get("gold_SQL")
-                # 比较两个 candidate_sqls 的执行结果与 gold_SQL
+                # Compare the execution results of the two candidate_sqls with gold_SQL
                 result1 = compare_sql_results(db_path, gold_sql, candidate_sqls[0])
                 if(len(candidate_sqls) == 1):
                     if(result1):
@@ -55,20 +54,20 @@ def analyze_results(direct_selector_path, sampled_merged_path):
                 break
             
 
-    # 计算占比
+    # Calculate the ratios
     both_correct_ratio = both_correct / total_objects
     one_correct_ratio = one_correct / total_objects
     both_wrong_ratio = both_wrong / total_objects
     only_one_candidate_and_correct_ratio = only_one_candidate_and_correct / total_objects
     only_one_candidate_and_wrong_ratio = only_one_candidate_and_wrong / total_objects
     
-    # 输出结果
-    print(f"对象总数: {total_objects}")
-    print(f"两个SQL执行结果都与gold_SQL相同的对象数量: {both_correct} (占比: {both_correct_ratio:.2%})")
-    print(f"只有一个SQL执行结果与gold_SQL相同的对象数量: {one_correct} (占比: {one_correct_ratio:.2%})")
-    print(f"两个SQL执行结果都错的对象数量: {both_wrong} (占比: {both_wrong_ratio:.2%})")
-    print(f"只有一个候选sql的、并且结果正确的对象数量{only_one_candidate_and_correct}(占比：{only_one_candidate_and_correct_ratio:.2%})")
-    print(f"只有一个候选sql的、并且结果错误的对象数量{only_one_candidate_and_wrong}(占比：{only_one_candidate_and_wrong_ratio:.2%})")
+    # Print the results
+    print(f"The total number of objects: {total_objects}")
+    print(f"The number of objects where both SQL execution results are the same as gold_SQL: {both_correct} (Percentage: {both_correct_ratio:.2%})")
+    print(f"The number of objects where only one SQL execution result is the same as gold_SQL: {one_correct} (Percentage: {one_correct_ratio:.2%})")
+    print(f"The number of objects where both SQL execution results are wrong: {both_wrong} (Percentage: {both_wrong_ratio:.2%})")
+    print(f"The number of objects where only one candidate SQL is correct: {only_one_candidate_and_correct} (Percentage: {only_one_candidate_and_correct_ratio:.2%})")
+    print(f"The number of objects where only one candidate SQL is wrong: {only_one_candidate_and_wrong} (Percentage: {only_one_candidate_and_wrong_ratio:.2%})")
 
 if __name__ == "__main__":
     direct_selector_path = "./results\important_results\\20250114_003759\DirectSelector.jsonl"
@@ -77,4 +76,3 @@ if __name__ == "__main__":
 
     analyze_results(direct_selector_path, sampled_merged_path)
     exit()
-# 调用函数进行分析

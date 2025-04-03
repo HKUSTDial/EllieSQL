@@ -2,22 +2,20 @@ from typing import Dict
 from ..base import ModuleBase
 
 class PostProcessorBase(ModuleBase):
-    """后处理模块的基类"""
+    """Base class for post-processing modules"""
     
     def __init__(self, name: str, max_retries: int = 3):
         super().__init__(name)
-        self.max_retries = max_retries  # 重试次数阈值
+        self.max_retries = max_retries  # Retry threshold
         
     async def process_sql_with_retry(self, sql: str, query_id: str = None) -> str:
         """
-        带重试机制的SQL后处理，达到重试阈值后返回原始SQL
+        SQL post-processing with retry mechanism, returning the original SQL after reaching the retry threshold
         
-        Args:
-            sql: 待处理的SQL
-            query_id: 查询ID
+        :param sql: The SQL to be processed
+        :param query_id: The query ID
             
-        Returns:
-            str: 处理后的SQL或原始SQL
+        :return: The processed SQL or the original SQL
         """
         last_error = None
         for attempt in range(self.max_retries):
@@ -29,20 +27,20 @@ class PostProcessorBase(ModuleBase):
                         return processed_sql
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"SQL后处理第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
+                self.logger.warning(f"SQL post-processing failed on the {attempt + 1}/{self.max_retries} attempt: {str(e)}")
                 continue
         
-        # 达到重试阈值，返回原始SQL，并记录错误
-        self.logger.error(f"SQL后处理 共{self.max_retries}次尝试后失败，使用原始SQL。最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行...")
+        # Reached the retry threshold, return the original SQL, and record the error
+        self.logger.error(f"SQL post-processing failed after {self.max_retries} attempts, using the original SQL. Last error: {str(last_error)}. Question ID: {query_id} The program continues to execute...")
         
-        # 加载SQL生成的结果以获取原始查询
+        # Load the SQL generated result to get the original query
         try:
             prev_result = self.load_previous_result(query_id)
             original_query = prev_result["input"]["query"]
         except:
             original_query = "Unknown"
             
-        # 保存中间结果
+        # Save the intermediate result
         self.save_intermediate(
             input_data={
                 "original_query": original_query,
@@ -50,7 +48,7 @@ class PostProcessorBase(ModuleBase):
             },
             output_data={
                 "raw_output": "Post-processing failed, using original SQL",
-                "processed_sql": sql  # 使用原始SQL
+                "processed_sql": sql  # Use the original SQL
             },
             model_info={
                 "model": "none",

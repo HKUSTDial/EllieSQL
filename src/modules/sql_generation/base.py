@@ -19,37 +19,35 @@ class SQLGeneratorBase(ModuleBase):
                         schema_linking_output: Dict,
                         module_name: Optional[str] = None) -> str:
         """
-        生成SQL, 返回使用代码块包裹的生成SQL的raw output, 统一在generate_sql_with_retry中使用重试机制安全提取代码块中的SQL
+        Generate SQL, return the raw output of the generated SQL wrapped in a code block, 
+        use the retry mechanism to safely extract the SQL from the code block in generate_sql_with_retry
         
-        Args:
-            query: 用户查询
-            schema_linking_output: Schema Linking的输出
+        :param query: User query
+        :param schema_linking_output: Output of Schema Linking
                                     schema_linking_output = {
                                         "original_schema": database_schema,
-                                        "linked_schema": enriched_linked_schema (如果使用enhanced linker, 则已经补充主键和外键, 而basic linker则无)
+                                        "linked_schema": enriched_linked_schema (if enhanced linker is used, the primary and foreign keys are already supplemented, while the basic linker does not have them)
                                     }
-            module_name: 模块名称
+        :param module_name: Module name
             
-        Returns:
-            str: 生成SQL的原始输出raw output, 供generate_sql_with_retry提取, 例如: Therefore, the final SQL is ```sql SELECT * FROM players;```
+        :return: The raw output of the generated SQL,供generate_sql_with_retry提取, 例如: Therefore, the final SQL is ```sql SELECT * FROM players;```
         """
         pass 
     
     async def generate_sql_with_retry(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:
         """
-        带重试机制的SQL生成与提取, 仅用于防止无法提取出SQL的情况, 不进行validate_sql验证SQL的可执行性
+        SQL generation with retry mechanism and extraction, only used to prevent the situation where the SQL cannot be extracted, 
+        without validating the SQL's executability
         
-        Args:
-            query: 用户查询
-            schema_linking_output: Schema Linking的输出
-            query_id: 查询ID
-            module_name: 模块名称
+        :param query: User query
+        :param schema_linking_output: Output of Schema Linking
+        :param query_id: Query ID
+        :param module_name: Module name
             
-        Returns:
-            str: 生成的SQL（如果所有尝试都失败则返回fallback SQL）
+        :return: The generated SQL (if all attempts fail, return the fallback SQL)
         """
         last_error = None
-        last_extracted_sql = None  # 保存最后一次成功提取的SQL
+        last_extracted_sql = None  # Save the last successfully extracted SQL
         
         for attempt in range(self.max_retries):
             try:
@@ -59,18 +57,18 @@ class SQLGeneratorBase(ModuleBase):
                     if extracted_sql is not None:
                         return extracted_sql
                     else:
-                        self.logger.warning(f"无法从输出中提取SQL, 第{attempt + 1}/{self.max_retries}次尝试")
+                        self.logger.warning(f"Can not extract SQL from the output, attempt {attempt + 1}/{self.max_retries}")
                         continue
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"SQL生成第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
+                self.logger.warning(f"SQL generation failed on attempt {attempt + 1}/{self.max_retries}: {str(e)}")
                 continue
                 
-        # 达到重试阈值，记录错误
-        error_message = f"SQL生成在{self.max_retries}次尝试后完全失败，无法提取有效SQL。最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行..."
+        # Reach the retry threshold, record the error
+        error_message = f"SQL generation failed after {self.max_retries} attempts, unable to extract valid SQL. Last error: {str(last_error)}. Question ID: {query_id} program continues..."
         self.logger.error(error_message)
         
-        # 从schema中获取第一个表和它的第一个列作为fallback
+        # Get the first table and its first column as fallback
         first_table = schema_linking_output["original_schema"]["tables"][0]
         table_name = first_table["table"]
         first_column = list(first_table["columns"].keys())[0]
@@ -80,22 +78,21 @@ class SQLGeneratorBase(ModuleBase):
     
     async def generate_sql_with_retry_with_validate(self, query: str, schema_linking_output: Dict, query_id: str, module_name: str = None) -> str:
         """
-        NOTE: [deprecated]此函数已弃用, validate_sql应该由refiner实现
-        带重试机制的SQL生成, 同时验证SQL的可执行性,达到重试阈值时返回最后一次有效的SQL, 如果完全失败则返回fallback SQL。
+        NOTE: [deprecated] This function is deprecated, validate_sql should be implemented by the refiner
+        SQL generation with retry mechanism and validation, return the last valid SQL when reaching the retry threshold, 
+        or return the fallback SQL if completely failed.
         
-        Args:
-            query: 用户查询
-            schema_linking_output: Schema Linking的输出
-            query_id: 查询ID
-            module_name: 模块名称
+        :param query: User query
+        :param schema_linking_output: Output of Schema Linking
+        :param query_id: Query ID
+        :param module_name: Module name
             
-        Returns:
-            str: 生成的SQL（如果所有尝试都失败则返回fallback SQL）
+        :return: The generated SQL (if all attempts fail, return the fallback SQL)
         """
         last_error = None
-        last_extracted_sql = None  # 保存最后一次成功提取的SQL
+        last_extracted_sql = None  # Save the last successfully extracted SQL
         
-        # 获取数据库路径
+        # Get the database path
         if not self.data_file:
             raise ValueError("Data file path not set. Please call set_data_file() first.")
             
@@ -106,7 +103,7 @@ class SQLGeneratorBase(ModuleBase):
             if item.get("question_id") == query_id:
                 db_id = item.get("db_id", "")
                 source = item.get("source", "")
-                # 使用与data_file相对的路径
+                # Use the relative path to the data_file
                 data_dir = os.path.dirname(self.data_file)
                 db_folder = f"{source}_{db_id}"
                 db_file = f"{db_id}.sqlite"
@@ -114,7 +111,7 @@ class SQLGeneratorBase(ModuleBase):
                 break
                 
         if not db_path:
-            raise ValueError(f"无法找到问题ID {query_id} 对应的数据库路径")
+            raise ValueError(f"Can not find the database path for question ID {query_id}")
             
         for attempt in range(self.max_retries):
             try:
@@ -122,30 +119,30 @@ class SQLGeneratorBase(ModuleBase):
                 if raw_sql_output is not None:
                     extracted_sql = self.extractor.extract_sql(raw_sql_output)
                     if extracted_sql is not None:
-                        last_extracted_sql = extracted_sql  # 更新最后一次成功提取的SQL
-                        # 验证SQL是否可以执行且结果不为空
+                        last_extracted_sql = extracted_sql  # Update the last successfully extracted SQL
+                        # Validate whether the SQL can be executed and the result is not empty
                         is_valid, error_msg = validate_sql_execution(db_path, extracted_sql)
                         if is_valid:
                             return extracted_sql
                         else:
-                            self.logger.warning(f"SQL验证失败: {error_msg}")
+                            self.logger.warning(f"SQL validation failed: {error_msg}")
                             continue
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"SQL生成第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
+                self.logger.warning(f"SQL generation failed on attempt {attempt + 1}/{self.max_retries}: {str(e)}")
                 continue
                 
-        # 达到重试阈值，记录错误并返回最后一次有效的SQL
+        # Reach the retry threshold, record the error and return the last valid SQL
         if last_extracted_sql:
-            error_message = f"SQL生成 共{self.max_retries}次尝试后失败，使用最后一次提取的SQL。 最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行..."
+            error_message = f"SQL generation failed after {self.max_retries} attempts, using the last successfully extracted SQL. Last error: {str(last_error)}. Question ID: {query_id} program continues..."
             self.logger.error(error_message)
             return last_extracted_sql
         else:
-            # 完全失败时，生成一个简单的fallback SQL
-            error_message = f"SQL生成 在{self.max_retries}次尝试后完全失败，无法提取有效SQL，使用fallback SQL。 最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行..."
+            # When completely failed, generate a simple fallback SQL
+            error_message = f"SQL generation failed after {self.max_retries} attempts, unable to extract valid SQL, using the fallback SQL. Last error: {str(last_error)}. Question ID: {query_id} program continues..."
             self.logger.error(error_message)
             
-            # 从schema中获取第一个表和它的第一个列作为fallback，构造验证fallback SQL
+            # Get the first table and its first column as fallback, construct and validate the fallback SQL
             first_table = schema_linking_output["original_schema"]["tables"][0]
             table_name = first_table["table"]
             first_column = list(first_table["columns"].keys())[0]
@@ -153,6 +150,6 @@ class SQLGeneratorBase(ModuleBase):
             is_valid, error_msg = validate_sql_execution(db_path, fallback_sql)
             
             if not is_valid:
-                self.logger.fatal(f"[FATAL] Fallback SQL执行失败: {error_msg}。最后一次错误: {str(last_error)}。Question ID: {query_id}")
+                self.logger.fatal(f"[FATAL] Fallback SQL execution failed: {error_msg}. Last error: {str(last_error)}. Question ID: {query_id}")
             
             return fallback_sql 

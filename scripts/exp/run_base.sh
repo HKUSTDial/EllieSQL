@@ -2,12 +2,12 @@
 
 # bash scripts/exp/run_base.sh
 
-# 设置环境变量
+# Set environment variables
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
 export CUDA_VISIBLE_DEVICES=7
 
-# 基础参数
+# Basic parameters
 TEST_FILE="./data/formatted_bird_dev.json"
 MAX_WORKERS=64
 

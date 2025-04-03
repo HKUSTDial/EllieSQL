@@ -1,4 +1,4 @@
-"""Schema Linking模块的统一prompt模板"""
+"""Schema Linking module prompt templates"""
 
 BASE_SCHEMA_SYSTEM = """
 You are a smart and responsible SQLite SQL expert. Assist in identifying the database tables and columns involved in natural language queries.

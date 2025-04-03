@@ -11,7 +11,7 @@ from .submodules.online_synthesiser import *
 from .submodules.selector import *
 
 class CHASESQLGenerator(SQLGeneratorBase):
-    """使用CHASE pipeline生成SQL的实现"""
+    """Implementation of SQL generation using the CHASE pipeline"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -26,14 +26,14 @@ class CHASESQLGenerator(SQLGeneratorBase):
         self.max_tokens = max_tokens
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
-        """生成SQL"""
-        # 加载schema linking的结果
+        """Generate SQL"""
+        # Load the schema linking result
         if not schema_linking_output:
             prev_result = self.load_previous_result(query_id)
             formatted_schema = prev_result["output"]["formatted_linked_schema"]
         else:
             formatted_schema = schema_linking_output.get("formatted_linked_schema")
-            if not formatted_schema:  # 如果直接传入的结果中没有格式化的schema
+            if not formatted_schema:  # If the result directly passed in does not have the formatted schema
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
@@ -46,7 +46,7 @@ class CHASESQLGenerator(SQLGeneratorBase):
                 break
 
 
-                # 记录每个步骤的token统计
+        # Record the token statistics for each step
         step_tokens = {
             "divide_conquer": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "query_plan": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
@@ -55,10 +55,10 @@ class CHASESQLGenerator(SQLGeneratorBase):
             "select": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
 
-        # 分别使用DCR、QPR、OSR生成候选sql
+        # Generate candidate SQLs using DCR, QPR, and OSR
         ssql = []
 
-        #DCR
+        # DCR
         divide_conqueror = DivideConqueror(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -74,7 +74,7 @@ class CHASESQLGenerator(SQLGeneratorBase):
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
-                #Refine阶段
+        # Refine stage
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -92,8 +92,10 @@ class CHASESQLGenerator(SQLGeneratorBase):
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
         print("DC Refine完成")
         ssql.append(extracted_sql)
-###################################################################################
-        #QPR
+        
+        ###################################################################################
+        
+        # QPR
         query_planer = QueryPlaner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -108,7 +110,7 @@ class CHASESQLGenerator(SQLGeneratorBase):
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
-                #Refine阶段
+        # Refine stage
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -125,8 +127,10 @@ class CHASESQLGenerator(SQLGeneratorBase):
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
         print("QP Refine完成")
         ssql.append(extracted_sql)
-###################################################################################
-        #OSR
+        
+        ###################################################################################
+        
+        # OSR
         online_synthesisor = OnlineSynthesiser(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -141,7 +145,7 @@ class CHASESQLGenerator(SQLGeneratorBase):
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
-                #Refine阶段
+        # Refine stage
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -160,18 +164,18 @@ class CHASESQLGenerator(SQLGeneratorBase):
         ssql.append(extracted_sql)
 
 
-        ## Select 阶段, 使用selector选择最佳SQL
+        ## Select stage, use selector to select the best SQL
         selector = DirectSelector(
             llm=self.llm,
             model=self.model,
-            temperature=0.0,  # selector使用低temperature
+            temperature=0.0,  # selector uses low temperature
             max_tokens=self.max_tokens
         )
 
-        print(f"成功生成了 {len(ssql)} 个候选SQL")
+        print(f"Successfully generated {len(ssql)} candidate SQLs")
         # print(ssql)
 
-        print("开始选择最佳SQL...")
+        print("Selecting the best SQL...")
         selected_sql = ""
         try:
             data_file = self.data_file
@@ -182,19 +186,19 @@ class CHASESQLGenerator(SQLGeneratorBase):
             step_tokens["select"]["total_tokens"] = result["total_tokens"]
 
             raw_output = result["response"]
-            #print(raw_output)
+            # print(raw_output)
                 
             selected_sql = self.extractor.extract_sql(raw_output)
 
-            #print(f"检查选出的sql: {selected_sql}")
+            # print(f"Checked the selected SQL: {selected_sql}")
 
         except Exception as e:
-            self.logger.error(f"选择最佳SQL时发生错误: {str(e)}")
-            # 如果选择失败，返回第一个候选
+            self.logger.error(f"Error selecting the best SQL: {str(e)}")
+            # If selection fails, return the first candidate
             selected_sql = ssql[0]
 
         
-        # 计算总token
+        # Calculate the total token statistics
         total_tokens = {
             "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
             "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
@@ -202,7 +206,7 @@ class CHASESQLGenerator(SQLGeneratorBase):
         }
 
         
-        # 保存中间结果
+        # Save intermediate results
         self.save_intermediate(
             input_data={
                 "query": query,
@@ -240,6 +244,6 @@ class CHASESQLGenerator(SQLGeneratorBase):
         # print(selected_sql)
         # print('--------------------------------')
 
-        # 保持返回值格式与raw_output统一，使用```sql```包裹selected_sql
+        # Keep the return value format consistent with raw_output, wrap selected_sql with ```sql```
         return f"```sql\n{selected_sql}\n```"
         

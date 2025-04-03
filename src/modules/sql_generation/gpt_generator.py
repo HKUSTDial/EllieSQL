@@ -5,7 +5,7 @@ from .prompts.gpt_prompts import SQL_GENERATION_SYSTEM, SQL_GENERATION_USER
 from ...core.utils import load_json
 
 class GPTSQLGenerator(SQLGeneratorBase):
-    """使用GPT模型生成SQL的实现"""
+    """Implementation of using GPT model to generate SQL (vanilla)"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -20,14 +20,14 @@ class GPTSQLGenerator(SQLGeneratorBase):
         self.max_tokens = max_tokens
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
-        """生成SQL"""
-        # 加载schema linking的结果
+        """Generate SQL"""
+        # Load the schema linking result
         if not schema_linking_output:
             prev_result = self.load_previous_result(query_id)
             formatted_schema = prev_result["output"]["formatted_linked_schema"]
         else:
             formatted_schema = schema_linking_output.get("formatted_linked_schema")
-            if not formatted_schema:  # 如果直接传入的结果中没有格式化的schema
+            if not formatted_schema:  # If the result directly passed in does not have the formatted schema
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
@@ -38,7 +38,7 @@ class GPTSQLGenerator(SQLGeneratorBase):
             if(item.get("question_id") == query_id):
                 curr_evidence = item.get("evidence", "")
                 break
-        # 构建提示词
+        # Build the prompt
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
@@ -60,7 +60,7 @@ class GPTSQLGenerator(SQLGeneratorBase):
         raw_output = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
         
-        # 保存中间结果
+        # Save the intermediate result
         self.save_intermediate(
             input_data={
                 "query": query,

@@ -5,27 +5,31 @@ from abc import ABC, abstractmethod
 from loguru import logger
 
 class ModuleBase(ABC):
-    """所有模块的基类"""
+
+
+    """Base class for all modules"""
+
+
     def __init__(self, name: str, max_retries: int = 5, pipeline_id: str = None):
         self.name = name
         self.intermediate = IntermediateResult(name, pipeline_id)
         self.max_retries = max_retries
         self.extractor = TextExtractor()
-        self.logger = None  # 将由pipeline设置
-        self._previous_module = None  # 添加前置模块引用
-        self.data_file = None  # 添加data_file属性
+        self.logger = None  # Set by the pipeline
+        self._previous_module = None  # Add a reference to the previous module
+        self.data_file = None  # Add the data_file attribute
         
     def set_data_file(self, data_file: str):
-        """设置数据文件路径"""
+        """Set the data file path"""
         self.data_file = data_file
     
     def log_io(self, input_data: Any, output_data: Any):
-        """记录模块的输入输出，一级key单独成行"""
+        """Record the input and output of the module, with each first-level key on a new line"""
         if self.logger:
             self.logger.debug("-"*70)
             self.logger.debug("Module Input:")
             
-            # 处理输入数据
+            # Process the input data
             if isinstance(input_data, dict):
                 for key, value in input_data.items():
                     self.logger.debug(f"  {key}: {value}")
@@ -34,7 +38,8 @@ class ModuleBase(ABC):
             
             self.logger.debug("-"*70)    
             self.logger.debug("\nModule Output:")
-            # 处理输出数据
+            
+            # Process the output data
             if isinstance(output_data, dict):
                 for key, value in output_data.items():
                     self.logger.debug(f"  {key}: {value}")
@@ -50,19 +55,17 @@ class ModuleBase(ABC):
                         query_id: Optional[str] = None,
                         module_name: Optional[str] = None) -> str:
         """
-        保存中间结果
+        Save the intermediate result
         
-        Args:
-            input_data: 输入数据
-            output_data: 输出数据
-            model_info: 模型信息
-            query_id: 查询ID
-            module_name: 可选的模块名称，如果不指定则使用默认模块名
+        :param input_data: Input data
+        :param output_data: Output data
+        :param model_info: Model information
+        :param query_id: Query ID
+        :param module_name: Optional module name, if not specified, use the default module name
             
-        Returns:
-            str: 保存的文件路径
+        :return: The path of the saved file
         """
-        # 使用指定的模块名或默认模块名
+        # Use the specified module name or the default module name
         save_name = module_name if module_name else self.name
         
         return self.intermediate.save_result(
@@ -80,20 +83,18 @@ class ModuleBase(ABC):
                                *args,
                                **kwargs) -> Tuple[str, Any]:
         """
-        使用重试机制执行操作
-        ** NOTE: 该方法已弃用。请使用各模块base类中的专用retry实现。
+        Use the retry mechanism to execute the operation
+        ** NOTE: This method has been deprecated! Please use the dedicated retry implementation in the module base class.
         
-        Args:
-            func: 要执行的异步函数
-            extract_method: 使用的提取方法 ('sql' 或 'schema_json')
-            error_msg: 失败时的错误信息
-            *args, **kwargs: 传递给func的参数
+        :param func: The asynchronous function to execute
+        :param extract_method: The extraction method to use ('sql' or 'schema_json')
+        :param error_msg: The error message to display when the operation fails
+        :param *args, **kwargs: The arguments to pass to func
             
-        Returns:
-            Tuple[str, Any]: (原始输出, 提取的结果)
+        :return: Tuple[str, Any]: (raw output, extracted result)
             
-        Raises:
-            ValueError: 当重试次数达到上限时抛出
+        :raises:
+            ValueError: When the number of retries reaches the maximum
         """
         extractor = (self.extractor.extract_sql if extract_method == 'sql' 
                     else self.extractor.extract_schema_json)
@@ -109,31 +110,29 @@ class ModuleBase(ABC):
                 last_error = e
                 continue
                 
-        error_message = f"[!] {error_msg} 在{self.max_retries}次尝试后失败。最后一次错误: {str(last_error)}"
+        error_message = f"[!] {error_msg} failed after {self.max_retries} attempts. Last error: {str(last_error)}"
         raise ValueError(error_message)
         
     def set_previous_module(self, module: 'ModuleBase'):
-        """设置前置模块"""
+        """Set the previous module"""
         self._previous_module = module
         
     def load_previous_result(self, query_id: str, module_name: Optional[str] = None) -> Dict:
         """
-        加载前置模块的中间结果
+        Load the intermediate result of the previous module
         
-        Args:
-            query_id: 查询ID
-            module_name: 可选的模块名称，如果不指定则使用前置模块的默认名称
+        :param query_id: Query ID
+        :param module_name: Optional module name, if not specified, use the default module name
             
-        Returns:
-            Dict: 前置模块的处理结果
+        :return: The result of the previous module
             
-        Raises:
-            ValueError: 当没有设置前置模块且未指定module_name时抛出
+        :raises:
+            ValueError: When there is no previous module set and no module_name specified
         """
         if not module_name and not self._previous_module:
             raise ValueError(f"Module {self.name} has no previous module set and no module_name specified")
         
-        # 使用指定的模块名或前置模块的默认名称
+        # Use the specified module name or the default module name of the previous module
         load_name = module_name if module_name else self._previous_module.name
         
         return self.intermediate.load_previous_result(

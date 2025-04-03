@@ -5,49 +5,47 @@ import json
 import os
 
 class SchemaLinkerBase(ModuleBase):
-    """Schema Linking模块的基类"""
+    """Base class for the Schema Linking module"""
     
     def __init__(self, name: str, max_retries: int = 3):
         super().__init__(name)
-        self.max_retries = max_retries  # 重试次数阈值
+        self.max_retries = max_retries  # Retry threshold
         
     def enrich_schema_info(self, linked_schema: Dict, database_schema: Dict) -> Dict:
         """
-        为linked schema补充主键和外键信息
+        Enrich the linked schema with primary and foreign key information
         
-        Args:
-            linked_schema: Schema Linking的原始输出
-            database_schema: 完整的数据库schema
+        :param linked_schema: The original output of Schema Linking
+        :param database_schema: The complete database schema
             
-        Returns:
-            Dict: 补充了主键和外键信息的schema
+        :return: The schema with primary and foreign key information
         """
-        # 创建表名到表信息的映射
+        # Create a mapping from table names to table information
         db_tables = {table["table"]: table for table in database_schema["tables"]}
         
-        # 为每个linked table补充信息
+        # Enrich each linked table with information
         for table in linked_schema["tables"]:
             table_name = table["table"]
             if table_name in db_tables:
-                # 补充主键信息
+                # Enrich primary key information
                 if "primary_keys" in db_tables[table_name]:
                     table["primary_keys"] = db_tables[table_name]["primary_keys"]
                 
-        # 补充外键信息
+        # Enrich foreign key information
         if "foreign_keys" in database_schema:
             for fk in database_schema["foreign_keys"]:
-                # 检查外键相关的表是否都在linked schema中
+                # Check if the table related to the foreign key is in the linked schema
                 src_table = fk["table"][0]
                 dst_table = fk["table"][1]
                 linked_tables = [t["table"] for t in linked_schema["tables"]]
                 
                 if src_table in linked_tables and dst_table in linked_tables:
-                    # 找到源表
+                    # Find the source table
                     for table in linked_schema["tables"]:
                         if table["table"] == src_table:
                             if "foreign_keys" not in table:
                                 table["foreign_keys"] = []
-                            # 添加外键信息
+                            # Add foreign key information
                             table["foreign_keys"].append({
                                 "column": fk["column"][0],
                                 "referenced_table": dst_table,
@@ -61,48 +59,44 @@ class SchemaLinkerBase(ModuleBase):
                        query: str, 
                        database_schema: Dict) -> Dict:
         """
-        将自然语言查询与数据库schema进行链接
+        Link the natural language query with the database schema
         
-        Args:
-            query: 用户的自然语言查询
-            database_schema: 数据库schema信息
+        :param query: The user's natural language query
+        :param database_schema: The database schema information
             
-        Returns:
-            Dict: 链接后的schema信息
+        :return: The linked schema information
         """
         pass
     
     async def link_schema_with_retry(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """
-        带重试机制的schema linking, 达到重试阈值后返回完整的数据库schema
+        Schema linking with retry mechanism, returning the full database schema after reaching the retry threshold
         
-        Args:
-            query: 用户查询
-            database_schema: 数据库schema
-            query_id: 查询ID
+        :param query: The user's query
+        :param database_schema: The database schema
+        :param query_id: The query ID
             
-        Returns:
-            str: Schema Linking的结果(补充主键和外键)或完整数据库schema的JSON字符串
+        :return: The result of Schema Linking (with primary and foreign key information) or the full database schema in JSON string format
         """
         last_error = None
         for attempt in range(self.max_retries):
             try:
                 raw_schema_output = await self.link_schema(query, database_schema, query_id)
                 if raw_schema_output is not None:
-                    # 从原始输出中提取schema并补充主键和外键信息
+                    # Extract the schema from the original output and enrich it with primary and foreign key information
                     extracted_linked_schema = self.extractor.extract_schema_json(raw_schema_output)
                     enriched_linked_schema = self.enrich_schema_info(extracted_linked_schema, database_schema)
                     if extracted_linked_schema is not None:
                         return enriched_linked_schema
             except Exception as e:
                 last_error = e
-                self.logger.warning(f"Schema linking 第{attempt + 1}/{self.max_retries}次尝试失败: {str(e)}")
+                self.logger.warning(f"Schema linking failed on the {attempt + 1}/{self.max_retries} attempt: {str(e)}")
                 continue
         
-        # 达到重试阈值，返回完整的数据库schema，并确保格式与正常返回一致
-        self.logger.error(f"Schema linking 共{self.max_retries}次尝试后失败，返回完整数据库schema。最后一次错误: {str(last_error)}。Question ID: {query_id} 程序继续执行...")
+        # Reaching the retry threshold, returning the full database schema, ensuring the format is consistent with the normal return
+        self.logger.error(f"Schema linking failed after {self.max_retries} attempts, returning the full database schema. Last error: {str(last_error)}. Question ID: {query_id} The program continues to execute...")
         
-        # 构造一个包含所有表和列的schema，并补充主键和外键信息
+        # Construct a schema containing all tables and columns, and enrich it with primary and foreign key information
         full_schema = {
             "tables": [
                 {
@@ -115,7 +109,7 @@ class SchemaLinkerBase(ModuleBase):
             ]
         }
         
-        # 添加外键信息
+        # Add foreign key information
         if "foreign_keys" in database_schema:
             for table in full_schema["tables"]:
                 table_name = table["table"]
@@ -128,7 +122,7 @@ class SchemaLinkerBase(ModuleBase):
                             "referenced_column": fk["column"][1]
                         })
         
-        # 保存中间结果
+        # Save intermediate results
         self.save_intermediate(
             input_data={
                 "query": query,
@@ -148,7 +142,7 @@ class SchemaLinkerBase(ModuleBase):
             query_id=query_id
         )
 
-        # 即使Schema Linking失败返回full database schema也因保存结果
+        # Even if Schema Linking fails, return the full database schema and save the result
         source = database_schema.get("source", "unknown")
         self.save_linked_schema_result(
             query_id=query_id,
@@ -161,13 +155,13 @@ class SchemaLinkerBase(ModuleBase):
         return full_schema
     
     def _format_basic_schema(self, schema: Dict) -> str:
-        """基础schema格式化方法"""
+        """Basic schema formatting method"""
         result = []
         
-        # 添加数据库名称
+        # Add the database name
         result.append(f"Database: {schema['database']}\n")
         
-        # 格式化表结构
+        # Format the table structure
         for table in schema['tables']:
             result.append(f"Table name: {table['table']}")
             result.append(f"Columns: {', '.join(table['columns'])}")
@@ -175,7 +169,7 @@ class SchemaLinkerBase(ModuleBase):
                 result.append(f"Primary keys: {', '.join(table['primary_keys'])}")
             result.append("")
 
-        # 格式化外键关系
+        # Format the foreign key relationship
         if schema.get('foreign_keys'):
             result.append("Foreign keys:")
             for fk in schema['foreign_keys']:
@@ -190,10 +184,9 @@ class SchemaLinkerBase(ModuleBase):
         """
         Save the linked schema result to a separate JSONL file.
         
-        Args:
-            query_id: Query ID
-            source: Data source (e.g., 'bird_dev')
-            linked_schema: The linked schema with primary/foreign keys
+        :param query_id: Query ID
+        :param source: Data source (e.g., 'bird_dev')
+        :param linked_schema: The linked schema with primary/foreign keys
         """
         # Get the pipeline directory from the intermediate result handler
         pipeline_dir = self.intermediate.pipeline_dir

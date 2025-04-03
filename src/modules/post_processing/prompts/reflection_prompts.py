@@ -1,4 +1,4 @@
-"""SQL后处理模块的prompt模板"""
+"""SQL post-processing module prompt templates"""
 
 REFLECTION_SYSTEM = """You are a SQL expert responsible for checking and optimizing SQL statements.
 Check the following points:

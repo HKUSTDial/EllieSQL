@@ -2,24 +2,23 @@ train_file: "data/dpo/bird_train_dataset/classifier_train.json"
 valid_file: "data/dpo/bird_train_dataset/classifier_valid.json"
 
 # Training hyperparameters
-output_dir: "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0402"
+output_dir: "/path/to/saves/Qwen2.5-0.5B-router/dpo/"
 per_device_train_batch_size: 8
 num_train_epochs: 12
-fp16: True                                   # 启用 FP16 混合精度训练
-learning_rate: 0.000001                          # 学习率
-loss_type: "sigmoid"                         # DPO 损失类型，此处使用 sigmoid loss
-beta: 0.1                                    # 控制偏离参考模型的程度
-max_prompt_length: 512                       # prompt 的最大长度
-max_completion_length: 128                   # 本任务中不使用，但必须给定
-max_length: 640                              # prompt 的最大总长度（用于分词）
-#padding_value: tokenizer.pad_token_id        # 填充 token 的 id
-generate_during_eval: False                  # 分类任务无需生成
-dataset_num_proc: None                       # 禁用多进程，确保逐条处理
-remove_unused_columns: False                 # 保留所有数据列，避免 Trainer 自动移除自定义标签列
-logging_steps: 100                            # 每 50 步打印一次日志
-save_steps: 100                              # 每 100 步保存一次模型
-eval_strategy: "steps"  # 每隔一定步数评估一次
-eval_steps: 100           # 每 100 步进行评估（与保存间隔相同）
-logging_dir: "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0402/logs"  # 日志保存目录
+fp16: True
+learning_rate: 0.000001
+loss_type: "sigmoid"
+beta: 0.1
+max_prompt_length: 512
+max_completion_length: 128
+max_length: 640
+generate_during_eval: False
+dataset_num_proc: None
+remove_unused_columns: False
+logging_steps: 100
+save_steps: 100
+eval_strategy: "steps"
+eval_steps: 100
+logging_dir: "/path/to/logs"
 
 

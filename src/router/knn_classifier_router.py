@@ -7,7 +7,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from ..core.utils import load_json, load_jsonl
 
 
-    # 提取特征
+# Extract features
 def extract_features(data):
     features = []
     labels = []
@@ -28,7 +28,7 @@ def extract_features(data):
 
 
 class KNNClassifierRouter(RouterBase):
-    """添加了分类头并使用LoRA SFT的Qwen路由器"""
+    """Qwen router with classification head trained by LoRA SFT"""
     
     def __init__(self, name: str = "KNNClassifierRouter", seed: int = 42, train_file_path: str = None):
         super().__init__(name)
@@ -37,16 +37,14 @@ class KNNClassifierRouter(RouterBase):
         self.train_data = load_jsonl(self.train_file_path)
         X_train, y_train = extract_features(self.train_data)
 
-        print("正在训练KNN分类器。。。")
+        print("Training KNN classifier...")
         self.knn_classifier = KNeighborsClassifier(n_neighbors=5)
         self.knn_classifier.fit(X_train, y_train)
-        print("训练完成")
+        print("Training completed")
         
 
     def _predict(self, question: str, schema: dict) -> tuple[int, dict]:
-        """使用KNN模型进行预测"""
-
-
+        """Use KNN model to predict"""
         num_tables = len(schema["tables"])
         num_columns = sum(len(table["columns"]) for table in schema["tables"])
         
@@ -61,14 +59,13 @@ class KNNClassifierRouter(RouterBase):
             return 2
         
     async def route(self, query: str, schema_linking_output: Dict, query_id: str) -> str:
-        """根据分类器预测结果选择合适的SQL生成器"""
+        """Select the appropriate SQL generator based on the prediction result of the classifier"""
         linked_schema = schema_linking_output.get("linked_schema", {})
         
-        # 使用分类器进行预测
+        # Use classifier to predict
         predicted_class = self._predict(query, linked_schema)
-
         
-        # 根据预测结果选择pipeline
+        # Select the pipeline based on the prediction result
         if predicted_class == 0:  # Basic
             return PipelineLevel.BASIC.value
         elif predicted_class == 1:  # Intermediate

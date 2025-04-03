@@ -10,7 +10,7 @@ from ..core.config import Config
 from ..sft.instruction_templates import PipelineClassificationTemplates
 
 class RoBERTaCascadeClassifier:
-    """级联式二分类器"""
+    """Cascade binary classifier based on RoBERTa"""
     
     def __init__(self, pipeline_type: str, model_name: str, model_path: Path, confidence_threshold: float = 0.5):
         self.config = Config()
@@ -19,49 +19,49 @@ class RoBERTaCascadeClassifier:
         self.confidence_threshold = confidence_threshold
         self.templates = PipelineClassificationTemplates()
         
-        # 加载模型和tokenizer
+        # Load the model and tokenizer
         self._load_model_and_tokenizer()
         
     def _load_model_and_tokenizer(self):
-        """加载模型和分词器"""
+        """Load the model and tokenizer"""
         if not self.model_path.exists():
-            raise FileNotFoundError(f"找不到模型文件: {self.model_path}")
+            raise FileNotFoundError(f"Cannot find the model file: {self.model_path}")
             
-        # 从原始预训练模型加载tokenizer
+        # Load the tokenizer from the original pre-trained model
         self.tokenizer = RobertaTokenizer.from_pretrained(
             self.config.roberta_dir,
             padding_side="right"
         )
         
-        # 加载基础模型
+        # Load the base model
         base_model = RobertaForSequenceClassification.from_pretrained(
             self.config.roberta_dir,
-            num_labels=2,  # 二分类
+            num_labels=2,  # Binary classification
             problem_type="single_label_classification"
         )
         
-        # 加载LoRA权重
+        # Load the LoRA weights
         self.model = PeftModel.from_pretrained(
             base_model,
             self.model_path,
             torch_dtype=torch.float16
         )
         
-        # 将模型移动到GPU并设置为评估模式
+        # Move the model to GPU and set to evaluation mode
         self.model = self.model.cuda()
         self.model.eval()
         
-        # 禁用dropout等随机行为
+        # Disable dropout and other random behaviors
         for module in self.model.modules():
             if isinstance(module, (torch.nn.Dropout, torch.nn.LayerNorm)):
                 module.eval()
                 
     def classify(self, question: str, schema: dict) -> tuple[bool, float]:
-        """进行二分类预测，返回是否可处理和置信度"""
-        # 使用模板创建输入文本
+        """Perform binary classification prediction, return whether it can be processed and confidence"""
+        # Use the template to create the input text
         input_text = self.templates.create_classifier_prompt(question, schema)
         
-        # 编码输入
+        # Encode the input
         inputs = self.tokenizer(
             input_text,
             padding=True,
@@ -70,26 +70,26 @@ class RoBERTaCascadeClassifier:
             return_tensors="pt"
         )
         
-        # 将输入移动到GPU
+        # Move the input to GPU
         inputs = {k: v.cuda() for k, v in inputs.items()}
         
-        # 进行预测
+        # Perform prediction
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
             
-            # 使用softmax获取概率分布
+            # Get the probability distribution using softmax
             probs = F.softmax(logits, dim=-1)
-            # 获取正类（能处理）的概率
+            # Get the probability of the positive class (can be processed)
             positive_prob = float(probs[0][1])
             
-            # 只有当正类概率超过阈值时才认为能处理
+            # Only consider it can be processed when the positive class probability exceeds the threshold
             can_handle = (positive_prob >= self.confidence_threshold)
             
         return can_handle, positive_prob
 
 class RoBERTaCascadeRouter(RouterBase):
-    """级联式RoBERTa路由器：按basic->intermediate->advanced顺序判断"""
+    """Cascade RoBERTa router: judge in the order of basic->intermediate->advanced"""
     
     def __init__(
         self,
@@ -102,10 +102,10 @@ class RoBERTaCascadeRouter(RouterBase):
         self.config = Config()
         self.model_path = Path(model_path) if model_path else self.config.cascade_roberta_save_dir
         
-        # 设置随机种子
+        # Set the random seed
         self._set_seed(seed)
         
-        # 初始化pipeline对应的分类器
+        # Initialize the classifier for the corresponding pipeline
         self.basic_classifier = RoBERTaCascadeClassifier(
             pipeline_type="basic",
             model_name="basic_classifier",
@@ -122,7 +122,7 @@ class RoBERTaCascadeRouter(RouterBase):
         )
         print("[i] Successfully load and initialize classifier for intermediate pipeline")
 
-        # intermediate无法处理的直接使用advanced, 不需要额外判断
+        # intermediate cannot be processed, directly use advanced, no additional judgment is needed
         # self.advanced_classifier = RoBERTaCascadeClassifier(
         #     pipeline_type="advanced",
         #     model_name="advanced_classifier",
@@ -132,7 +132,7 @@ class RoBERTaCascadeRouter(RouterBase):
         # print("Successfully load and initialize classifier for advanced pipeline")
         
     def _set_seed(self, seed: int):
-        """设置随机种子"""
+        """Set the random seed"""
         import random
         import numpy as np
         random.seed(seed)
@@ -143,23 +143,23 @@ class RoBERTaCascadeRouter(RouterBase):
         torch.backends.cudnn.benchmark = False
         
     async def route(self, query: str, schema_linking_output: Dict, query_id: str) -> str:
-        """级联式路由逻辑"""
+        """Cascade routing logic"""
         linked_schema = schema_linking_output.get("linked_schema", {})
         
-        # 1. 首先尝试basic pipeline
+        # 1. First try the basic pipeline
         can_handle, confidence = self.basic_classifier.classify(query, linked_schema)
         if can_handle:
             self.logger.info(f"Query {query_id} routed to BASIC pipeline (confidence: {confidence:.3f})")
             return PipelineLevel.BASIC.value
             
-        # 2. 如果basic不行，尝试intermediate pipeline
+        # 2. If basic fails, try intermediate pipeline
         can_handle, confidence = self.intermediate_classifier.classify(query, linked_schema)
         if can_handle:
             self.logger.info(f"Query {query_id} routed to INTERMEDIATE pipeline (confidence: {confidence:.3f})")
             return PipelineLevel.INTERMEDIATE.value
             
-        # 3. 如果intermediate不行，直接使用advanced pipeline
-        # 可选：也可以先检查advanced pipeline是否能处理
+        # 3. If intermediate fails, directly use advanced pipeline
+        # Optional: You can also check if advanced pipeline can handle it first
         # can_handle, confidence = self.advanced_classifier.classify(query, linked_schema)
         self.logger.info(
             f"Query {query_id} routed to ADVANCED pipeline (confidence: {confidence:.3f})"

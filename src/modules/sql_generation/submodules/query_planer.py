@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Tuple, Callable
 
 
 class QueryPlaner():
-    """QP方法生成SQL，ensemble时使用"""
+    """QP method to generate SQL, used when ensembling"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -26,7 +26,7 @@ class QueryPlaner():
 
 
     # async def generate_sql_new(self, query: str, formatted_schema: str, curr_evidence: str)-> str:
-    #     ##  1. 生成query plan
+    #     ##  1. Generate query plan
     #     messages = [
     #         {"role": "system", "content": SQL_GENERATION_SYSTEM},
     #         {"role": "user", "content": QUERY_PLAN_GEN.format(
@@ -47,7 +47,7 @@ class QueryPlaner():
     #     query_plan = result["response"]
     #     print(query_plan)
 
-    #     ##  2. 基于 query plan生成 sql
+    #     ##  2. Generate SQL based on query plan
     #     messages = [
     #         {"role": "system", "content": SQL_GENERATION_SYSTEM},
     #         {"role": "user", "content": SQL_GEN.format(
@@ -66,8 +66,6 @@ class QueryPlaner():
     #         module_name=self.module_name
     #     )
 
-
-    #     print("QP完成了候选sql生成")
     #     return result
 
 
@@ -76,7 +74,7 @@ class QueryPlaner():
 
 
     async def generate_sql(self, query: str, formatted_schema: str, curr_evidence: str)-> str:
-        """生成SQL"""
+        """Generate SQL"""
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": QUERY_PLAN_PROMPT.format(
@@ -103,7 +101,7 @@ class QueryPlaner():
 
         #print(result["response"])
         
-        print("QP完成了候选sql生成")
+        # print("QP completed candidate SQL generation")
         return result
 
         # raw_output = result["response"]

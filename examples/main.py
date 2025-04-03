@@ -19,34 +19,8 @@ from src.pipeline import ElephantSQLPipeline
 from concurrent.futures import ThreadPoolExecutor
 
 async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
-    # 初始化LLM和模块
+    # Initialize LLM and modules
     llm = LLMBase()
-    
-
-    # 创建不同的pipeline组合
-    # pipeline1 = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=1000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=GPTSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=1000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=FeedbackBasedReflectionPostProcessor(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=1000,
-    #         max_retries=10
-    #     )
-    # )
     
     pipeline_v = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
@@ -66,191 +40,27 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
         post_processor=SkipPostProcessor()
     )
     
-    # pipeline_vr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=VanillaRefineSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_enh = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=EnhancedSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_osr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=OSRefinerSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_qpr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=QPRefinerSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=5000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-#
-    # pipeline_dcr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-
-    #     ),
-    #     sql_generator=DCRefinerSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_chase = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=5000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=CHASESQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=5000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline4 = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=5000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=EnsembleGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=5000,
-    #         n_candidates=2,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline5 = ElephantSQLPipeline(
-    #     schema_linker=SkipSchemaLinker(),
-    #     sql_generator=GPTSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.5, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_aggr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=OSRefinerAggregationSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-
-    
-    # 运行pipeline，设置并行数
+    # Run pipeline, set parallel number
     await pipeline_v.run_pipeline_parallel(
-        # data_file="./data/merge_dev_demo.json",
-        # data_file="./data/sampled_merged.json",
-        # data_file="./data/sampled_bird_dev.json", # 20% of bird dev
-        data_file="./data/formatted_bird_dev.json", # 100% of bird dev
-        # data_file="./data/sampled_bird_demo.json",
+        data_file="./data/formatted_bird_dev.json",
         max_workers=100
     )
 
 if __name__ == "__main__":
-    # 串行化运行
+    # Run serially
     # asyncio.run(main())
 
-    # 并行化运行
-    # 1. 设置新的事件循环
+    # Run in parallel
+    # 1. Set new event loop
     policy = asyncio.get_event_loop_policy()
     policy.set_event_loop(policy.new_event_loop())
 
-    # 2. 设置线程池大小
+    # 2. Set thread pool size
     loop = asyncio.get_event_loop()
     loop.set_default_executor(ThreadPoolExecutor(max_workers=300))
 
-    # 3. 运行与关闭
-    loop.run_until_complete(main(backbone_model="claude-3-haiku-20240307"))
-    # loop.run_until_complete(main(backbone_model="gpt-4o-mini-2024-07-18"))
-    # loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
+    # 3. Run and close
+    loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
     loop.close() 
+
+    # python -m examples.main

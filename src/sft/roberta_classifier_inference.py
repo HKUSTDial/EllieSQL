@@ -9,62 +9,62 @@ from ..core.config import Config
 from .instruction_templates import PipelineClassificationTemplates
 
 def set_seed(seed: int = 42):
-    """设置所有随机种子以确保可重复性"""
+    """Set all random seeds to ensure reproducibility"""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    # 禁用cudnn的随机性
+    # Disable the randomness of cudnn
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 class RoBERTaClassifier:
-    """用于分类推理的RoBERTa分类器"""
+    """The RoBERTa classifier for classification inference"""
 
     def __init__(self, model_path: str = None, seed: int = 42):
-        # 设置随机种子
+        # Set the random seeds
         set_seed(seed)
         
         self.config = Config()
         self.model_path = Path(model_path) if model_path else self.config.roberta_save_dir / "final_model_roberta_lora"
         self.templates = PipelineClassificationTemplates()
         
-        # 加载模型和tokenizer
+        # Load the model and tokenizer
         self._load_model_and_tokenizer()
         
     def _load_model_and_tokenizer(self):
-        """加载模型和分词器"""
+        """Load the model and tokenizer"""
         if not self.model_path.exists():
             raise FileNotFoundError(f"找不到模型文件: {self.model_path}")
             
-        # 从原始预训练模型加载tokenizer
+        # Load the tokenizer from the original pre-trained model
         self.tokenizer = RobertaTokenizer.from_pretrained(
-            self.config.roberta_dir,  # 使用预训练模型的tokenizer
+            self.config.roberta_dir,  # Use the tokenizer of the pre-trained model
             padding_side="right"
         )
         
-        # 加载微调后的分类模型
+        # Load the fine-tuned classification model
         self.model = RobertaForSequenceClassification.from_pretrained(
             self.model_path,
             num_labels=3,  # Basic, Intermediate, Advanced
             problem_type="single_label_classification"
         )
         
-        # 将模型移动到GPU并设置为评估模式
+        # Move the model to GPU and set it to evaluation mode
         self.model = self.model.cuda()
         self.model.eval()
         
-        # 禁用dropout等随机行为
+        # Disable dropout and other random behaviors
         for module in self.model.modules():
             if isinstance(module, (torch.nn.Dropout, torch.nn.LayerNorm)):
                 module.eval()
         
     def classify(self, question: str, schema: dict) -> tuple[int, dict]:
-        """进行分类预测，返回预测的类别和概率分布"""
-        # 使用模板创建输入文本
+        """Perform classification prediction, returning the predicted class and probability distribution"""
+        # Use the template to create the input text
         input_text = self.templates.create_classifier_prompt(question, schema)
         
-        # 编码输入
+        # Encode the input
         inputs = self.tokenizer(
             input_text,
             padding=True,
@@ -73,36 +73,36 @@ class RoBERTaClassifier:
             return_tensors="pt"
         )
         
-        # 将输入移动到GPU
+        # Move the input to GPU
         inputs = {k: v.cuda() for k, v in inputs.items()}
         
-        # 进行预测
+        # Perform prediction
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
             
-            # 使用softmax获取概率分布
+            # Use softmax to get the probability distribution
             probs = F.softmax(logits, dim=-1)
             predicted_class = torch.argmax(probs, dim=-1).item()
             
-            # 获取每个类别的概率
+            # Get the probability of each class
             probabilities = {
                 "basic": float(probs[0][0]),
                 "intermediate": float(probs[0][1]),
                 "advanced": float(probs[0][2])
             }
             
-        # 转换回1-based标签
+        # Convert back to 1-based labels
         return predicted_class + 1, probabilities
 
 def test():
-    """测试分类器推理"""
+    """Test the classifier inference"""
     classifier = RoBERTaClassifier(
         model_path="/data/zhuyizhang/saves/RoBERTa-router/final_model_roberta_lora",
         seed=42
     )
     
-    # 测试样例
+    # Test cases
     test_cases = [
         {
             "question": "How many pets have a greater weight than 10?",
@@ -164,7 +164,7 @@ def test():
         }
     ]
 
-    # 对每个测试用例进行分类
+    # Classify each test case
     print(f"Supposed to be: 1, 1, 1, 3, 3")
     for i, test_case in enumerate(test_cases, 1):
         label, probabilities = classifier.classify(test_case["question"], test_case["schema"])

@@ -52,30 +52,28 @@ class ExecuteSQLThread(threading.Thread):
         
     def run(self) -> None:
         try:
-            # 使用URI和只读模式打开数据库, 确保只读访问防止数据库在执行过程中被篡改
+            # Use URI and read-only mode to open the database, ensure read-only access to prevent the database from being tampered with during execution
             uri = f"file:{self.db_path}?mode=ro"
             with sqlite3.connect(uri, uri=True) as conn:
                 cursor = conn.cursor()
                 cursor.execute(self.sql)
                 self.result = cursor.fetchall()
-                cursor.close()  # 确保关闭游标
+                cursor.close()  # Ensure the cursor is closed
         except Exception as e:
             self.exception = e
         finally:
             if conn:
-                conn.close()  # 显式关闭连接
+                conn.close()  # Explicitly close the connection
 
 
 def execute_sql_with_timeout(db_path: str, sql: str, timeout: int = 10) -> SQLExecutionResult:
     """
     Execute a SQL query synchronously with a timeout.
     
-    Args:
-        db_path: The path to the database.
-        sql: The SQL query to execute.
-        timeout: The timeout.
-    Returns:
-        The result of the SQL query.
+    :param db_path: The path to the database.
+    :param sql: The SQL query to execute.
+    :param timeout: The timeout.
+    :return: The result of the SQL query.
     """ 
     thread = ExecuteSQLThread(db_path, sql, timeout)
     thread.start()
@@ -92,14 +90,11 @@ def execute_sql_with_timeout(db_path: str, sql: str, timeout: int = 10) -> SQLEx
 def check_query_valid(db_path: str, sql: str, with_limit: bool = True, timeout: int = 10) -> bool:
     """
     Check if a SQL query is valid.
-    
-    Args:
-        db_path: The path to the database.
-        sql: The SQL query to check.
-        with_limit: Whether to add a limit to the query.
-        timeout: The timeout.
-    Returns:
-        Whether the SQL query is valid.
+    :param db_path: The path to the database.
+    :param sql: The SQL query to check.
+    :param with_limit: Whether to add a limit to the query.
+    :param timeout: The timeout.
+    :return: Whether the SQL query is valid.
     """
     if with_limit:
         sql = f"SELECT * FROM ({sql}) LIMIT 1;"
@@ -108,18 +103,14 @@ def check_query_valid(db_path: str, sql: str, with_limit: bool = True, timeout: 
 
 def validate_sql_execution(db_path: str, sql: str) -> Tuple[bool, str]:
     """
-    验证SQL是否可以在指定数据库上正常执行且结果不为空
-    
-    Args:
-        db_path: 数据库文件路径
-        sql: 待验证的SQL语句
-        
-    Returns:
-        Tuple[bool, str]: (是否有效, 错误信息)
+    Check if a SQL query can be executed normally on a specified database and the result is not empty
+    :param db_path: The path to the database file
+    :param sql: The SQL query to validate
+    :return: Tuple[bool, str]: (if valid, error message)
     """
     try:
         result = execute_sql_with_timeout(db_path, sql)
-        # 检查执行结果
+        # Check the execution result
         if result.result_type == SQLExecutionResultType.ERROR:
             return False, f"SQL execution error: {result.error_message}"
         elif result.result_type == SQLExecutionResultType.TIMEOUT:
@@ -136,18 +127,15 @@ def validate_sql_execution(db_path: str, sql: str) -> Tuple[bool, str]:
 
 def validate_sql_execution_and_non_empty_result(db_path: str, sql: str) -> Tuple[bool, str]:
     """
-    验证SQL是否可以在指定数据库上正常执行且结果不为空
+    Check if a SQL query can be executed normally on a specified database and the result is not empty
     
-    Args:
-        db_path: 数据库文件路径
-        sql: 待验证的SQL语句
-        
-    Returns:
-        Tuple[bool, str]: (是否有效, 错误信息)
+    :param db_path: The path to the database file
+    :param sql: The SQL query to validate
+    :return: Tuple[bool, str]: (if valid, error message)
     """
     try:
         result = execute_sql_with_timeout(db_path, sql)
-        # 检查执行结果
+        # Check the execution result
         if result.result_type == SQLExecutionResultType.ERROR:
             return False, f"SQL execution error: {result.error_message}"
         elif result.result_type == SQLExecutionResultType.TIMEOUT:

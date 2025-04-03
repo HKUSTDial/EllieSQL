@@ -55,6 +55,7 @@ if __name__ == "__main__":
     """
     Process the Spider and Bird datasets into the format required for this project
     """
+    
     # Example file path
     spider_file_path = "spider_dev.json"
     bird_file_path = "bird_dev.json"

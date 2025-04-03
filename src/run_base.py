@@ -20,10 +20,10 @@ from src.pipeline import ElephantSQLPipeline
 from concurrent.futures import ThreadPoolExecutor
 
 async def run_pipeline(pipeline_name: str, schema_model: str, generator_model: str, test_file: str, max_workers: int):
-    """运行指定的pipeline"""
+    """Run the base pipeline"""
     llm = LLMBase()
     
-    # 创建schema linker
+    # Create schema linker
     schema_linker = EnhancedSchemaLinker(
         llm, 
         model=schema_model, 
@@ -32,7 +32,7 @@ async def run_pipeline(pipeline_name: str, schema_model: str, generator_model: s
         max_retries=10
     )
     
-    # 根据pipeline名称选择generator
+    # Select generator based on pipeline name
     if pipeline_name == "GB":
         generator = GPTSQLGenerator(
             llm, 
@@ -60,14 +60,14 @@ async def run_pipeline(pipeline_name: str, schema_model: str, generator_model: s
     else:
         raise ValueError(f"Unknown pipeline: {pipeline_name}")
     
-    # 创建pipeline
+    # Create pipeline
     pipeline = ElephantSQLPipeline(
         schema_linker=schema_linker,
         sql_generator=generator,
         post_processor=SkipPostProcessor()
     )
     
-    # 运行pipeline
+    # Run pipeline
     print(f"\nRunning {pipeline_name} pipeline:")
     print(f"Schema Linker Model: {schema_model}")
     print(f"Generator Model: {generator_model}")
@@ -101,14 +101,14 @@ async def main():
     )
 
 if __name__ == "__main__":
-    # 1. 设置新的事件循环
+    # 1. Set a new event loop
     policy = asyncio.get_event_loop_policy()
     policy.set_event_loop(policy.new_event_loop())
 
-    # 2. 设置线程池大小
+    # 2. Set the thread pool size
     loop = asyncio.get_event_loop()
     loop.set_default_executor(ThreadPoolExecutor(max_workers=256))
 
-    # 3. 运行与关闭
+    # 3. Run and close
     loop.run_until_complete(main())
     loop.close() 

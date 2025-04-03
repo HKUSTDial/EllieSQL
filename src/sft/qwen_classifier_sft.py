@@ -28,11 +28,11 @@ from datetime import datetime
 import argparse
 import yaml
 
-# 设置多进程启动方式为spawn
+# Set the multiprocessing start method to spawn
 multiprocessing.set_start_method('spawn', force=True)
 
 def setup_distributed():
-    """设置分布式训练环境"""
+    """Set the distributed training environment"""
     if 'LOCAL_RANK' not in os.environ:
         return False
     
@@ -42,31 +42,31 @@ def setup_distributed():
     return True
 
 def cleanup_distributed():
-    """清理分布式训练环境"""
+    """Clean up the distributed training environment"""
     if torch.distributed.is_initialized():
         torch.distributed.destroy_process_group()
 
 def load_sft_config(config_name: str):
-    """加载SFT配置"""
+    """Load the SFT configuration"""
     config_path = Path("config") / f"{config_name}.yaml"
     if not config_path.exists():
-        raise FileNotFoundError(f"找不到配置文件: {config_path}")
+        raise FileNotFoundError(f"Cannot find the configuration file: {config_path}")
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 class QwenForSequenceClassification(PreTrainedModel):
     """
-    用于分类的Qwen模型 (在Qwen的基础上添加分类头)
-    使用最后一个token的隐藏状态进行分类
+    Qwen model for classification (adds a classification head on top of Qwen)
+    Uses the last token's hidden state for classification
     """
 
     def __init__(self, base_model, num_labels=3):
         super().__init__(base_model.config)
         self.num_labels = num_labels
         self.qwen = base_model
-        # 添加分类头并确保在正确的设备上
+        # Add the classification head and ensure it is on the correct device
         self.classifier = nn.Linear(self.qwen.config.hidden_size, num_labels)
-        # 将分类头移动到与基础模型相同的设备
+        # Move the classification head to the same device as the base model
         self.classifier.to(base_model.device)
         
     def forward(
@@ -76,23 +76,23 @@ class QwenForSequenceClassification(PreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         **kwargs
     ) -> SequenceClassifierOutput:
-        # 获取最后一层隐藏状态
+        # Get the last layer hidden state
         outputs = self.qwen(
             input_ids=input_ids,
             attention_mask=attention_mask,
             **kwargs
         )
         
-        # 使用最后一个token的隐藏状态进行分类
+        # Use the last token's hidden state for classification
         last_hidden_state = outputs.last_hidden_state
         sequence_output = last_hidden_state[:, -1, :]
-        # 确保在同一设备上
+        # Ensure it is on the same device
         sequence_output = sequence_output.to(self.classifier.weight.device)
         logits = self.classifier(sequence_output)
         
         loss = None
         if labels is not None:
-            # 确保标签在正确的设备上
+            # Ensure the labels are on the correct device
             labels = labels.to(logits.device)
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
@@ -105,11 +105,11 @@ class QwenForSequenceClassification(PreTrainedModel):
         )
 
     def get_classifier_config(self):
-        """获取分类头配置"""
+        """Get the classifier head configuration"""
         return {
             "num_labels": self.num_labels,
             "hidden_size": self.qwen.config.hidden_size,
-            "classifier_dropout": 0.1,  # 如果使用了dropout
+            "classifier_dropout": 0.1,  # If dropout is used
             "model_type": "QwenForSequenceClassification"
         }
 
@@ -124,21 +124,21 @@ class QwenClassifierTrainer:
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
         self.log_file = None
         
-        # 加载指定的配置文件
+        # Load the specified configuration file
         self.sft_config = load_sft_config(sft_config)
         if self.local_rank == 0:
             print(f"Using SFT config: {sft_config}")
         
     def _log_to_file(self, message: str):
-        """写入日志到文件"""
-        if self.log_file and self.local_rank == 0:  # 只在主进程写日志
+        """Write the log to the file"""
+        if self.log_file and self.local_rank == 0:  # Only write the log in the main process
             with open(self.log_file, "a", encoding="utf-8") as f:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 f.write(f"[{timestamp}] {message}\n")
                 
     def load_model_and_tokenizer(self):
-        """加载模型和分词器"""
-        # 加载tokenizer
+        """Load the model and tokenizer"""
+        # Load the tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_path,
             trust_remote_code=True,
@@ -146,7 +146,7 @@ class QwenClassifierTrainer:
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        # 加载基础模型
+        # Load the base model
         base_model = AutoModel.from_pretrained(
             self.model_path,
             trust_remote_code=True,
@@ -154,10 +154,10 @@ class QwenClassifierTrainer:
             device_map={'': self.local_rank}
         )
         
-        # 创建分类模型
+        # Create the classification model
         self.model = QwenForSequenceClassification(base_model)
         
-        # 配置LoRA
+        # Configure LoRA
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             r=self.sft_config["lora_r"],
@@ -167,12 +167,12 @@ class QwenClassifierTrainer:
             bias="none",
         )
         
-        # 准备模型
+        # Prepare the model
         self.model = prepare_model_for_kbit_training(self.model)
         self.model = get_peft_model(self.model, lora_config)
         
     def prepare_dataset(self):
-        """准备数据集"""
+        """Prepare the dataset"""
         dataset = load_dataset(
             'json',
             data_files={
@@ -189,9 +189,9 @@ class QwenClassifierTrainer:
                 max_length=self.sft_config["max_length"],
                 return_tensors=None
             )
-            # 确保标签是正确的类型和范围
+            # Ensure the labels are of the correct type and range
             labels = [int(label) for label in examples["label"]]
-            # 验证标签范围并打印异常值
+            # Verify the label range and print the abnormal values
             for i, label in enumerate(labels):
                 if not (0 <= label < 3):
                     print(f"Warning: Invalid label {label} at index {i}")
@@ -209,17 +209,17 @@ class QwenClassifierTrainer:
         return tokenized_datasets
         
     def compute_metrics(self, eval_pred):
-        """计算评估指标, 对于将复杂问题错误分类到简单pipeline的情况增加惩罚"""
+        """Compute the evaluation metrics, add a penalty for classifying complex questions into simple pipelines"""
         predictions = eval_pred.predictions[0] if isinstance(eval_pred.predictions, tuple) else eval_pred.predictions
-        predictions = predictions.argmax(-1)  # 转换为0-based标签
-        labels = eval_pred.label_ids  # 0-based标签
+        predictions = predictions.argmax(-1)  # Convert to 0-based labels
+        labels = eval_pred.label_ids  # 0-based labels
         
         total = len(labels)
         correct = 0
         penalty = 0
-        penalty_factor = self.sft_config["penalty_factor"] # 惩罚因子, 如为0则不惩罚
+        penalty_factor = self.sft_config["penalty_factor"] # Penalty factor, if 0 then no penalty
         
-        # 计算每个类别的统计信息
+        # Calculate the statistics for each class
         class_correct = {i: 0 for i in range(3)}
         class_total = {i: 0 for i in range(3)}
         pred_dist = {i: 0 for i in range(3)}
@@ -229,17 +229,17 @@ class QwenClassifierTrainer:
             pred_dist[pred] += 1
             
             if pred == label:
-                # 正确分类
+                # Correctly classified
                 correct += 1
                 class_correct[label] += 1
             elif label > pred and pred == 0:
-                # 惩罚将Intermediate和Advanced分类到Basic的情况
+                # Penalize classifying Intermediate and Advanced into Basic
                 penalty += 1 * penalty_factor
         
-        # 计算带惩罚的准确率
+        # Calculate the penalized accuracy
         penalized_accuracy = (correct - penalty) / total
         
-        # 计算每个类别的准确率
+        # Calculate the accuracy for each class
         class_accuracy = {}
         for i in range(3):
             if class_total[i] > 0:
@@ -247,7 +247,7 @@ class QwenClassifierTrainer:
             else:
                 class_accuracy[f"class_{i}_accuracy"] = 0.0
         
-        # 计算分布百分比
+        # Calculate the percentage of distribution
         pred_dist_pct = {
             f"pred_dist_{i}": float(count) / total 
             for i, count in pred_dist.items()
@@ -257,16 +257,16 @@ class QwenClassifierTrainer:
             for i in range(3)
         }
         
-        # 记录惩罚信息
+        # Record the penalty information
         penalty_info = {
             "penalty": float(penalty),
             "raw_accuracy": float(correct) / total,
             "penalized_accuracy": float(penalized_accuracy)
         }
         
-        # 返回所有指标
+        # Return all metrics
         return {
-            "accuracy": penalized_accuracy,  # 使用带惩罚的准确率
+            "accuracy": penalized_accuracy,  # Use the penalized accuracy
             **class_accuracy,
             **pred_dist_pct,
             **true_dist_pct,
@@ -278,18 +278,18 @@ class QwenClassifierTrainer:
             self.load_model_and_tokenizer()
             tokenized_datasets = self.prepare_dataset()
             
-            # 计算合适的评估步数
+            # Calculate the appropriate number of evaluation steps
             num_train_samples = len(tokenized_datasets["train"])
             # batch_size = 8
             num_gpu = torch.cuda.device_count()
             steps_per_epoch = num_train_samples // (8 * num_gpu)
             
-            # 设置checkpoint和训练日志保存路径
+            # Set the checkpoint and training log save path
             checkpoint_dir = self.save_dir / "qwen_classifier_checkpoints"
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = checkpoint_dir / "training.log"
             
-            # 记录训练开始信息
+            # Record the training start information
             self._log_to_file(
                 f"Training started with:\n"
                 f"- Number of GPUs: {num_gpu}\n"
@@ -298,10 +298,10 @@ class QwenClassifierTrainer:
                 # f"- Steps per epoch: {steps_per_epoch}\n"
             )
             
-            # 配置训练参数
+            # Configure the training parameters
             training_args = TrainingArguments(
                 output_dir=str(checkpoint_dir),
-                # 训练策略配置
+                # Training strategy configuration
                 per_device_train_batch_size=self.sft_config["per_device_train_batch_size"],
                 per_device_eval_batch_size=self.sft_config["per_device_eval_batch_size"],
                 gradient_accumulation_steps=self.sft_config["gradient_accumulation_steps"],
@@ -310,28 +310,28 @@ class QwenClassifierTrainer:
                 lr_scheduler_type=self.sft_config["lr_scheduler_type"],
                 fp16=self.sft_config["fp16"],
                 
-                # 评估策略配置
+                # Evaluation strategy configuration
                 eval_strategy=self.sft_config["eval_strategy"],
-                eval_steps=self.sft_config.get("eval_steps", None),  # 如果是"epoch"模式则不需要
+                eval_steps=self.sft_config.get("eval_steps", None),  # If "epoch" mode then no need
                 
-                # 保存策略配置
+                # Save strategy configuration
                 save_strategy=self.sft_config["save_strategy"],
-                save_steps=self.sft_config.get("save_steps", None),  # 如果是"epoch"模式则不需要
+                save_steps=self.sft_config.get("save_steps", None),  # If "epoch" mode then no need
                 
-                # 日志相关配置
+                # Log related configuration
                 logging_dir=str(self.config.logs_dir / "sft" / "qwen_classifier"),
                 logging_strategy=self.sft_config["logging_strategy"],
-                logging_steps=self.sft_config.get("logging_steps", None),  # 如果是"epoch"模式则不需要
+                logging_steps=self.sft_config.get("logging_steps", None),  # If "epoch" mode then no need
                 logging_first_step=self.sft_config["logging_first_step"],
                 report_to=["tensorboard"],
                 
-                # checkpoint相关配置
+                # Checkpoint related configuration
                 load_best_model_at_end=self.sft_config["load_best_model_at_end"],
                 metric_for_best_model=self.sft_config["metric_for_best_model"],
                 greater_is_better=self.sft_config["greater_is_better"],
                 save_total_limit=self.sft_config["save_total_limit"],
                 
-                # 其他配置
+                # Other configuration
                 ddp_find_unused_parameters=self.sft_config["ddp_find_unused_parameters"],
                 local_rank=self.local_rank,
                 dataloader_num_workers=self.sft_config["dataloader_num_workers"],
@@ -341,34 +341,34 @@ class QwenClassifierTrainer:
                 max_grad_norm=self.sft_config["max_grad_norm"]
             )
             
-            # 创建带日志功能的trainer
+            # Create the trainer with logging function
             trainer = Trainer(
                 model=self.model,
                 args=training_args,
                 train_dataset=tokenized_datasets["train"],
                 eval_dataset=tokenized_datasets["validation"],
                 compute_metrics=self.compute_metrics,
-                callbacks=[TrainingCallback(self._log_to_file)]  # 添加回调来记录训练过程
+                callbacks=[TrainingCallback(self._log_to_file)]  # Add a callback to record the training process
             )
             
-            # 开始训练
+            # Start training
             train_result = trainer.train()
             
-            # 最终评估
+            # Final evaluation
             final_metrics = trainer.evaluate()
             
-            # 记录最终评估结果
+            # Record the final evaluation results
             self._log_to_file("\n\n\nFinal Evaluation Results:")
             for metric_name, value in final_metrics.items():
                 self._log_to_file(f"{metric_name}: {value:.4f}")
             
-            # 保存最终模型和结果
+            # Save the final model and results
             if self.local_rank == 0:
-                # 保存最终模型
+                # Save the final model
                 final_model_dir = self.save_dir / "final_model_classifier"
                 trainer.save_model(final_model_dir)
                 
-                # 保存分类头配置和权重
+                # Save the classifier head configuration and weights
                 classifier_config = self.model.get_classifier_config()
                 classifier_state = self.model.classifier.state_dict()
                 
@@ -379,7 +379,7 @@ class QwenClassifierTrainer:
                 
                 torch.save(classifier_save, final_model_dir / "classifier.pt")
                 
-                # 保存训练结果
+                # Save the training results
                 results_file = checkpoint_dir / "training_results.json"
                 results_data = {
                     "train_results": train_result.metrics,
@@ -387,7 +387,7 @@ class QwenClassifierTrainer:
                     "train_samples": num_train_samples,
                     "eval_samples": len(tokenized_datasets["validation"]),
                     "training_args": training_args.to_dict(),
-                    "classifier_config": classifier_config  # 也包含在训练结果中
+                    "classifier_config": classifier_config  # Also included in the training results
                 }
                 
                 with open(results_file, "w") as f:
@@ -409,7 +409,7 @@ class QwenClassifierTrainer:
             raise e
 
 class TrainingCallback(TrainerCallback):
-    """用于记录训练过程的回调"""
+    """Callback for recording the training process"""
     def __init__(self, log_func):
         self.log_func = log_func
         
@@ -417,7 +417,7 @@ class TrainingCallback(TrainerCallback):
         self.log_func(f"\n\n<< Epoch {state.epoch:.2f} started >>")
         
     def on_evaluate(self, args, state, control, metrics, **kwargs):
-        # 提取指标
+        # Extract the metrics
         penalized_accuracy = metrics.get('eval_accuracy', 'N/A')
         raw_accuracy = metrics.get('eval_raw_accuracy', 'N/A')
         penalty = metrics.get('eval_penalty', 'N/A')
@@ -437,7 +437,7 @@ class TrainingCallback(TrainerCallback):
             for i in range(3)
         ]
         
-        # 构建评估日志
+        # Build the evaluation log
         eval_log = (
             f"Evaluation at Step {state.global_step} (epoch {state.epoch:.2f}):\n"
             f"[Raw Accuracy      ] {raw_accuracy:.5f}\n"
@@ -456,7 +456,7 @@ class TrainingCallback(TrainerCallback):
         self.log_func(eval_log)
         
     def on_log(self, args, state, control, logs, **kwargs):
-        # 记录训练损失等信息
+        # Record the training loss and other information
         if "loss" in logs:
             self.log_func(
                 f"Step {state.global_step}: "

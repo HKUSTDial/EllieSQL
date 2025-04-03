@@ -14,17 +14,17 @@ penalty_factor: 0.1
 eval_strategy: "epoch"
 save_strategy: "epoch"
 
-# 日志相关配置
+# Log related configuration
 logging_strategy: "epoch"
 logging_first_step: true
 
-# checkpoint相关配置
+# Checkpoint related configuration
 load_best_model_at_end: true
 metric_for_best_model: "rank_accuracy"
 greater_is_better: true
 save_total_limit: 3
 
-# 其他配置
+# Other configuration
 ddp_find_unused_parameters: false
 dataloader_num_workers: 0
 remove_unused_columns: false

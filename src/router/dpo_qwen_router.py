@@ -11,38 +11,31 @@ from pathlib import Path
 
 
 class DPOClassifierRouter(RouterBase):
-    """添加了分类头并使用DPO训练的Qwen路由器"""
+    """Qwen router with classification head trained by DPO"""
     
     def __init__(self, name: str = "DPOClassifierRouter", seed: int = 42, model_path: str = None):
         super().__init__(name)
         self.config = Config()
         self.templates = PipelineClassificationTemplates()
 
-        # self.model_name = "data/dpo/bird_dev_dataset/dpo-qwen2.5-0.5b_second/checkpoint-378"
-        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b/checkpoint-1800"
-        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2211"
-        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_second/checkpoint-2200"
-        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset/dpo-qwen2.5-0.5b_0219/checkpoint-3600"
-        # self.model_name = "/data/jiangrunzhi/saves/Qwen2.5-0.5B-router/dpo/bird_train_dataset_simplified/dpo-qwen2.5-0.5b_0220/checkpoint-3300"
-
         self.model_path = Path(model_path) if model_path else self.config.dpo_save_dir / "final_model_classifier"
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.trained_model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
 
-        # 设置随机种子以确保可重复性
+        # Set the random seed to ensure reproducibility
         self._set_seed(seed)
 
-        # 设置 GPU 设备，优先使用 CUDA
+        # Set the GPU device, prioritize CUDA
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        # 如果有多块 GPU，则使用 DataParallel 封装模型，利用 gpu0,1,2,3
+        # If there are multiple GPUs, use DataParallel to wrap the model, use gpu0,1,2,3
         if torch.cuda.device_count() > 1:
             self.trained_model = torch.nn.DataParallel(self.trained_model, device_ids=[0, 1, 2, 3])
         self.trained_model.to(self.device)
     
 
     def _set_seed(self, seed: int):
-        """设置随机种子"""
+        """Set the random seed"""
         import random
         import numpy as np
         random.seed(seed)
@@ -54,30 +47,30 @@ class DPOClassifierRouter(RouterBase):
 
 
     def _predict(self, question: str, schema: dict) -> tuple[int, dict]:
-        """使用dpo-qwen模型进行预测"""
+        """Use dpo-qwen model to predict"""
         input_text = self.templates.create_classifier_prompt(
                     question=question,
                     schema=schema
                 )
         
-        self.trained_model.eval()  # 切换到评估模式
+        self.trained_model.eval()  # Switch to evaluation mode
 
-        # 使用 tokenizer 对 prompt 分词
+        # Use tokenizer to tokenize the prompt
         encoded_input = self.tokenizer(input_text, return_tensors="pt", truncation=True, padding="max_length", max_length=512)
         
         encoded_input = {k: v.to(self.device) for k, v in encoded_input.items()}
-        # 模型输出 logits
+        # Model output logits
         with torch.no_grad():
             outputs = self.trained_model(**encoded_input)
             logits = outputs.logits
-            # 使用 softmax 计算预测概率
+            # Use softmax to calculate the predicted probability
             probs = torch.softmax(logits, dim=-1)
             predicted_label = torch.argmax(probs, dim=-1).item()
 
-        # print(f"测试 prompt: {input_text}")
-        # print(f"预测类别: {predicted_label}，各类别概率: {probs.squeeze().tolist()}")
+        # print(f"Test prompt: {input_text}")
+        # print(f"Predicted label: {predicted_label}, Probabilities: {probs.squeeze().tolist()}")
 
-        print(f"预测类别: {predicted_label}，各类别概率: {probs.squeeze().tolist()}")
+        print(f"Predicted label: {predicted_label}, Probabilities: {probs.squeeze().tolist()}")
         ans = predicted_label
         return ans
 
@@ -89,14 +82,14 @@ class DPOClassifierRouter(RouterBase):
         #     return 2
         
     async def route(self, query: str, schema_linking_output: Dict, query_id: str) -> str:
-        """根据分类器预测结果选择合适的SQL生成器"""
+        """Select the appropriate SQL generator based on the prediction result of the classifier"""
         linked_schema = schema_linking_output.get("linked_schema", {})
         
-        # 使用分类器进行预测
+        # Use classifier to predict
         predicted_class = self._predict(query, linked_schema)
 
         
-        # 根据预测结果选择pipeline
+        # Select the pipeline based on the prediction result
         if predicted_class == 0:  # Basic
             return PipelineLevel.BASIC.value
         elif predicted_class == 1:  # Intermediate

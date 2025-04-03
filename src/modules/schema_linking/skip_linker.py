@@ -3,7 +3,7 @@ from .base import SchemaLinkerBase
 from ...core.schema.manager import SchemaManager
 
 class SkipSchemaLinker(SchemaLinkerBase):
-    """跳过Schema Linking的实现，直接返回 *带有补充信息* 的数据库schema"""
+    """Implementation of Schema Linking that skips the process and returns the *enhanced* database schema"""
     
     def __init__(self, max_retries: int = 1):
         super().__init__("SkipSchemaLinker", max_retries)
@@ -11,18 +11,16 @@ class SkipSchemaLinker(SchemaLinkerBase):
         
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:
         """
-        跳过schema linking，直接返回带有补充信息的数据库schema
+        Skip schema linking and return the *enhanced* database schema directly
         
-        Args:
-            query: 用户查询
-            database_schema: 数据库schema
-            query_id: 查询ID
+        :param query: The user query
+        :param database_schema: The database schema
+        :param query_id: The query ID
             
-        Returns:
-            str: 格式化的schema字符串
+        :return: str: The formatted schema string
         """
         try:
-            # 构造一个包含所有表和列的linked_schema
+            # Construct a linked_schema containing all tables and columns
             linked_schema = {
                 "tables": [
                     {
@@ -45,10 +43,10 @@ class SkipSchemaLinker(SchemaLinkerBase):
                 }
             )
             
-            # 格式化linked schema
+            # Format the linked schema
             formatted_linked_schema = self.schema_manager.format_linked_schema(linked_schema)
             # print("****formatted_linked_schema*****\n", formatted_linked_schema, "\n*********")
-            # 保存中间结果
+            # Save intermediate results
             self.save_intermediate(
                 input_data={
                     "query": query,
@@ -67,7 +65,7 @@ class SkipSchemaLinker(SchemaLinkerBase):
                 query_id=query_id
             )
 
-            # 为保持接口一致性，使用用于占位的固定raw_output内容
+            # To maintain consistency with the interface, use a fixed raw_output content for placeholder
             raw_output = """```json {"tables": [{"table": "<skip schema linking>", "columns": ["<skip schema linking>"]}]}```"""
 
             self.log_io(

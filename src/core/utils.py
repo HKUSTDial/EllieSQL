@@ -7,8 +7,8 @@ def load_json(file_path):
     """
     load json file.
 
-    Args: file_path
-    Returns: file_data
+    :param file_path: The path to the JSON file.
+    :return: The data in the JSON file.
     """ 
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
@@ -17,18 +17,18 @@ def load_jsonl(file_path):
     """
     load jsonl file.
     
-    Args: file_path
-    Returns: file_data
+    :param file_path: The path to the JSONL file.
+    :return: The data in the JSONL file.
     """ 
     data = []
     with open(file_path, 'r', encoding='utf-8') as file:
         for line in file:
-            # 解析每一行的 JSON 对象
+            # Parse each line as a JSON object
             data.append(json.loads(line.strip()))
     return data
 
 class TextExtractor:
-    """文本提取工具类"""
+    """Text extraction tool class"""
     @staticmethod
     def extract_sub_questions(text: str) -> List[str]:
         """
@@ -44,7 +44,7 @@ class TextExtractor:
     
     @staticmethod
     def extract_sql(text: str) -> str:
-        """从文本中提取SQL代码块, 取最后一个```sql```块中的sql"""
+        """Extract the SQL code block from the text, take the last ```sql``` block"""
         sql_pattern = r"```sql\s*(.*?)\s*```"
         matches = re.findall(sql_pattern, text, re.DOTALL)
         return matches[-1].strip() if matches else text.strip()
@@ -52,20 +52,18 @@ class TextExtractor:
     @staticmethod
     def extract_code_block(text: str, language: str = None) -> str:
         """
-        从文本中提取代码块内容，支持指定语言或提取任意语言的代码块
+        Extract the content of the code block from the text, support specifying the language or extracting the code block of any language
         
-        Args:
-            text: 包含代码块的文本
-            language: 代码块的语言标识(可选)，如'sql', 'json', 'python'等
+        :param text: The text containing the code block
+        :param language: The language identifier of the code block (optional), e.g. 'sql', 'json', 'python'
             
-        Returns:
-            str: 提取的代码块内容(去除前后空白)，如果未找到则返回原文本
+        :return: The extracted code block content (removed前后空白), if not found, return the original text
         """
         if language:
-            # 提取指定语言的代码块
+            # Extract the code block of the specified language
             pattern = f"```{language}\\s*(.*?)\\s*```"
         else:
-            # 提取任意语言的代码块
+            # Extract the code block of any language
             pattern = r"```\w*\s*(.*?)\s*```"
             
         matches = re.findall(pattern, text, re.DOTALL)
@@ -73,7 +71,7 @@ class TextExtractor:
         
     @staticmethod
     def extract_schema_json(text: str) -> Optional[Dict]:
-        """从文本中提取JSON代码块并验证格式"""
+        """Extract the JSON code block from the text and verify the format"""
         json_pattern = r"```json\s*(.*?)\s*```"
         matches = re.findall(json_pattern, text, re.DOTALL)
         
@@ -88,17 +86,17 @@ class TextExtractor:
             except:
                 return None
                 
-        # 验证基本结构
+        # Verify the basic structure
         if not isinstance(schema, dict) or "tables" not in schema:
             return None
         if not isinstance(schema["tables"], list):
             return None
             
-        # 验证每个表的格式
+        # Verify the format of each table
         for table in schema["tables"]:
             if not isinstance(table, dict):
                 return None
-            # 验证必需字段
+            # Verify the required fields
             if not all(k in table for k in ["table", "columns"]):
                 return None
             if not isinstance(table["table"], str):
@@ -108,7 +106,7 @@ class TextExtractor:
             if not all(isinstance(col, str) for col in table["columns"]):
                 return None
                 
-            # 验证可选字段
+            # Verify the optional fields
             if "primary_keys" in table:
                 if not isinstance(table["primary_keys"], list):
                     return None

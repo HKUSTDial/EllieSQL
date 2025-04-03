@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional, Tuple, Callable
 
 
 class OnlineSynthesiser():
-    """基于指定DB Schema, 在线合成该DB的NL2SQL examples"""
+    """Based on the specified DB Schema, online synthesis of NL2SQL examples for the DB"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -27,24 +27,22 @@ class OnlineSynthesiser():
 
     async def generate_online_synthesis_examples(self, formatted_schema: str) -> Dict:
         """
-        生成在线合成的示例
+        Generate online synthesis examples
         
-        Args:
-            formatted_schema: 格式化的schema字符串
+        :param formatted_schema: The formatted schema string
             
-        Returns:
-            Dict: 包含示例和token统计的结果字典
+        :return: Dict: A dictionary containing examples and token statistics
         """
-        # 构建提示词
+        # Construct the prompt
         online_synthesis_messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": ONLINE_SYNTHESIS_PROMPT.format(
                 TARGET_DATABASE_SCHEMA=formatted_schema,
-                k=8  # 或者根据需要调整
+                k=8  # Adjust as needed
             )}
         ]
         
-        # 调用 LLM 获取示例
+        # Call LLM to get examples
         result = await self.llm.call_llm(
             online_synthesis_messages,
             self.model,
@@ -59,20 +57,19 @@ class OnlineSynthesiser():
         #     max_tokens=generator.max_tokens,
         #     module_name="EnhancedSQLGenerator"
         # )
-        # print("生成examples完成")
-        return result  # 返回完整的结果字典
+        return result  # Return the complete result dictionary
 
                 
     async def generate_sql(self, query: str, formatted_schema: str, curr_evidence: str)-> str:
-        """生成SQL"""
-        # 使用封装的方法生成online synthesis示例
+        """Generate SQL"""
+        # Use the wrapped method to generate online synthesis examples
         examples_result = await self.generate_online_synthesis_examples(formatted_schema)
         example_raw_output = examples_result["response"]
 
-        #print(example_raw_output)
+        # print(example_raw_output)
 
         # print(example_raw_output)
-        # 构建提示词
+        # Construct the prompt
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
@@ -94,8 +91,6 @@ class OnlineSynthesiser():
         
         # raw_output = result["response"]
         # extracted_sql = self.extractor.extract_sql(raw_output)
-
-        # print("OS完成了候选sql生成")
 
         result["input_tokens"] += examples_result["input_tokens"]
         result["output_tokens"] += examples_result["output_tokens"]

@@ -27,11 +27,11 @@ from datetime import datetime
 import argparse
 import yaml
 
-# 设置多进程启动方式为spawn
+# Set the multiprocessing startup method to spawn
 multiprocessing.set_start_method('spawn', force=True)
 
 def setup_distributed():
-    """设置分布式训练环境"""
+    """Set up the distributed training environment"""
     if 'LOCAL_RANK' not in os.environ:
         return False
     
@@ -41,28 +41,28 @@ def setup_distributed():
     return True
 
 def cleanup_distributed():
-    """清理分布式训练环境"""
+    """Clean up the distributed training environment"""
     if torch.distributed.is_initialized():
         torch.distributed.destroy_process_group()
 
 def load_sft_config(config_name: str):
-    """加载SFT配置"""
+    """Load the SFT configuration"""
     config_path = Path("config") / f"{config_name}.yaml"
     if not config_path.exists():
-        raise FileNotFoundError(f"找不到配置文件: {config_path}")
+        raise FileNotFoundError(f"Cannot find the configuration file: {config_path}")
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 class QwenForBinaryClassification(PreTrainedModel):
-    """用于二分类的Qwen模型"""
+    """Qwen model for binary classification"""
 
     def __init__(self, base_model):
         super().__init__(base_model.config)
-        self.num_labels = 2  # 二分类
+        self.num_labels = 2  # Binary classification
         self.qwen = base_model
-        # 添加分类头
+        # Add a classifier head
         self.classifier = nn.Linear(self.qwen.config.hidden_size, self.num_labels)
-        # 将分类头移动到与基础模型相同的设备
+        # Move the classifier head to the same device as the base model
         self.classifier.to(base_model.device)
         
     def forward(
@@ -72,14 +72,14 @@ class QwenForBinaryClassification(PreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         **kwargs
     ) -> SequenceClassifierOutput:
-        # 获取最后一层隐藏状态
+        # Get the last layer hidden state
         outputs = self.qwen(
             input_ids=input_ids,
             attention_mask=attention_mask,
             **kwargs
         )
         
-        # 使用最后一个token的隐藏状态进行分类
+        # Use the hidden state of the last token for classification
         last_hidden_state = outputs.last_hidden_state
         sequence_output = last_hidden_state[:, -1, :]
         sequence_output = sequence_output.to(self.classifier.weight.device)
@@ -99,7 +99,7 @@ class QwenForBinaryClassification(PreTrainedModel):
         )
 
     def get_classifier_config(self):
-        """获取分类头配置"""
+        """Get the classifier head configuration"""
         return {
             "num_labels": self.num_labels,
             "hidden_size": self.qwen.config.hidden_size,
@@ -120,21 +120,21 @@ class QwenCascadeTrainer:
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
         self.log_file = None
         
-        # 加载指定的配置文件
+        # Load the specified configuration file
         self.sft_config = load_sft_config(sft_config)
         if self.local_rank == 0:
             print(f"Using SFT config: {sft_config}")
             print(f"Training {pipeline_type} pipeline classifier")
             
     def _log_to_file(self, message: str):
-        """写入日志到文件"""
+        """Write the log to the file"""
         if self.log_file and self.local_rank == 0:
             with open(self.log_file, "a", encoding="utf-8") as f:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 f.write(f"[{timestamp}] {message}\n")
                 
     def load_model_and_tokenizer(self):
-        """加载模型和分词器"""
+        """Load the model and tokenizer"""
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_path,
             trust_remote_code=True,
@@ -142,7 +142,7 @@ class QwenCascadeTrainer:
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        # 加载基础模型
+        # Load the base model
         base_model = AutoModel.from_pretrained(
             self.model_path,
             trust_remote_code=True,
@@ -150,10 +150,10 @@ class QwenCascadeTrainer:
             device_map={'': self.local_rank}
         )
         
-        # 创建二分类模型
+        # Create a binary classification model
         self.model = QwenForBinaryClassification(base_model)
         
-        # 配置LoRA
+        # Configure LoRA
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             r=self.sft_config["lora_r"],
@@ -163,12 +163,12 @@ class QwenCascadeTrainer:
             bias="none",
         )
         
-        # 准备模型
+        # Prepare the model
         self.model = prepare_model_for_kbit_training(self.model)
         self.model = get_peft_model(self.model, lora_config) 
 
     def prepare_dataset(self):
-        """准备数据集"""
+        """Prepare the dataset"""
         dataset = load_dataset(
             'json',
             data_files={
@@ -185,7 +185,7 @@ class QwenCascadeTrainer:
                 max_length=self.sft_config["max_length"],
                 return_tensors=None
             )
-            # 确保标签是正确的类型和范围
+            # Ensure the labels are of the correct type and range
             labels = [int(label) for label in examples["label"]]
             assert all(label in [0, 1] for label in labels), f"Invalid labels found: {labels}"
             tokenized["labels"] = torch.tensor(labels, dtype=torch.long)
@@ -201,17 +201,17 @@ class QwenCascadeTrainer:
         return tokenized_datasets
         
     def compute_metrics(self, eval_pred):
-        """计算二分类评估指标"""
+        """Compute the binary classification evaluation metrics"""
         predictions = eval_pred.predictions[0] if isinstance(eval_pred.predictions, tuple) else eval_pred.predictions
         predictions = predictions.argmax(-1)
         labels = eval_pred.label_ids
         
-        # 计算基本指标
+        # Calculate the basic metrics
         total = len(labels)
         correct = (predictions == labels).sum()
         accuracy = correct / total
         
-        # 计算精确率、召回率和F1分数
+        # Calculate the precision, recall, and F1 score
         tp = ((predictions == 1) & (labels == 1)).sum()
         fp = ((predictions == 1) & (labels == 0)).sum()
         fn = ((predictions == 0) & (labels == 1)).sum()
@@ -220,13 +220,13 @@ class QwenCascadeTrainer:
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
         
-        # 计算预测标签分布
+        # Calculate the predicted label distribution
         pred_pos = (predictions == 1).sum()
         pred_neg = (predictions == 0).sum()
         pred_pos_ratio = float(pred_pos) / total
         pred_neg_ratio = float(pred_neg) / total
         
-        # 计算实际标签分布
+        # Calculate the actual label distribution
         true_pos = (labels == 1).sum()
         true_neg = (labels == 0).sum()
         true_pos_ratio = float(true_pos) / total
@@ -248,19 +248,19 @@ class QwenCascadeTrainer:
             self.load_model_and_tokenizer()
             tokenized_datasets = self.prepare_dataset()
             
-            # 设置checkpoint和训练日志保存路径
+            # Set the checkpoint and training log save path
             checkpoint_dir = self.save_dir / f"{self.model_name}_checkpoints"
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = checkpoint_dir / "training.log"
             
-            # 记录训练开始信息
+            # Record the training start information
             self._log_to_file(
                 f"Training started for {self.pipeline_type} pipeline with:\n"
                 f"- Number of training samples: {len(tokenized_datasets['train'])}\n"
                 f"- Number of validation samples: {len(tokenized_datasets['validation'])}\n"
             )
             
-            # 配置训练参数
+            # Configure the training parameters
             training_args = TrainingArguments(
                 output_dir=str(checkpoint_dir),
                 per_device_train_batch_size=self.sft_config["per_device_train_batch_size"],
@@ -271,28 +271,28 @@ class QwenCascadeTrainer:
                 lr_scheduler_type=self.sft_config["lr_scheduler_type"],
                 fp16=self.sft_config["fp16"],
                 
-                # 评估策略配置
+                # Evaluation strategy configuration
                 eval_strategy=self.sft_config["eval_strategy"],
                 eval_steps=self.sft_config.get("eval_steps", None),
                 
-                # 保存策略配置
+                # Save strategy configuration
                 save_strategy=self.sft_config["save_strategy"],
                 save_steps=self.sft_config.get("save_steps", None),
                 
-                # 日志相关配置
+                # Log related configuration
                 logging_dir=str(self.config.logs_dir / "cascade" / f"qwen_{self.model_name}"),
                 logging_strategy=self.sft_config["logging_strategy"],
                 logging_steps=self.sft_config.get("logging_steps", None),
                 logging_first_step=self.sft_config["logging_first_step"],
                 report_to=["tensorboard"],
                 
-                # checkpoint相关配置
+                # Checkpoint related configuration
                 load_best_model_at_end=self.sft_config["load_best_model_at_end"],
-                metric_for_best_model='precision',  # Cascade使用精确率作为主要指标
+                metric_for_best_model='precision',  # Cascade uses precision as the primary metric
                 greater_is_better=True,
                 save_total_limit=self.sft_config["save_total_limit"],
                 
-                # 其他配置
+                # Other configuration
                 ddp_find_unused_parameters=self.sft_config["ddp_find_unused_parameters"],
                 local_rank=self.local_rank,
                 dataloader_num_workers=self.sft_config["dataloader_num_workers"],
@@ -302,7 +302,7 @@ class QwenCascadeTrainer:
                 max_grad_norm=self.sft_config["max_grad_norm"]
             )
             
-            # 创建trainer
+            # Create the trainer
             trainer = Trainer(
                 model=self.model,
                 args=training_args,
@@ -312,18 +312,18 @@ class QwenCascadeTrainer:
                 callbacks=[TrainingCallback(self._log_to_file)]
             )
             
-            # 开始训练
+            # Start training
             train_result = trainer.train()
             
-            # 最终评估
+            # Final evaluation
             final_metrics = trainer.evaluate()
             
-            # 保存最终模型和结果
+            # Save the final model and results
             if self.local_rank == 0:
                 final_model_dir = self.save_dir / f"final_model_{self.model_name}"
                 trainer.save_model(final_model_dir)
                 
-                # 保存分类头配置和权重
+                # Save the classifier head configuration and weights
                 classifier_config = self.model.get_classifier_config()
                 classifier_state = self.model.classifier.state_dict()
                 
@@ -334,7 +334,7 @@ class QwenCascadeTrainer:
                 
                 torch.save(classifier_save, final_model_dir / "classifier.pt")
                 
-                # 保存训练结果
+                # Save the training results
                 results_file = checkpoint_dir / "training_results.json"
                 results_data = {
                     "train_results": train_result.metrics,
@@ -355,7 +355,7 @@ class QwenCascadeTrainer:
             raise e
 
 class TrainingCallback(TrainerCallback):
-    """用于记录训练过程的回调"""
+    """Callback for recording the training process"""
     def __init__(self, log_func):
         self.log_func = log_func
         
