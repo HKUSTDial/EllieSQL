@@ -1,41 +1,42 @@
-# 忽略日志文件
+# Ignore log files
 *.log
 
-# 忽略操作系统特定的文件
+# Ignore operating system-specific files
 .DS_Store
 Thumbs.db
 
-# 忽略临时文件
+# Ignore temporary files
 *.tmp
 *.swp
 
-# 忽略IDE配置文件
+# Ignore IDE configuration files
 /.idea/
 /.vscode/
 *.iml
 
-# 忽略pycache
+# Ignore pycache
 __pycache__/
 
-# 忽略.specstory
+# Ignore .specstory
 .specstory/**
 
-# 忽略config下的文件
+# Ignore config files
 config/*
 
-# 忽略examples下的文件
+# Ignore examples files
 examples/**
 
-# 忽略tests下的文件
+# Ignore tests files
 tests/**
 
-# 忽略中间结果
+# Ignore intermediate results
 results/**
 
-# 忽略日志文件
+# Ignore log files
 logs/
 
-# 忽略data下的databases和部分文件
+# Ignore databases and some files in data
+# Especially large files
 data/bird_dev_gold_empty_count.txt
 data/bird_train_gold_empty_count.txt
 data/*.json
@@ -47,7 +48,7 @@ data/dpo/**
 data/pairwise/**
 data/cascade/**
 
-# 不忽略配置文件示例和训练配置文件
+# Do not ignore config files examples and training config files
 !config/config_example.yaml
 !config/sft_config.yaml
 !config/dpo_config.yaml
@@ -56,10 +57,10 @@ data/cascade/**
 !config/qwen_cascade_config.yaml
 !config/roberta_cascade_config.yaml
 
-# 不忽略重要的数据文件
+# Do not ignore important data files
 !data/bird/**
 !data/labeled/bird_dev_pipeline_label.jsonl
 !data/labeled/bird_train_pipeline_label.jsonl
 
-# 不忽略examples下的main.py文件
+# Do not ignore examples/main.py file
 !examples/main.py
