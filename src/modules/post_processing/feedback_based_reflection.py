@@ -10,7 +10,7 @@ from .prompts.reflection_prompts import REFLECTION_SYSTEM, FEEDBACK_BASED_REFLEC
 
 
 class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
-    """基于执行结果的使用自反思机制的SQL后处理器，使用SQL运行信息"""
+    """SQL post-processor using self-reflection mechanism based on SQL execution results"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -26,13 +26,12 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
         
     async def process_sql(self, sql: str, query_id: str) -> str:
         """
-        对生成的SQL进行运行、自反思检查和优化
+        Run, self-reflect, and optimize the generated SQL
         
-        Args:
-            sql: 原始SQL语句
-            query_id: 查询ID，用于关联中间结果
+        :param sql: The original SQL statement
+        :param query_id: The query ID, used to associate intermediate results
         """
-        # 加载SQL生成的结果
+        # Load the SQL generated result
         
         prev_result = self.load_previous_result(query_id)
         original_query = prev_result["input"]["query"]
@@ -48,7 +47,7 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
                 db_folder = f"{source}_{db_id}"
                 db_file = f"{db_id}.sqlite"
                 db_path = str(Config().database_dir / db_folder / db_file)
-                #执行sql并且返回结果：能运行、超时、或报错
+                # Execute the SQL and return the result: successful, timeout, or error
                 ex_result = execute_sql_with_timeout(db_path, sql)
 
                 messages = [
@@ -73,7 +72,7 @@ class FeedbackBasedReflectionPostProcessor(PostProcessorBase):
                 raw_output = result["response"]
                 processed_sql = self.extractor.extract_sql(raw_output)
                 
-                # 保存中间结果
+                # Save the intermediate result
                 self.save_intermediate(
                     input_data={
                         "original_query": original_query,

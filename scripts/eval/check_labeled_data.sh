@@ -5,11 +5,11 @@
 # File to check
 LABELED_DATA_FILE="data/labeled/bird_dev_pipeline_label.jsonl"
 
-# 只查看分布统计
+# Only view distribution statistics
 python -m src.router.check_labeled_data $LABELED_DATA_FILE --distribution_only
 
-# 只查看label为1的采样结果
+# Only view samples with label 1
 python -m src.router.check_labeled_data $LABELED_DATA_FILE --label 1 --sample_size 5 --sample_only
 
-# 同时查看分布和采样 (默认行为)
+# View both distribution and sampling (default)
 python -m src.router.check_labeled_data $LABELED_DATA_FILE --label 1 --sample_size 5

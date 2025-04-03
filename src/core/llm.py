@@ -15,11 +15,17 @@ class LLMMetrics:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self.model_tokens = {}
-        self.module_stats = {}  # 新增：按模块统计
+        self.module_stats = {}
 
     def log_call(self, model: str, input_tokens: int, output_tokens: int, module_name: str = None):
-        """记录一次LLM调用"""
-        # 如果model为none，不记录统计信息
+        """
+        Log a LLM call
+        :param model: model name
+        :param input_tokens: input tokens
+        :param output_tokens: output tokens
+        :param module_name: module name
+        """
+        # If model is none, do not record statistics
         if model.lower() == "none":
             return
             
@@ -35,7 +41,7 @@ class LLMMetrics:
         self.model_tokens[model]["input"] += input_tokens
         self.model_tokens[model]["output"] += output_tokens
         
-        # 按模块统计
+        # Statistics by module
         if module_name:
             if module_name not in self.module_stats:
                 self.module_stats[module_name] = {
@@ -48,38 +54,38 @@ class LLMMetrics:
             self.module_stats[module_name]["output_tokens"] += output_tokens
 
 class LocalModelHandler:
-    """处理本地模型的加载和推理"""
+    """Deal with the loading and inference of local models"""
     def __init__(self, config):
         self.config = config
         self.models = {}
         self.tokenizers = {}
         
     def load_model(self, model_name):
-        """加载指定的本地模型"""
+        """Load the specified local model"""
         if model_name in self.models:
             return self.models[model_name], self.tokenizers[model_name]
             
-        # 检查模型是否在配置中
+        # Check if the model is defined in the config
         if model_name not in self.config["local_models"]:
-            raise ValueError(f"本地模型 {model_name} 未在配置文件中定义")
+            raise ValueError(f"Local model {model_name} is not defined in the config file")
             
         model_config = self.config["local_models"][model_name]
         model_path = model_config["path"]
         
         print(f"Loading local model {model_name} from {model_path}...")
         
-        # 加载tokenizer
+        # Load tokenizer
         tokenizer = AutoTokenizer.from_pretrained(
             model_path, 
             trust_remote_code=True,
             padding_side='right'
         )
         
-        # 设置padding token，确保它与eos_token不同
+        # Set padding token, ensure it is different from eos_token
         if tokenizer.pad_token is None:
             tokenizer.add_special_tokens({'pad_token': '[PAD]'})
             
-        # 加载模型
+        # Load model
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
             device_map="auto",
@@ -87,53 +93,53 @@ class LocalModelHandler:
             torch_dtype=torch.float16
         )
         
-        # 如果添加了新的special token，需要调整模型的embedding
+        # If new special tokens are added, adjust the model's embedding
         if len(tokenizer) != model.config.vocab_size:
             model.resize_token_embeddings(len(tokenizer))
         
-        # 缓存模型和tokenizer
+        # Cache model and tokenizer
         self.models[model_name] = model
         self.tokenizers[model_name] = tokenizer
         
         return model, tokenizer
         
     def _clean_response(self, text: str) -> str:
-        """清理模型输出中的特殊标记"""
-        # 清理Qwen特有的标记
+        """Clean special tokens in the model output"""
+        # Clean Qwen-specific tokens
         special_tokens = [
-            "<|im_start|>", "<|im_end|>",  # 对话标记
-            "<|assistant|>", "<|user|>", "<|system|>",  # 角色标记
-            "<|repo_name|>",  # 仓库标记
-            "<|commit_hash|>",  # 提交标记
-            "<|path|>",  # 路径标记
-            "<|diff|>",  # diff标记
-            "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>",  # FIM相关标记
-            "<|endoftext|>",  # 文本结束标记
+            "<|im_start|>", "<|im_end|>",  # Dialog tokens
+            "<|assistant|>", "<|user|>", "<|system|>",  # Role tokens
+            "<|repo_name|>",  # Repository tokens
+            "<|commit_hash|>",  # Commit tokens
+            "<|path|>",  # Path tokens
+            "<|diff|>",  # Diff tokens
+            "<|fim_prefix|>", "<|fim_middle|>", "<|fim_suffix|>",  # FIM related tokens
+            "<|endoftext|>",  # Text end tokens
         ]
         
         cleaned_text = text
         for token in special_tokens:
             cleaned_text = cleaned_text.replace(token, "")
             
-        # 清理连续的空行
+        # Clean consecutive empty lines
         cleaned_text = "\n".join(
             line for line in cleaned_text.splitlines() 
             if line.strip()
         )
         
-        # 清理首尾空白
+        # Clean leading and trailing whitespace
         cleaned_text = cleaned_text.strip()
         
         return cleaned_text
         
     async def generate(self, model_name, messages, temperature=0.0, max_tokens=1000):
-        """使用本地模型生成回复"""
+        """Generate a response using a local model"""
         model, tokenizer = self.load_model(model_name)
         
-        # 将消息格式转换为模型输入
+        # Convert messages to model input
         prompt = self._convert_messages_to_prompt(model_name, messages, tokenizer)
         
-        # 编码输入，显式设置padding和attention mask
+        # Encode input, explicitly set padding and attention mask
         encoded = tokenizer(
             prompt,
             return_tensors="pt",
@@ -143,12 +149,12 @@ class LocalModelHandler:
             return_attention_mask=True
         )
         
-        # 将输入移动到正确的设备
+        # Move input to the correct device
         input_ids = encoded['input_ids'].to(model.device)
         attention_mask = encoded['attention_mask'].to(model.device)
         input_tokens = len(input_ids[0])
         
-        # 使用模型生成
+        # Generate with model
         with torch.no_grad():
             outputs = model.generate(
                 input_ids=input_ids,
@@ -164,7 +170,7 @@ class LocalModelHandler:
                 use_cache=True
             )
             
-        # 解码输出并清理特殊标记
+        # Decode output and clean special tokens
         raw_output = tokenizer.decode(outputs[0][input_ids.shape[1]:], skip_special_tokens=True)
         cleaned_output = self._clean_response(raw_output)
         output_tokens = len(outputs[0]) - input_ids.shape[1]
@@ -178,12 +184,12 @@ class LocalModelHandler:
         }
         
     def _convert_messages_to_prompt(self, model_name, messages, tokenizer):
-        """将OpenAI格式的消息转换为本地模型的提示格式"""
+        """Convert OpenAI-format messages to local model prompt format"""
         model_config = self.config["local_models"][model_name]
         prompt_format = model_config.get("prompt_format", "default")
         
         if prompt_format == "qwen":
-            # Qwen系列模型的提示格式
+            # Qwen series model prompt format
             prompt = ""
             for message in messages:
                 role = message["role"]
@@ -196,11 +202,11 @@ class LocalModelHandler:
                 elif role == "assistant":
                     prompt += f"<|im_start|>assistant\n{content}<|im_end|>\n"
                 
-            # 添加最后的assistant标记，等待模型生成
+            # Add the final assistant marker, waiting for model generation
             prompt += "<|im_start|>assistant\n"
             return prompt
         else:
-            # 默认格式，简单拼接
+            # Default format, simple concatenation
             prompt = ""
             for message in messages:
                 role = message["role"]
@@ -217,21 +223,21 @@ class LocalModelHandler:
             return prompt
 
 class LLMBase:
-    """LLM调用的基础类"""
+    """Base class for LLM calls"""
     def __init__(self, config_path: str = "config/config.yaml"):
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
         
-        # 初始化OpenAI客户端
+        # Initialize OpenAI client
         self.client = AsyncOpenAI(
             api_key=self.config["api"]["api_key"],
             base_url=self.config["api"]["base_url"]
         )
         
-        # 初始化本地模型处理器
+        # Initialize local model processor
         self.local_handler = LocalModelHandler(self.config)
         
-        # 初始化指标记录
+        # Initialize metrics recording
         self.metrics = LLMMetrics()
 
     async def call_llm(self, 
@@ -241,21 +247,19 @@ class LLMBase:
                      max_tokens: int = 1000,
                      module_name: str = None) -> Dict[str, Any]:
         """
-        调用LLM API或本地模型
+        Call LLM API or local model
         
-        Args:
-            messages: 消息列表，格式为[{"role": "user", "content": "xxx"}, ...]
-            model: 模型名称，如"gpt-4"或"qwen2.5-coder-3B"
-            temperature: 温度参数
-            max_tokens: 最大token数
-            module_name: 调用模块的名称，用于统计
+        :param messages: Message list, format: [{"role": "user", "content": "xxx"}, ...]
+        :param model: Model name, e.g. "gpt-4" or "qwen2.5-coder-3B"
+        :param temperature: Temperature parameter
+        :param max_tokens: Maximum token number
+        :param module_name: Name of the calling module, for statistics
             
-        Returns:
-            Dict[str, Any]: API响应结果
+        :return: API response result
         """
-        # 检查是否使用本地模型
+        # Check if local model is used
         if model in self.config.get("local_models", {}):
-            # 使用本地模型
+            # Use local model
             response_data = await self.local_handler.generate(
                 model_name=model,
                 messages=messages,
@@ -263,7 +267,7 @@ class LLMBase:
                 max_tokens=max_tokens
             )
         else:
-            # 使用OpenAI API
+            # Use API
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -279,7 +283,7 @@ class LLMBase:
                 "finish_reason": response.choices[0].finish_reason
             }
         
-        # 记录metrics
+        # Record metrics
         self.metrics.log_call(
             model, 
             response_data["input_tokens"], 

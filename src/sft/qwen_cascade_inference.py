@@ -12,17 +12,17 @@ from .qwen_cascade_sft import QwenForBinaryClassification
 from .instruction_templates import PipelineClassificationTemplates
 
 def set_seed(seed: int = 42):
-    """设置所有随机种子以确保可重复性"""
+    """Set all random seeds to ensure reproducibility"""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    # 禁用cudnn的随机性
+    # Disable the randomness of cudnn
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 class QwenCascadeClassifier:
-    """用于二分类推理的Qwen分类器"""
+    """Qwen classifier for binary classification inference"""
 
     def __init__(self, pipeline_type: str, model_name: str, confidence_threshold: float = 0.5, seed: int = 42):
         # 设置随机种子
@@ -33,16 +33,16 @@ class QwenCascadeClassifier:
         self.model_path = self.config.cascade_qwen_save_dir / f"final_model_{model_name}"
         self.templates = PipelineClassificationTemplates()
         
-        # 添加置信度阈值参数
+        # Add the confidence threshold parameter
         self.confidence_threshold = confidence_threshold
         
-        # 加载模型和tokenizer
+        # Load the model and tokenizer
         self._load_model_and_tokenizer()
         
     def _load_model_and_tokenizer(self):
-        """加载模型和分词器"""
+        """Load the model and tokenizer"""
         if not self.model_path.exists():
-            raise FileNotFoundError(f"找不到模型文件: {self.model_path}")
+            raise FileNotFoundError(f"Cannot find the model file: {self.model_path}")
             
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.config.qwen_dir,
@@ -50,16 +50,16 @@ class QwenCascadeClassifier:
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        # 加载分类头配置和权重
+        # Load the classifier configuration and weights
         classifier_path = self.model_path / "classifier.pt"
         if not classifier_path.exists():
-            raise FileNotFoundError(f"找不到分类头文件: {classifier_path}")
+            raise FileNotFoundError(f"Cannot find the classifier file: {classifier_path}")
         
         classifier_save = torch.load(classifier_path, map_location='cpu', weights_only=True)
         classifier_config = classifier_save["config"]
         classifier_state = classifier_save["state_dict"]
         
-        # 加载基础模型
+        # Load the base model
         base_model = AutoModel.from_pretrained(
             self.config.qwen_dir,
             trust_remote_code=True,
@@ -67,36 +67,36 @@ class QwenCascadeClassifier:
             device_map="auto"
         )
         
-        # 使用保存的配置创建分类模型
+        # Create the classifier model using the saved configuration
         self.model = QwenForBinaryClassification(base_model)
         
-        # 加载分类头权重
+        # Load the classifier head weights
         self.model.classifier.load_state_dict(classifier_state)
         
-        # 转换为float16
+        # Convert to float16
         self.model.classifier = self.model.classifier.half()
         
-        # 加载LoRA权重
+        # Load the LoRA weights
         self.model = PeftModel.from_pretrained(
             self.model,
             self.model_path,
             torch_dtype=torch.float16
         )
         
-        # 设置为评估模式
+        # Set to evaluation mode
         self.model.eval()
         
-        # 禁用dropout等随机行为
+        # Disable the random behavior of dropout, etc.
         for module in self.model.modules():
             if isinstance(module, (torch.nn.Dropout, torch.nn.LayerNorm)):
                 module.eval()
         
     def classify(self, question: str, schema: dict) -> tuple[bool, float]:
-        """进行二分类预测，返回是否可处理和置信度"""
-        # 使用模板创建输入文本
+        """Perform binary classification prediction, return whether it can be processed and confidence"""
+        # Use the template to create the input text
         input_text = self.templates.create_classifier_prompt(question, schema)
         
-        # 编码输入
+        # Encode the input
         inputs = self.tokenizer(
             input_text,
             padding=True,
@@ -105,27 +105,27 @@ class QwenCascadeClassifier:
             return_tensors="pt"
         )
         
-        # 将输入移动到正确的设备和数据类型
+        # Move the input to the correct device and data type
         inputs = {k: v.to(self.model.device, dtype=torch.long) for k, v in inputs.items()}
         
-        # 进行预测
+        # Perform prediction
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
             
-            # 使用softmax获取概率分布
+            # Use softmax to get the probability distribution
             probs = F.softmax(logits, dim=-1)
-            # 获取正类（能处理）的概率
+            # Get the probability of the positive class (can be processed)
             positive_prob = float(probs[0][1])
             
-            # 只有当正类概率超过阈值时才认为能处理
+            # Only when the positive class probability exceeds the threshold is it considered to be processed
             can_handle = (positive_prob >= self.confidence_threshold)
             
         return can_handle, positive_prob
 
 def test(pipeline_type: str, confidence_threshold: float):
-    """测试二分类器推理"""
-    # 测试样例
+    """Test the binary classifier inference"""
+    # Test cases
     test_cases = [
         {
             "question": "How many pets have a greater weight than 10?",
@@ -187,7 +187,7 @@ def test(pipeline_type: str, confidence_threshold: float):
         }
     ]
 
-    # 选择要测试的pipeline类型
+    # Select the pipeline type to test
     model_name = f"{pipeline_type}_classifier"
     
     classifier = QwenCascadeClassifier(
@@ -197,7 +197,7 @@ def test(pipeline_type: str, confidence_threshold: float):
         seed=42
     )
 
-    # 对每个测试用例进行分类
+    # Classify each test case
     print(f"\nTesting {pipeline_type.upper()} Pipeline Classifier (confidence threshold: {confidence_threshold}):")
     print(f"Expected: True for basic questions, False for others" if pipeline_type == "basic" else
           f"Expected: True for intermediate questions, False for advanced/unsolved" if pipeline_type == "intermediate" else

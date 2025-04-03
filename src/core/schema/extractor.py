@@ -6,18 +6,14 @@ from pathlib import Path
 from .schema import ColumnSchema, TableSchema, DatabaseSchema
 
 class SchemaExtractor:
-    """从SQLite数据库提取schema信息"""
+    """Extractor of schema information from SQLite database"""
     
     @staticmethod
     def _load_database_description(db_folder: Path) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
-        加载数据库描述信息
-        
-        Args:
-            db_folder: 数据库文件夹路径
-            
-        Returns:
-            Dict: 数据库描述信息
+        Load database description information
+        :param db_folder: path to the database folder
+        :return: database description information
         """
         description_dir = db_folder / "database_description"
         if not description_dir.exists():
@@ -27,7 +23,7 @@ class SchemaExtractor:
         for csv_file in description_dir.glob("*.csv"):
             table_name = csv_file.stem.lower()
             
-            # 检测文件编码
+            # Detect file encoding
             encoding = chardet.detect(csv_file.read_bytes())["encoding"]
             
             try:
@@ -59,16 +55,12 @@ class SchemaExtractor:
                           column: str, 
                           max_examples: int = 3) -> List[str]:
         """
-        获取列的示例值
-        
-        Args:
-            conn: 数据库连接
-            table: 表名
-            column: 列名
-            max_examples: 最大示例数量
-            
-        Returns:
-            List[str]: 示例值列表
+        Get examples of column values
+        :param conn: database connection
+        :param table: table name
+        :param column: column name
+        :param max_examples: maximum number of examples
+        :return: list of examples
         """
         try:
             cursor = conn.cursor()
@@ -83,24 +75,24 @@ class SchemaExtractor:
     
     @staticmethod
     def extract_from_db(db_path: str, db_id: str) -> DatabaseSchema:
-        """从数据库文件提取schema"""
+        """Extract schema information from database file"""
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # 加载补充描述信息
+        # Load additional description information
         db_folder = Path(db_path).parent
         descriptions = SchemaExtractor._load_database_description(db_folder)
         
-        # 获取所有表名
+        # Get all table names
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         table_names = [row[0] for row in cursor.fetchall()]
         
         tables = {}
         all_foreign_keys = []
         
-        # 处理每个表
+        # Process each table
         for table_name in table_names:
-            # 获取表结构
+            # Get table structure
             cursor.execute(f"PRAGMA table_info(`{table_name}`)")
             columns_info = cursor.fetchall()
             
@@ -119,24 +111,24 @@ class SchemaExtractor:
                     is_primary_key=bool(is_pk)
                 )
             
-            # 获取外键信息
+            # Get foreign key information
             cursor.execute(f"PRAGMA foreign_key_list(`{table_name}`)")
             fk_info = cursor.fetchall()
             
             for fk in fk_info:
                 id, seq, ref_table, from_col, to_col, *_ = fk
                 
-                # 更新列的外键信息
+                # Update column foreign key information
                 if from_col in columns:
                     columns[from_col].foreign_keys.append((ref_table, to_col))
                 
-                # 添加到全局外键列表
+                # Add to global foreign key list
                 all_foreign_keys.append({
                     "table": [table_name, ref_table],
                     "column": [from_col, to_col]
                 })
             
-            # 添加补充信息
+            # Add additional information
             table_desc = descriptions.get(table_name.lower(), {})
             for col_name, column in columns.items():
                 col_desc = table_desc.get(col_name.lower(), {})
@@ -144,7 +136,7 @@ class SchemaExtractor:
                 column.description = col_desc.get("description", "")
                 column.value_description = col_desc.get("value_description", "")
                 
-                # 获取示例值
+                # Get examples of column values
                 if column.type.upper() != "BLOB":
                     column.value_examples = SchemaExtractor._get_column_examples(conn, table_name, col_name)
             

@@ -11,20 +11,20 @@ from ..core.config import Config
 from .instruction_templates import PipelineClassificationTemplates
 
 def set_seed(seed: int = 42):
-    """设置所有随机种子以确保可重复性"""
+    """Set all random seeds to ensure reproducibility"""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    # 禁用cudnn的随机性
+    # Disable the randomness of cudnn
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 class RoBERTaCascadeClassifier:
-    """用于二分类推理的RoBERTa分类器"""
+    """The RoBERTa classifier for binary classification inference"""
 
     def __init__(self, pipeline_type: str, model_name: str, confidence_threshold: float = 0.5, seed: int = 42):
-        # 设置随机种子
+        # Set random seeds
         set_seed(seed)
         
         self.config = Config()
@@ -32,52 +32,52 @@ class RoBERTaCascadeClassifier:
         self.model_path = self.config.cascade_roberta_save_dir / f"final_model_{model_name}"
         self.templates = PipelineClassificationTemplates()
         
-        # 添加置信度阈值参数
+        # Add the confidence threshold parameter
         self.confidence_threshold = confidence_threshold
         
-        # 加载模型和tokenizer
+        # Load the model and tokenizer
         self._load_model_and_tokenizer()
         
     def _load_model_and_tokenizer(self):
-        """加载模型和分词器"""
+        """Load the model and tokenizer"""
         if not self.model_path.exists():
-            raise FileNotFoundError(f"找不到模型文件: {self.model_path}")
+            raise FileNotFoundError(f"Cannot find the model file: {self.model_path}")
             
-        # 从原始预训练模型加载tokenizer
+        # Load the tokenizer from the original pre-trained model
         self.tokenizer = RobertaTokenizer.from_pretrained(
             self.config.roberta_dir,
             padding_side="right"
         )
         
-        # 加载基础模型
+        # Load the base model
         base_model = RobertaForSequenceClassification.from_pretrained(
             self.config.roberta_dir,
-            num_labels=2,  # 二分类
+            num_labels=2,  # Binary classification
             problem_type="single_label_classification"
         )
         
-        # 加载LoRA权重
+        # Load the LoRA weights
         self.model = PeftModel.from_pretrained(
             base_model,
             self.model_path,
             torch_dtype=torch.float16
         )
         
-        # 将模型移动到GPU并设置为评估模式
+        # Move the model to GPU and set it to evaluation mode
         self.model = self.model.cuda()
         self.model.eval()
         
-        # 禁用dropout等随机行为
+        # Disable dropout and other random behaviors
         for module in self.model.modules():
             if isinstance(module, (torch.nn.Dropout, torch.nn.LayerNorm)):
                 module.eval()
         
     def classify(self, question: str, schema: dict) -> tuple[bool, float]:
-        """进行二分类预测，返回是否可处理和置信度"""
-        # 使用模板创建输入文本
+        """Perform binary classification prediction, returning whether it can be handled and confidence"""
+        # Create the input text using the template
         input_text = self.templates.create_classifier_prompt(question, schema)
         
-        # 编码输入
+        # Encode the input
         inputs = self.tokenizer(
             input_text,
             padding=True,
@@ -86,28 +86,28 @@ class RoBERTaCascadeClassifier:
             return_tensors="pt"
         )
         
-        # 将输入移动到GPU
+        # Move the input to GPU
         inputs = {k: v.cuda() for k, v in inputs.items()}
         
-        # 进行预测
+        # Perform prediction
         with torch.no_grad():
             outputs = self.model(**inputs)
             logits = outputs.logits
             
-            # 使用softmax获取概率分布
+            # Use softmax to get the probability distribution
             probs = F.softmax(logits, dim=-1)
-            # 获取正类（能处理）的概率
+            # Get the probability of the positive class (can handle)
             positive_prob = float(probs[0][1])
             
-            # 只有当正类概率超过阈值时才认为能处理
+            # Only consider it can be handled if the positive class probability exceeds the threshold
             can_handle = (positive_prob >= self.confidence_threshold)
             
         return can_handle, positive_prob
 
 def test(pipeline_type: str, confidence_threshold: float):
-    """测试二分类器推理"""
+    """Test the binary classifier inference"""
 
-    # 测试样例
+    # Test cases
     test_cases = [
         {
             "question": "How many pets have a greater weight than 10?",
@@ -169,7 +169,7 @@ def test(pipeline_type: str, confidence_threshold: float):
         }
     ]
 
-    # 选择要测试的pipeline类型
+    # Select the pipeline type to test
     model_name = f"{pipeline_type}_classifier"
     
     classifier = RoBERTaCascadeClassifier(
@@ -179,7 +179,7 @@ def test(pipeline_type: str, confidence_threshold: float):
         seed=42
     )
 
-    # 对每个测试用例进行分类
+    # Classify each test case
     print(f"\nTesting {pipeline_type.upper()} Pipeline Classifier (confidence threshold: {confidence_threshold}):")
     print(f"Expected: True for basic questions, False for others" if pipeline_type == "basic" else
           f"Expected: True for intermediate questions, False for advanced/unsolved" if pipeline_type == "intermediate" else

@@ -6,7 +6,7 @@ from ...core.utils import load_json
 from .submodules.refiner import *
 
 class VanillaRefineSQLGenerator(SQLGeneratorBase):
-    """使用GPT模型生成SQL的实现"""
+    """Implementation of using GPT model to generate SQL, with a refiner (vanilla + refiner)"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -21,14 +21,14 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
         self.max_tokens = max_tokens
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
-        """生成SQL"""
-        # 加载schema linking的结果
+        """Generate SQL"""
+        # Load the schema linking result
         if not schema_linking_output:
             prev_result = self.load_previous_result(query_id)
             formatted_schema = prev_result["output"]["formatted_linked_schema"]
         else:
             formatted_schema = schema_linking_output.get("formatted_linked_schema")
-            if not formatted_schema:  # 如果直接传入的结果中没有格式化的schema
+            if not formatted_schema:  # If the result directly passed in does not have the formatted schema
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
@@ -41,14 +41,14 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
                 break
 
 
-                # 记录每个步骤的token统计
+        # Record the token statistics for each step
         step_tokens = {
             "vanilla": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
 
 
-        # 构建提示词
+        # Build the prompt
         messages = [
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": SQL_GENERATION_USER.format(
@@ -74,6 +74,7 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
         raw_output_before_refine = result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output_before_refine)
         
+        # Refine stage
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -92,17 +93,14 @@ class VanillaRefineSQLGenerator(SQLGeneratorBase):
         extracted_sql = self.extractor.extract_sql(refiner_raw_output)
 
 
-        # 计算总token
+        # Calculate the total token
         total_tokens = {
             "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
             "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
             "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
-        
 
-
-
-        # 保存中间结果
+        # Save the intermediate result
         self.save_intermediate(
             input_data={
                 "query": query,

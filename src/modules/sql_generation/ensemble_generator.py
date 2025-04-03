@@ -4,15 +4,15 @@ from .submodules.selector import DirectSelector
 from ...core.llm import LLMBase
 
 class EnsembleGenerator(EnhancedSQLGenerator):
-    """使用集成方法生成SQL的实现，基于EnhancedSQLGenerator生成多个候选并选择最佳结果，使用DirectSelector选择。故继承自EnhancedSQLGenerator"""
+    """Implementation of using ensemble method to generate SQL, based on EnhancedSQLGenerator to generate multiple candidates and select the best result, using DirectSelector to select. Therefore, it inherits from EnhancedSQLGenerator"""
     
     def __init__(self, 
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
-                temperature: float = 0.7,  # 使用更高的temperature以获得多样性
+                temperature: float = 0.7,  # Use higher temperature to get diversity
                 max_tokens: int = 5000,
-                n_candidates: int = 3,  # 生成的候选数量
-                max_retries: int = 3):  # 重试次数阈值
+                n_candidates: int = 3,  # The number of candidates generated
+                max_retries: int = 3):  # The threshold for the number of retries
         super().__init__(
             llm=llm,
             model=model,
@@ -25,24 +25,24 @@ class EnsembleGenerator(EnhancedSQLGenerator):
         self.selector = DirectSelector(
             llm=llm,
             model=model,
-            temperature=0.0,  # selector使用低temperature
+            temperature=0.0,  # selector uses low temperature
             max_tokens=max_tokens
         )
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
-        """生成多个候选SQL并选择最佳结果"""
-        # 记录每个步骤的token统计
+        """Generate multiple candidate SQLs and select the best result"""
+        # Record the token statistics for each step
         step_tokens = {
             "candidates": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "selector": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
         
-        # 1. 生成多个候选SQL
+        # 1. Generate multiple candidate SQLs
         candidates = []
         for i in range(self.n_candidates):
-            print(f"生成第 {i+1}/{self.n_candidates} 个候选SQL...")
+            print(f"Generating the {i+1}/{self.n_candidates} candidate SQL...")
             try:
-                # 调用父类的generate_sql方法
+                # Call the generate_sql method of the parent class
                 candidate_result = await super().generate_sql(
                     query=query,
                     schema_linking_output=schema_linking_output,
@@ -55,7 +55,7 @@ class EnsembleGenerator(EnhancedSQLGenerator):
                     if extracted_sql:
                         candidates.append(extracted_sql)
                         
-                        # 累加token统计
+                        # Add token statistics
                         try:
                             prev_result = self.load_previous_result(query_id)
                             model_info = prev_result["model_info"]
@@ -63,50 +63,50 @@ class EnsembleGenerator(EnhancedSQLGenerator):
                             step_tokens["candidates"]["output_tokens"] += model_info["output_tokens"]
                             step_tokens["candidates"]["total_tokens"] += model_info["total_tokens"]
                         except Exception as e:
-                            self.logger.warning(f"无法加载候选{i}的token统计: {str(e)}")
+                            self.logger.warning(f"Failed to load the token statistics for the {i} candidate: {str(e)}")
                     else:
-                        self.logger.warning(f"候选{i}的SQL提取失败")
+                        self.logger.warning(f"Failed to extract the SQL for the {i} candidate")
                 else:
-                    self.logger.warning(f"候选{i}生成失败")
+                    self.logger.warning(f"Failed to generate the {i} candidate")
                     
             except Exception as e:
-                self.logger.error(f"生成候选{i}时发生错误: {str(e)}")
+                self.logger.error(f"Failed to generate the {i} candidate: {str(e)}")
                 continue
         
         if not candidates:
-            self.logger.error("没有成功生成任何候选SQL")
-            raise ValueError("生成候选SQL失败")
+            self.logger.error("Failed to generate any candidate SQL")
+            raise ValueError("Failed to generate candidate SQL")
             
-        print(f"成功生成了 {len(candidates)} 个候选SQL")
+        print(f"Successfully generated {len(candidates)} candidate SQLs")
         print(candidates)
         
-        # 2. 使用selector选择最佳SQL
-        print("开始选择最佳SQL...")
+        # 2. Use selector to select the best SQL
+        print("Start selecting the best SQL...")
         try:
             data_file = self.data_file
             result = await self.selector.select_sql(data_file, candidates, query_id)
             selected_sql = result
             
-            # 直接从selector的返回结果中获取token统计
+            # Get token statistics from the return result of selector
             step_tokens["selector"] = {
-                "input_tokens": 0,  # selector模块继承自ModuleBase，会自己记录token统计
+                "input_tokens": 0,  # selector module inherits from ModuleBase, will record token statistics by itself
                 "output_tokens": 0,
                 "total_tokens": 0
             }
                 
         except Exception as e:
-            self.logger.error(f"选择最佳SQL时发生错误: {str(e)}")
-            # 如果选择失败，返回第一个候选
+            self.logger.error(f"Failed to select the best SQL: {str(e)}")
+            # If selection fails, return the first candidate
             selected_sql = candidates[0]
         
-        # 计算总token
+        # Calculate the total token
         total_tokens = {
             "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
             "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
             "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
         
-        # 保存最终的中间结果
+        # Save the final intermediate result
         self.save_intermediate(
             input_data={
                 "query": query,
@@ -128,5 +128,5 @@ class EnsembleGenerator(EnhancedSQLGenerator):
             module_name=self.name if (module_name == None) else module_name
         )
         
-        # 保持返回值格式与raw_output统一，使用```sql```包裹selected_sql
+        # Keep the return value format consistent with raw_output, wrap selected_sql with ```sql```
         return f"```sql\n{selected_sql}\n```"

@@ -6,7 +6,7 @@ from ...core.schema.manager import SchemaManager
 from ...core.utils import load_json
 
 class BasicSchemaLinker(SchemaLinkerBase):
-    """基础的Schema Linking实现"""
+    """Basic Schema Linking implementation"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -22,10 +22,10 @@ class BasicSchemaLinker(SchemaLinkerBase):
         self.schema_manager = SchemaManager()
         
     async def link_schema(self, query: str, database_schema: Dict, query_id: str = None) -> str:
-        """执行schema linking"""
+        """Execute schema linking"""
         schema_str = self._format_basic_schema(database_schema)
 
-        # 获取evidence
+        # Get evidence
         data_file = self.data_file
         dataset_examples = load_json(data_file)
         curr_evidence = ""
@@ -34,7 +34,7 @@ class BasicSchemaLinker(SchemaLinkerBase):
                 curr_evidence = item.get("evidence", "")
                 break
         
-        # 构建prompt
+        # Build prompt
         messages = [
             {"role": "system", "content": BASE_SCHEMA_SYSTEM},
             {"role": "user", "content": BASE_SCHEMA_USER.format(
@@ -44,7 +44,7 @@ class BasicSchemaLinker(SchemaLinkerBase):
             )}
         ]
         
-        # 调用LLM
+        # Call LLM
         result = await self.llm.call_llm(
             messages,
             self.model,
@@ -53,7 +53,7 @@ class BasicSchemaLinker(SchemaLinkerBase):
             module_name=self.name
         )
         
-        # 提取结果并格式化
+        # Extract results and format
         raw_output = result["response"]
         extracted_linked_schema = self.extractor.extract_schema_json(raw_output)
         formatted_linked_schema = self.schema_manager.format_linked_schema(extracted_linked_schema)
@@ -69,7 +69,7 @@ class BasicSchemaLinker(SchemaLinkerBase):
             }
         )
         
-        # 保存中间结果
+        # Save intermediate results
         self.save_intermediate(
             input_data={
                 "query": query, 

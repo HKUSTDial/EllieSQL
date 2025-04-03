@@ -17,7 +17,6 @@ class RefinerBase():
     # async def process_sql_with_retry(self, 
     #                               sql: str,
     #                               query_id: str = None) -> Tuple[str, str]:
-    #     """使用重试机制处理SQL"""
     #     return await self.execute_with_retry(
     #         func=self.process_sql,
     #         extract_method='sql',
@@ -28,7 +27,7 @@ class RefinerBase():
 
 
 class FeedbackBasedRefiner(RefinerBase):
-    """基于执行结果的使用自反思机制的SQL Refiner，使用SQL运行信息和DB Schema"""
+    """SQL Refiner using self-reflection mechanism based on SQL execution results, using SQL execution information and DB Schema"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -45,10 +44,9 @@ class FeedbackBasedRefiner(RefinerBase):
         
 
     async def process_sql(self, sql: str, data_file: str, query_id: str) -> str:
-        """对生成的SQL进行运行、自反思检查和优化
-        
-        (只对执行出错和结果为空的sql进行refine)
-        
+        """
+        Run, self-reflect, and optimize the generated SQL
+        (Only refine SQLs that execute with errors or result in NULL)
         """
         
         dataset_examples = load_json(data_file)
@@ -68,7 +66,7 @@ class FeedbackBasedRefiner(RefinerBase):
                 db_file = f"{db_id}.sqlite"
                 db_path = str(Config().database_dir / db_folder / db_file)
 
-                # 获取schema
+                # Get schema
                 schema_manager = SchemaManager()
                 formatted_schema = schema_manager.get_formatted_enriched_schema(db_id, source)
                 break
@@ -89,7 +87,7 @@ class FeedbackBasedRefiner(RefinerBase):
             
             if(flag == True):
                 result = {
-                    "response": f"sql经过{iter_cnt}次refine正常执行，直接返回结果 ```sql {curr_sql}```",
+                    "response": f"After {iter_cnt} refinements, the SQL executed successfully, directly returning the result ```sql {curr_sql}```",
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "total_tokens": total_tokens,
@@ -97,7 +95,6 @@ class FeedbackBasedRefiner(RefinerBase):
                 }
                 return result
 
-            # print("需要refine")
             messages = [
                 {"role": "system", "content": REFINER_SYSTEM},
                 {"role": "user", "content": REFINER_USER.format(
@@ -127,11 +124,11 @@ class FeedbackBasedRefiner(RefinerBase):
             curr_sql = extractor.extract_sql(raw_output)
             iter_cnt += 1
         
-        # 最后检查结果
+        # Check the final result
         flag, error_message = validate_sql_execution(db_path, curr_sql)
         if flag:
             result = {
-                "response": f"sql迭代超过{iter_cnt}次后执行成功，直接返回 ```sql {curr_sql}```",
+                "response": f"After {iter_cnt} refinements, the SQL executed successfully, directly returning the result ```sql {curr_sql}```",
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "total_tokens": total_tokens,
@@ -139,7 +136,7 @@ class FeedbackBasedRefiner(RefinerBase):
             }
         else:
             result = {
-                "response": f"sql迭代超过{iter_cnt}次后执行出错，直接返回 ```sql {curr_sql}```",
+                "response": f"After {iter_cnt} refinements, the SQL executed with errors, directly returning the result ```sql {curr_sql}```",
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "total_tokens": total_tokens,
@@ -148,7 +145,7 @@ class FeedbackBasedRefiner(RefinerBase):
         return result
 
     async def process_all_sql(self, sql: str, data_file: str, query_id: str) -> str:
-        """对生成的SQL进行运行、自反思检查和优化"""
+        """Run, self-reflect, and optimize the generated SQL"""
         
         dataset_examples = load_json(data_file)
 
@@ -161,15 +158,15 @@ class FeedbackBasedRefiner(RefinerBase):
                 db_folder = f"{source}_{db_id}"
                 db_file = f"{db_id}.sqlite"
                 db_path = str(Config().database_dir / db_folder / db_file)
-                #执行sql并且返回结果：能运行、超时、或报错
+                # Execute SQL and return result: can run, timeout, or error
                 ex_result = execute_sql_with_timeout(db_path, sql)
 
-                # 获取schema
-                # 在任何需要获取schema的地方
+                # Get schema
+                # In any place that requires getting schema
                 from src.core.schema.manager import SchemaManager
-                # 获取schema manager实例
+                # Get schema manager instance
                 schema_manager = SchemaManager()
-                # 获取格式化的schema字符串
+                # Get formatted schema string
                 formatted_schema = schema_manager.get_formatted_enriched_schema(db_id,source)
                 # print(formatted_schema) 
         
@@ -190,7 +187,7 @@ class FeedbackBasedRefiner(RefinerBase):
                     self.model,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    module_name=self.module_name  # 使用生成器的模块名，这样统计会计入生成器
+                    module_name=self.module_name  # Use the module name of the generator, so the statistics will include the generator
                 )
 
                 return result
@@ -199,7 +196,7 @@ class FeedbackBasedRefiner(RefinerBase):
 
                 # processed_sql = self.extractor.extract_sql(raw_output)
                 
-                # # 保存中间结果
+                # # Save intermediate results
                 # self.save_intermediate(
                 #     input_data={
                 #         "original_query": original_query,

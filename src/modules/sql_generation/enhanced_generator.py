@@ -24,24 +24,24 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
 
     # async def generate_online_synthesis_examples(self, formatted_schema: str) -> Dict:
     #     """
-    #     生成在线合成的示例
+    #     Generate online synthesis examples
         
     #     Args:
-    #         formatted_schema: 格式化的schema字符串
+    #         formatted_schema: The formatted schema string
             
     #     Returns:
-    #         Dict: 包含示例和token统计的结果字典
+    #         Dict: The result dictionary containing examples and token statistics
     #     """
-    #     # 构建提示词
+    #     # Build the prompt
     #     online_synthesis_messages = [
     #         {"role": "system", "content": SQL_GENERATION_SYSTEM},
     #         {"role": "user", "content": ONLINE_SYNTHESIS_PROMPT.format(
     #             TARGET_DATABASE_SCHEMA=formatted_schema,
-    #             k=2  # 或者根据需要调整
+    #             k=2
     #         )}
     #     ]
         
-    #     # 调用 LLM 获取示例
+    #     # Call LLM to get examples
     #     result = await self.llm.call_llm(
     #         online_synthesis_messages,
     #         self.model,
@@ -49,22 +49,22 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
     #         max_tokens=self.max_tokens,
     #         module_name=self.name
     #     )
-    #     print("生成examples完成")
-    #     return result  # 返回完整的结果字典
+    #     print("Generate examples completed")
+    #     return result  # Return the complete result dictionary
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
-        """生成SQL"""
-        # 加载schema linking的结果
+        """Generate SQL"""
+        # Load the schema linking result
         if not schema_linking_output:
             prev_result = self.load_previous_result(query_id)
             formatted_schema = prev_result["output"]["formatted_linked_schema"]
         else:
             formatted_schema = schema_linking_output.get("formatted_linked_schema")
-            if not formatted_schema:  # 如果直接传入的结果中没有格式化的schema
+            if not formatted_schema:  # If the result directly passed in does not have the formatted schema
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
         
-        # print("schema linking 完成，开始divide")
+        # print("schema linking completed, start divide")
         data_file = self.data_file
         dataset_examples = load_json(data_file)
 
@@ -84,7 +84,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             )}
         ]
         
-        # 记录每个步骤的token统计
+        # Record the token statistics for each step
         step_tokens = {
             "divide": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "online_synthesis": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
@@ -93,7 +93,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
         
-        # 1. Divide阶段
+        # 1. Divide stage
         divide_result = await self.llm.call_llm(
             divide_prompt,
             self.model,
@@ -111,14 +111,13 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         # Initialize an empty set Ssql to store partial SQL queries for each sub-question
         ssql = [] 
         #print(sub_questions)
-        # print("divide结束")
+        # print("divide end")
 
         # 2. conquer:
         ## online synthesis examples for few-shot
-        #online_synthesiser=OnlineSynthesis(llm=self.llm, model=self.model, temperature=self.temperature, max_tokens=self.max_tokens)
-        # print("online_synthesiser实例化成功")
+        # online_synthesiser=OnlineSynthesis(llm=self.llm, model=self.model, temperature=self.temperature, max_tokens=self.max_tokens)
 
-        # 使用封装的方法生成online synthesis示例
+        # Use the wrapped method to generate online synthesis examples
         online_synthesiser = OnlineSynthesiser(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
@@ -136,12 +135,12 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 {"role": "system", "content": SQL_GENERATION_SYSTEM},
                 {"role": "user", "content": CONQUER_PROMPT.format(
                     schema=formatted_schema,
-                    examples=examples_result["response"],  # 使用response字段
+                    examples=examples_result["response"],  # Use the response field
                     query=sub_question,
                     evidence = curr_evidence if curr_evidence else "None"
                 )}
             ]
-            # 3. Conquer阶段
+            # 3. Conquer stage
             conquer_result = await self.llm.call_llm(
                 conquer_prompt,
                 self.model,
@@ -157,7 +156,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             extracted_sql = self.extractor.extract_sql(raw_output)
             ssql.append(extracted_sql)
 
-        # print("Conquer 完成，开始assemble")
+        # print("Conquer completed, start assemble")
 
         # 3. assemble:
         # Assemble the final SQL query Sf from all sub-queries in Ssql
@@ -178,7 +177,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             )}
         ]
 
-        # 4. Assemble阶段
+        # 4. Assemble stage
         assemble_result = await self.llm.call_llm(
             assemble_prompt,
             self.model,
@@ -193,16 +192,15 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         raw_output = assemble_result["response"]
         extracted_sql = self.extractor.extract_sql(raw_output)
 
-        # print("完成了初步sql生成")
+        # print("Completed the initial SQL generation")
 
         refiner = FeedbackBasedRefiner(llm=self.llm, 
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 module_name=self.name)
-        # print(111)
 
-        # 5. Refine阶段
+        # 5. Refine stage
         refine_result = await refiner.process_sql(extracted_sql, data_file, query_id)
 
         refiner_raw_output = refine_result["response"]
@@ -213,16 +211,16 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
         step_tokens["refine"]["input_tokens"] = refine_result["input_tokens"]
         step_tokens["refine"]["output_tokens"] = refine_result["output_tokens"]
         step_tokens["refine"]["total_tokens"] = refine_result["total_tokens"]
-        # print("sql refine完成")
+        # print("sql refine completed")
       
-        # 计算总token
+        # Calculate the total token
         total_tokens = {
             "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
             "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
             "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
 
-        # 保存中间结果，包含每个步骤的统计
+        # Save intermediate results, including the statistics for each step
         self.save_intermediate(
             input_data={
                 "query": query,
@@ -240,7 +238,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
                 "input_tokens": total_tokens["input_tokens"],
                 "output_tokens": total_tokens["output_tokens"],
                 "total_tokens": total_tokens["total_tokens"],
-                "step_tokens": step_tokens  # 添加每个步骤的统计
+                "step_tokens": step_tokens  # Add the statistics for each step
             },
             query_id=query_id,
             module_name=self.name if (module_name == None) else module_name
@@ -250,7 +248,7 @@ class EnhancedSQLGenerator(SQLGeneratorBase):
             input_data={
                 "query": query, 
                 "formatted_schema": formatted_schema,
-                "messages": assemble_prompt #这样修改合理吗
+                "messages": assemble_prompt
             }, 
             output_data=raw_output
         )

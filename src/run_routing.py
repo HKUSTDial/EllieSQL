@@ -20,7 +20,7 @@ from src.router.dpo_qwen_router import DPOClassifierRouter
 from src.pipeline_factory import PipelineFactory, PipelineLevel
 
 def get_router(router_type: str, router_path: str = None, confidence_threshold: float = 0.6, train_file_path: str = None):
-    """根据参数获取对应的router"""
+    """Get the corresponding router based on the parameters"""
     if router_type == "knn":
         return KNNClassifierRouter(
             seed=42,
@@ -62,7 +62,7 @@ def get_router(router_type: str, router_path: str = None, confidence_threshold: 
         raise ValueError(f"Unknown router type: {router_type}")
 
 async def main():
-    # 解析命令行参数
+    # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--router', type=str, required=True,
                        choices=['knn', 'qwen', 'roberta', 'qwen_cascade', 
@@ -82,10 +82,10 @@ async def main():
                        help='Maximum number of parallel workers')
     args = parser.parse_args()
 
-    # 初始化LLM
+    # Initialize LLM
     llm = LLMBase()
     
-    # 创建pipeline工厂
+    # Create pipeline factory
     factory = PipelineFactory(
         llm, 
         backbone_model=args.backbone_model,
@@ -93,7 +93,7 @@ async def main():
         max_retries=10
     )
 
-    # 获取指定的router
+    # Get the specified router
     router = get_router(
         args.router,
         args.router_path,
@@ -101,7 +101,7 @@ async def main():
         args.train_file_path
     )
     
-    # 注册生成器
+    # Register generators
     router.register_generator(PipelineLevel.BASIC.value, 
                             factory.get_pipeline(PipelineLevel.BASIC).sql_generator)
     router.register_generator(PipelineLevel.INTERMEDIATE.value, 
@@ -109,28 +109,28 @@ async def main():
     router.register_generator(PipelineLevel.ADVANCED.value, 
                             factory.get_pipeline(PipelineLevel.ADVANCED).sql_generator)
     
-    # 创建使用router的pipeline
+    # Create a pipeline that uses the router
     pipeline = ElephantSQLPipeline(
-        schema_linker=factory.get_pipeline(PipelineLevel.BASIC).schema_linker, # 复用基础pipeline的schema linker
-        sql_generator=router, # 使用router代替特定的generator
+        schema_linker=factory.get_pipeline(PipelineLevel.BASIC).schema_linker, # Reuse the schema linker of the basic pipeline
+        sql_generator=router, # Use the router instead of a specific generator
         post_processor=SkipPostProcessor()
     )
     
-    # 运行pipeline
+    # Run the pipeline
     await pipeline.run_pipeline_parallel(
         data_file=args.test_file,
         max_workers=args.max_workers
     )
 
 if __name__ == "__main__":
-    # 1. 设置新的事件循环
+    # 1. Set a new event loop
     policy = asyncio.get_event_loop_policy()
     policy.set_event_loop(policy.new_event_loop())
 
-    # 2. 设置线程池大小
+    # 2. Set the thread pool size
     loop = asyncio.get_event_loop()
     loop.set_default_executor(ThreadPoolExecutor(max_workers=256))
 
-    # 3. 运行与关闭
+    # 3. Run and close
     loop.run_until_complete(main())
     loop.close()

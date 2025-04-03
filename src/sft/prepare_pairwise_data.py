@@ -8,7 +8,7 @@ from ..core.utils import load_jsonl
 import argparse
 
 class PairwiseDataProcessor:
-    """处理标注数据生成pairwise训练数据集"""
+    """Process the labeled data to generate the pairwise training dataset"""
     
     def __init__(self, pairwise_dataset: str, seed: int = 42):
         self.config = Config()
@@ -17,10 +17,10 @@ class PairwiseDataProcessor:
         self.templates = PipelineClassificationTemplates()
         self.seed = seed
         
-        # 设置随机种子
+        # Set the random seed
         np.random.seed(self.seed)
         
-        # 定义pipeline类型和对应的索引
+        # Define the pipeline types and their corresponding indices
         self.pipeline_types = ["basic", "intermediate", "advanced"]
         self.pipeline_to_idx = {
             "basic": 0,
@@ -28,7 +28,7 @@ class PairwiseDataProcessor:
             "advanced": 2
         }
         
-        # 根据label定义偏序关系
+        # Define the preference pairs according to the label
         self.preference_pairs = {
             1: [  # Basic
                 ("basic", "intermediate"),
@@ -50,11 +50,11 @@ class PairwiseDataProcessor:
         }
         
     def prepare_data(self, labeled_file: str, train_ratio: float = 0.8):
-        """准备pairwise训练数据集"""
-        # 加载数据
+        """Prepare the pairwise training dataset"""
+        # Load the data
         data = load_jsonl(labeled_file)
         
-        # 构造pairwise样本
+        # Construct the pairwise samples
         pairwise_samples = []
         for item in data:
             input_text = self.templates.create_classifier_prompt(
@@ -62,13 +62,13 @@ class PairwiseDataProcessor:
                 schema=item["enhanced_linked_schema_wo_info"]
             )
             
-            # 获取标签(1-based), 标签4转化3
+            # Get the label (1-based), label 4 is converted to 3
             label = min(item["label"], 3)
             
-            # 获取该标签对应的偏序对
+            # Get the preference pairs corresponding to the label
             preference_pairs = self.preference_pairs[label]
             
-            # 为每个偏序对创建一个样本
+            # Create a sample for each preference pair
             for chosen, rejected in preference_pairs:
                 pairwise_samples.append({
                     "question_id": item["question_id"],
@@ -81,20 +81,20 @@ class PairwiseDataProcessor:
                     "original_label": label
                 })
         
-        # 随机打乱数据
+        # Shuffle the data
         np.random.shuffle(pairwise_samples)
         
-        # 划分训练集和验证集
+        # Split the training set and validation set
         split_idx = int(len(pairwise_samples) * train_ratio)
         train_samples = pairwise_samples[:split_idx]
         valid_samples = pairwise_samples[split_idx:]
         
-        # 保存数据集
+        # Save the dataset
         self._save_and_analyze_samples(train_samples, valid_samples)
         
     def _save_and_analyze_samples(self, train_samples: List[Dict], valid_samples: List[Dict]):
-        """保存数据集并分析分布"""
-        # 保存数据集
+        """Save the dataset and analyze the distribution"""
+        # Save the dataset
         train_file = self.pairwise_dataset_dir / "pairwise_train.json"
         valid_file = self.pairwise_dataset_dir / "pairwise_valid.json"
         
@@ -103,10 +103,10 @@ class PairwiseDataProcessor:
         with open(valid_file, 'w', encoding='utf-8') as f:
             json.dump(valid_samples, f, ensure_ascii=False, indent=2)
             
-        # 分析分布
+        # Analyze the distribution
         def analyze_distribution(samples: List[Dict]) -> Dict:
             total = len(samples)
-            # 原始标签分布
+            # Original label distribution
             label_dist = {}
             for i in range(1, 5):  # 1-4
                 count = sum(1 for s in samples if s["original_label"] == i)
@@ -115,7 +115,7 @@ class PairwiseDataProcessor:
                     "percentage": count/total*100
                 }
                 
-            # 偏序对分布
+            # Preference pair distribution
             pair_dist = {}
             for s in samples:
                 pair = (s["chosen"], s["rejected"])

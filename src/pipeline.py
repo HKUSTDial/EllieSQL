@@ -16,7 +16,8 @@ from concurrent.futures import ThreadPoolExecutor
 from src.core.config import Config
 
 class ElephantSQLPipeline:
-    """完整的处理流程Pipeline"""
+
+    """The complete processing pipeline"""
     
     def __init__(self,
                  schema_linker: SchemaLinkerBase,
@@ -26,16 +27,16 @@ class ElephantSQLPipeline:
         
         self.pipeline_id = pipeline_id
         
-        # 初始化日志管理器
+        # Initialize the logger manager
         self.logger_manager = LoggerManager(self.pipeline_id)
         self.logger = self.logger_manager.get_logger("pipeline")
         
-        # 先保存模块引用
+        # Save the module references first
         self.schema_linker = schema_linker
         self.sql_generator = sql_generator
         self.post_processor = post_processor
         
-        # 为每个模块设置pipeline_id和logger
+        # Set the pipeline_id and logger for each module
         self.schema_linker.intermediate = IntermediateResult(self.schema_linker.name, self.pipeline_id)
         self.schema_linker.logger = self.logger_manager.get_logger(self.schema_linker.name)
         
@@ -45,63 +46,61 @@ class ElephantSQLPipeline:
         self.post_processor.intermediate = IntermediateResult(self.post_processor.name, self.pipeline_id)
         self.post_processor.logger = self.logger_manager.get_logger(self.post_processor.name)
         
-        # 设置模块间的依赖关系
+        # Set the dependencies between modules
         self.sql_generator.set_previous_module(self.schema_linker)
-        if hasattr(self.sql_generator, 'generators'):  # 检查是否为路由器
+        if hasattr(self.sql_generator, 'generators'):  # Check if it is a router
             for generator in self.sql_generator.generators.values():
                 generator.set_previous_module(self.schema_linker)
                 
         self.post_processor.set_previous_module(self.sql_generator)
         
-        # 创建pipeline级别的中间结果处理器
+        # Create a pipeline-level intermediate result processor
         self.intermediate = IntermediateResult("pipeline", self.pipeline_id)
         
-        # 添加统计日志记录器
+        # Add a statistics logger
         self.stats_logger = self.logger_manager.get_logger("api_statistics")
         
         self.schema_manager = SchemaManager()
         
     def prepare_queries(self, data_file: str) -> List[Dict]:
         """
-        准备查询数据
+        Prepare query data
         
-        Args:
-            data_file: 数据文件路径
+        :param data_file: The path of the data file
             
-        Returns:
-            List[Dict]: 准备好的查询列表
+        :return: List[Dict]: The prepared query list
         """
-        # 加载数据
+        # Load data
         merge_dev_demo_data = load_json(data_file)
         
-        # 准备批处理数据
+        # Prepare batch processing data
         queries = []
         for item in merge_dev_demo_data:
             question_id = item.get("question_id", "")
             if not question_id:
-                self.logger.warning("问题缺少ID")
+                self.logger.warning("The question is missing an ID")
                 continue
                 
             source = item.get("source", "")
             db_id = item.get("db_id", "")
             
-            # 构建数据库路径
-            # 例如: ./data/merged_databases/spider_dev_academic/academic.sqlite
-            db_folder = f"{source}_{db_id}"  # 例如: spider_dev_academic
-            db_file = f"{db_id}.sqlite"      # 例如: academic.sqlite
+            # Build the database path
+            # For example: ./data/merged_databases/spider_dev_academic/academic.sqlite
+            db_folder = f"{source}_{db_id}"  # For example: spider_dev_academic
+            db_file = f"{db_id}.sqlite"      # For example: academic.sqlite
             db_path = str(Config().database_dir / db_folder / db_file)
             
             try:
                 schema = self.schema_manager.get_schema(db_id, db_path)
             except Exception as e:
-                self.logger.error(f"加载数据库schema失败: {db_path}")
-                self.logger.error(f"错误信息: {str(e)}")
+                self.logger.error(f"Failed to load the database schema: {db_path}")
+                self.logger.error(f"Error information: {str(e)}")
                 continue
             
             queries.append({
                 "query_id": question_id,
                 "query": item.get("question"),
-                "database_schema": schema.to_dict(),  # 转换为字典格式
+                "database_schema": schema.to_dict(),  # Convert to a dictionary format
                 "source": source
             })
             
@@ -109,125 +108,123 @@ class ElephantSQLPipeline:
         
     async def run_pipeline_parallel(self, data_file: str, max_workers: int = 5) -> None:
         """
-        并行化运行完整的处理流程
+        Run the complete processing pipeline in parallel
 
-        Args:
-            data_file: 数据文件路径
-            max_workers: 最大并行数，默认为5
+        :param data_file: The path of the data file
+        :param max_workers: The maximum number of parallel workers, default is 5
         """
         start_time = datetime.now()
-        self.logger.info(f"开始处理数据文件: {data_file}")
+        self.logger.info(f"Start processing data file: {data_file}")
         
-        # 设置data_file
+        # Set the data_file
         self.schema_linker.set_data_file(data_file)
         self.sql_generator.set_data_file(data_file)
-        if hasattr(self.sql_generator, 'generators'):  # 检查是否为路由器
+        if hasattr(self.sql_generator, 'generators'):  # Check if it is a router
             for generator in self.sql_generator.generators.values():
                 generator.set_data_file(data_file)
                 
         self.post_processor.set_data_file(data_file)
 
-        # 准备数据
+        # Prepare data
         queries = self.prepare_queries(data_file)
         total_queries = len(queries)
-        self.logger.info(f"共加载 {total_queries} 个查询待处理")
+        self.logger.info(f"Loaded {total_queries} queries to process")
         
-        # 使用并行处理
+        # Use parallel processing
         results = await self.process_batch_parallel(
             queries=queries,
             desc="Processing",
             max_workers=max_workers
         )
         
-        # 计算总耗时
+        # Calculate the total duration
         end_time = datetime.now()
         duration = end_time - start_time
         hours = duration.seconds // 3600
         minutes = (duration.seconds % 3600) // 60
         seconds = duration.seconds % 60
         
-        # 打印统计信息
+        # Print the statistics information
         self.logger.info("="*50)
-        self.logger.info("Pipeline运行完成")
-        self.logger.info(f"总查询数: {total_queries}")
-        self.logger.info(f"最大并行数: {max_workers}")
-        self.logger.info(f"成功处理: {len(results)}, 失败数量: {total_queries - len(results)}, 成功率: {(len(results) / total_queries * 100):.2f}%")
-        self.logger.info(f"总耗时: {hours} Hours {minutes} Minutes {seconds} Seconds, 平均每个查询耗时: {duration.total_seconds() / total_queries:.2f} Seconds")
+        self.logger.info("Pipeline completed")
+        self.logger.info(f"Total queries: {total_queries}")
+        self.logger.info(f"Maximum parallel number: {max_workers}")
+        self.logger.info(f"Successfully processed: {len(results)}, Failed: {total_queries - len(results)}, Success rate: {(len(results) / total_queries * 100):.2f}%")
+        self.logger.info(f"Total duration: {hours} Hours {minutes} Minutes {seconds} Seconds, Average time per query: {duration.total_seconds() / total_queries:.2f} Seconds")
         self.logger.info("="*50)
         self.log_api_stats()
     
     async def run_pipeline(self, data_file: str) -> None:
         """
-        串行化运行完整的处理流程
+        Run the complete processing pipeline in serial
 
-        Args:
-            data_file: 数据文件路径
+        :param data_file: The path of the data file
         """
         start_time = datetime.now()
-        self.logger.info(f"开始处理数据文件: {data_file}")
+        self.logger.info(f"Start processing data file: {data_file}")
         
-        # 设置data_file
+        # Set the data_file
         self.sql_generator.set_data_file(data_file)
 
-        # 准备数据
+        # Prepare data
         queries = self.prepare_queries(data_file)
         total_queries = len(queries)
-        self.logger.info(f"共加载 {total_queries} 个查询待处理")
+        self.logger.info(f"Loaded {total_queries} queries to process")
         
-        # 使用串行处理
+        # Use serial processing
         results = await self.process_batch(
             queries=queries,
             desc="Processing"
         )
         
-        # 计算总耗时
+        # Calculate the total duration
         end_time = datetime.now()
         duration = end_time - start_time
         hours = duration.seconds // 3600
         minutes = (duration.seconds % 3600) // 60
         seconds = duration.seconds % 60
         
-        # 打印统计信息
+        # Print the statistics information
         self.logger.info("="*50)
-        self.logger.info("Pipeline运行完成")
-        self.logger.info(f"总查询数: {total_queries}")
-        self.logger.info(f"成功处理: {len(results)}, 失败数量: {total_queries - len(results)}, 成功率: {(len(results) / total_queries * 100):.2f}%")
-        self.logger.info(f"总耗时: {hours} Hours {minutes} Minutes {seconds} Seconds, 平均每个查询耗时: {duration.total_seconds() / total_queries:.2f} Seconds")
+        self.logger.info("Pipeline completed")
+        self.logger.info(f"Total queries: {total_queries}")
+        self.logger.info(f"Successfully processed: {len(results)}, Failed: {total_queries - len(results)}, Success rate: {(len(results) / total_queries * 100):.2f}%")
+        self.logger.info(f"Total duration: {hours} Hours {minutes} Minutes {seconds} Seconds, Average time per query: {duration.total_seconds() / total_queries:.2f} Seconds")
         self.logger.info("="*50)
         self.log_api_stats()
         
     def log_api_stats(self):
-        """打印API调用统计信息"""
+        """Print the API call statistics information"""
         stats_file = os.path.join(self.intermediate.pipeline_dir, "api_stats.json")
         if os.path.exists(stats_file):
             with open(stats_file, 'r', encoding='utf-8') as f:
                 stats = json.load(f)
                 
-            # 命令行只输出简要统计
-            self.logger.warning(f"LLM API总调用次数: {stats['total_calls']}")
-            self.logger.warning(f"总输入tokens: {stats['total_cost']['input_tokens']}; 总输出tokens: {stats['total_cost']['output_tokens']}")
+            # Only output the brief statistics in the command line
+            self.logger.warning(f"LLM API total calls: {stats['total_calls']}")
+            self.logger.warning(f"Total input tokens: {stats['total_cost']['input_tokens']}; Total output tokens: {stats['total_cost']['output_tokens']}")
             
-            # 详细统计信息写入统计日志
+            # Detailed statistics information written to the statistics log
             self.stats_logger.info("="*50)
-            self.stats_logger.info("详细API调用统计")
+            self.stats_logger.info("Detailed API call statistics")
             self.stats_logger.info("="*50)
             
-            self.stats_logger.info("按模型统计:")
+            self.stats_logger.info("Model statistics:")
             for model, model_stats in stats['models'].items():
                 self.stats_logger.info(f"{model}:")
-                self.stats_logger.info(f"  调用次数: {model_stats['calls']}")
-                self.stats_logger.info(f"  输入tokens: {model_stats['input_tokens']}")
-                self.stats_logger.info(f"  输出tokens: {model_stats['output_tokens']}")
-                self.stats_logger.info(f"  总tokens: {model_stats['total_tokens']}")
+                self.stats_logger.info(f"  Calls: {model_stats['calls']}")
+                self.stats_logger.info(f"  Input tokens: {model_stats['input_tokens']}")
+                self.stats_logger.info(f"  Output tokens: {model_stats['output_tokens']}")
+                self.stats_logger.info(f"  Total tokens: {model_stats['total_tokens']}")
             
-            self.stats_logger.info("按模块统计:")
+            self.stats_logger.info("Module statistics:")
             for module, module_stats in stats['modules'].items():
                 self.stats_logger.info(f"{module}:")
-                self.stats_logger.info(f"  总调用次数: {module_stats['calls']}")
+                self.stats_logger.info(f"  Total Calls: {module_stats['calls']}")
                 for model, model_stats in module_stats['models'].items():
                     self.stats_logger.info(f"  {model}:")
-                    self.stats_logger.info(f"    调用次数: {model_stats['calls']}")
-                    self.stats_logger.info(f"    总tokens: {model_stats['total_tokens']}")
+                    self.stats_logger.info(f"    Calls: {model_stats['calls']}")
+                    self.stats_logger.info(f"    Total tokens: {model_stats['total_tokens']}")
             self.stats_logger.info("="*50)
         
     async def process(self, 
@@ -236,21 +233,19 @@ class ElephantSQLPipeline:
                     query_id: str,
                     source: str = "") -> Dict[str, Any]:
         """
-        处理单个查询
+        Process a single query
         
-        Args:
-            query: 用户查询
-            database_schema: 数据库schema
-            query_id: 查询ID
-            source: 查询来源
+        :param query: User query
+        :param database_schema: Database schema
+        :param query_id: Query ID
+        :param source: Query source
             
-        Returns:
-            Dict[str, Any]: 处理结果
+        :return: Dict[str, Any]: The processing result
         """
         # Add source to database_schema
         database_schema["source"] = source
         
-        # 在每个示例开始时添加分隔符
+        # Add a separator at the beginning of each example
         for module in [self.schema_linker, self.sql_generator, self.post_processor]:
             module.logger.info("="*70)
             module.logger.info(f"Processing Query ID: {query_id}")
@@ -281,7 +276,7 @@ class ElephantSQLPipeline:
             query_id=query_id
         )
         
-        # 保存最终的SQL结果
+        # Save the final SQL result
         self.intermediate.save_sql_result(query_id, source, processed_sql)
         
         return {
@@ -298,7 +293,7 @@ class ElephantSQLPipeline:
     async def process_batch(self, 
                          queries: List[Dict],
                          desc: str = "Processing") -> List[Dict]:
-        """批量处理数据集中的查询"""
+        """Batch process the queries in the dataset"""
         results = []
         with tqdm(total=len(queries), desc=desc) as pbar:
             for query_item in queries:
@@ -314,36 +309,34 @@ class ElephantSQLPipeline:
     
     async def process_batch_parallel(self, queries: List[Dict], desc: str = "", max_workers: int = 5) -> List[Dict]:
         """
-        并行化处理数据集中的查询
+        Parallel processing of queries in the dataset
         
-        Args:
-            queries: 查询列表
-            desc: 进度条描述
-            max_workers: 最大并行数，默认为5
+        :param queries: Query list
+        :param desc: Progress bar description
+        :param max_workers: Maximum number of parallel processing, default is 5
             
-        Returns:
-            List[Dict]: 处理结果列表
+        :return: List[Dict]: The processing result list
         """
         results = []
         completed = 0
         total = len(queries)
         
-        # 使用信号量限制并发数
+        # Use a semaphore to limit the number of concurrent processes
         semaphore = asyncio.Semaphore(max_workers)
         
-        # 记录开始信息
-        self.logger.info(f"开始并行处理 {total} 个查询，最大并行数: {max_workers}")
+        # Record the start information
+        self.logger.info(f"Start parallel processing {total} queries, maximum parallel number: {max_workers}")
         
         async def process_with_semaphore(query):
             """
-            使用信号量限制并发数
+            Use a semaphore to limit the number of concurrent processes
             """
             async with semaphore:
                 nonlocal completed
                 try:
                     self.logger.info(
-                        f"开始处理查询 [{query['query_id']}] "
-                        f"({completed + 1}/{total}, 当前并行任务数: {len(asyncio.all_tasks()) - 1})"
+                        f"Start processing query [{query['query_id']}] "
+                        f"({completed + 1}/{total}, current parallel task number: {len(asyncio.all_tasks()) - 1})"
                     )
                     
                     result = await self.process(
@@ -355,22 +348,22 @@ class ElephantSQLPipeline:
                     
                     completed += 1
                     self.logger.info(
-                        f"完成查询 [{query['query_id']}] "
-                        f"({completed}/{total}, 剩余: {total - completed})"
+                        f"Completed query [{query['query_id']}] "
+                        f"({completed}/{total}, remaining: {total - completed})"
                     )
                     return result
                 except Exception as e:
                     completed += 1
                     self.logger.error(
-                        f"处理查询 [{query['query_id']}] 时发生错误: {str(e)} "
-                        f"({completed}/{total}, 剩余: {total - completed})"
+                        f"Error occurred while processing query [{query['query_id']}]: {str(e)} "
+                        f"({completed}/{total}, remaining: {total - completed})"
                     )
                     return None
         
-        # 创建所有任务
+        # Create all tasks
         tasks = [process_with_semaphore(query) for query in queries]
         
-        # 使用tqdm显示进度
+        # Use tqdm to display the progress
         with tqdm(total=total, desc=f"Processing (threads: {max_workers})") as pbar:
             for task in asyncio.as_completed(tasks):
                 try:
@@ -384,15 +377,15 @@ class ElephantSQLPipeline:
                         'fail': completed - len(results)
                     })
                 except Exception as e:
-                    self.logger.error(f"任务执行异常: {str(e)}")
+                    self.logger.error(f"Task execution exception: {str(e)}")
                     pbar.update(1)
                     continue
         
-        # 记录完成信息
+        # Record the completion information
         success_rate = (len(results) / total) * 100
         self.logger.info(
-            f"并行处理完成。总数: {total}, 成功: {len(results)}, "
-            f"失败: {total - len(results)}, 成功率: {success_rate:.2f}%"
+            f"Parallel processing completed. Total: {total}, Success: {len(results)}, "
+            f"Failed: {total - len(results)}, Success rate: {success_rate:.2f}%"
         )
         
         return results 

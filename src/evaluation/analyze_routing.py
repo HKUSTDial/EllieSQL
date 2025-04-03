@@ -8,11 +8,11 @@ from ..core.config import Config
 import argparse
 
 class RouterAnalyzer:
-    """分析路由器的预测结果"""
+    """Analyze the prediction results of the router"""
     
     def __init__(self):
         self.config = Config()
-        # 标签映射
+        # Label mapping
         self.label_map = {
             "basic": 1,
             "intermediate": 2,
@@ -20,31 +20,31 @@ class RouterAnalyzer:
         }
         
     def _extract_prediction(self, router_output: Dict) -> int:
-        """从路由器输出中提取预测标签"""
+        """Extract the predicted label from the router output"""
         selected = router_output["output"]["selected_generator"]
         return self.label_map[selected]
     
     def _extract_oracle_label(self, gt_item: Dict) -> int:
-        """提取oracle标签
-        将Unsolved(4)标签映射为Advanced(3)
+        """Extract the oracle label
+        Map Unsolved(4) to Advanced(3)
         """
         label = gt_item["label"]
-        # 如果标签是4(Unsolved)，则映射为3(Advanced)
+        # If the label is 4(Unsolved), map it to 3(Advanced)
         return min(label, 3)
     
     def analyze(self, router_file: str, oracle_file: str):
-        """分析路由结果"""
-        # 加载数据
+        """Analyze the routing results"""
+        # Load data
         router_results = load_jsonl(router_file)
         oracle_labels = load_jsonl(oracle_file)
         
-        # 构建question_id到oracle标签的映射
+        # Build the mapping from question_id to oracle label
         gt_map = {item["question_id"]: item for item in oracle_labels}
         
-        # 收集预测和真实标签
+        # Collect predicted and true labels
         y_true = []
         y_pred = []
-        errors = []  # 记录错误预测的样本
+        errors = []  # Record the samples with incorrect predictions
         
         for result in router_results:
             question_id = result["query_id"]
@@ -60,7 +60,7 @@ class RouterAnalyzer:
                 y_true.append(true_label)
                 y_pred.append(pred_label)
                 
-                # 记录错误预测
+                # Record the samples with incorrect predictions
                 if pred_label != true_label:
                     errors.append({
                         "question_id": question_id,
@@ -75,25 +75,25 @@ class RouterAnalyzer:
                 print(f"Error processing question {question_id}: {str(e)}")
                 continue
         
-        # 计算混淆矩阵
+        # Calculate the confusion matrix
         cm = confusion_matrix(y_true, y_pred, labels=[1, 2, 3])
         
-        # 计算主对角线及上方的总和（高估）
+        # Calculate the sum of the main diagonal and above (overestimation)
         upper_sum = 0
         for i in range(3):
-            for j in range(i, 3):  # 只计算对角线及上方
+            for j in range(i, 3):  # Only calculate the diagonal and above
                 upper_sum += cm[i, j]
         
-        # 计算主对角线及下方的总和（低估）
+        # Calculate the sum of the main diagonal and below (underestimation)
         lower_sum = 0
         for i in range(3):
-            for j in range(i + 1):  # 只计算对角线及下方
+            for j in range(i + 1):  # Only calculate the diagonal and below
                 lower_sum += cm[i, j]
         
-        # 计算总样本数
+        # Calculate the total number of samples
         total_samples = cm.sum()
         
-        # 计算详细指标
+        # Calculate the detailed metrics
         report = classification_report(
             y_true, y_pred,
             labels=[1, 2, 3],
@@ -101,10 +101,10 @@ class RouterAnalyzer:
             digits=4
         )
             
-        # 打印分析结果
+        # Print the analysis results
         print("\n=== Router Analysis Results ===")
         
-        # 打印总体指标
+        # Print the overall metrics
         total_samples = len(y_true)
         correct_predictions = sum(1 for t, p in zip(y_true, y_pred) if t == p)
         overall_agreement = correct_predictions / total_samples * 100
@@ -119,10 +119,10 @@ class RouterAnalyzer:
         print("True Label      Basic  Intermediate  Advanced    Total")
         print("-------------------------------------------------------")
 
-        # 计算每行的总数
+        # Calculate the sum of each row
         row_sums = cm.sum(axis=1)
 
-        # 打印每一行
+        # Print each row
         for i, row in enumerate(cm):
             label = ["Basic", "Intermediate", "Advanced"][i]
             row_total = row_sums[i]
@@ -136,7 +136,7 @@ class RouterAnalyzer:
         col_percentages = col_sums / total_sum * 100
         print(f"Percentage    {col_percentages[0]:5.1f}%     {col_percentages[1]:5.1f}%    {col_percentages[2]:5.1f}%    100%")
 
-        # 打印主对角线上下的分析
+        # Print the analysis of the main diagonal and below
         print("\nDiagonal Analysis:")
         print(f"Upper Triangle (Overestimation):")
         print(f"  Sum: {upper_sum}")
@@ -145,7 +145,7 @@ class RouterAnalyzer:
         print(f"  Sum: {lower_sum}")
         print(f"  Percentage: {lower_sum/total_samples*100:.2f}%")
 
-        # 打印每个类别的准确率
+        # Print the accuracy of each class
         print("\nPer-class Agreement:")
         for i in range(3):
             agreement = cm[i,i] / row_sums[i] * 100

@@ -2,12 +2,12 @@ import json
 import argparse
 from ..core.utils import load_jsonl
 
-# 读取原始数据集
+# Read the original dataset
 def load_json(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-# 生成偏好对
+# Generate preference pairs
 def generate_preference_pairs(data):
     preference_pairs = []
     for item in data:
@@ -16,8 +16,6 @@ def generate_preference_pairs(data):
         question_id = item["question_id"]
         source = item["source"]
 
-
-        
         if label == 0:
             pairs = [("0", "1"), ("0", "2"), ("1", "2")]
         elif label == 1:
@@ -27,8 +25,6 @@ def generate_preference_pairs(data):
         else:
             continue
 
-
-        
         for chosen, rejected in pairs:
             preference_pairs.append({
                 "text": input_text,
@@ -41,16 +37,16 @@ def generate_preference_pairs(data):
     
     return preference_pairs
 
-# 保存为JSON文件
+# Save as a JSON file
 def save_json(data, output_path):
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 主函数
+# Main function
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--labeled_file', type=str, required=True,
-                       help='Path to the dataset with labells which is to be used for SFT dataset preparation')
+                       help='Path to the dataset with labels which is to be used for DPO dataset preparation')
     parser.add_argument('--preference_file', type=str, required=True,
                        help='Path to the dataset with preference pairs which is to be used for DPO dataset preparation')
     args = parser.parse_args()
@@ -63,7 +59,7 @@ def main():
     preference_pairs = generate_preference_pairs(data)
     save_json(preference_pairs, preference_file)
     
-    print(f"已生成 {len(preference_pairs)} 个偏好对，保存在 {preference_file}")
+    print(f"Generated {len(preference_pairs)} preference pairs, saved in {preference_file}")
 
 if __name__ == "__main__":
     main()

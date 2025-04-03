@@ -2,13 +2,13 @@ import yaml
 from pathlib import Path
 
 class Config:
-    """配置管理类"""
+    """Configuration management class"""
     _instance = None
     
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            # 加载配置文件
+            # Load configuration file
             config_path = Path("config/config.yaml")
             with open(config_path, "r") as f:
                 cls._instance.config = yaml.safe_load(f)

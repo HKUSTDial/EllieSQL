@@ -6,14 +6,14 @@ from ...core.utils import load_json
 from .submodules.refiner import *
 
 class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
-    """使用多个OSRefiner生成候选并聚合的SQL生成器，继承自OSRefinerSQLGenerator"""
+    """SQL generator that uses multiple OSRefiners to generate candidates and aggregate them, inheriting from OSRefinerSQLGenerator"""
     
     def __init__(self, 
                 llm: LLMBase, 
                 model: str = "gpt-3.5-turbo-0613",
-                temperature: float = 0.0,  # 聚合时使用的temperature
+                temperature: float = 0.0,  # The temperature used for aggregation
                 max_tokens: int = 5000,
-                n_candidates: int = 3,  # 生成的候选数量
+                n_candidates: int = 3,  # The number of candidates generated
                 max_retries: int = 3):
         super().__init__(
             llm=llm,
@@ -26,15 +26,15 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
         self.n_candidates = n_candidates
         
     async def generate_sql(self, query: str, schema_linking_output: Dict, query_id: str, module_name: Optional[str] = None) -> str:
-        """生成多个候选SQL并聚合"""
-        # 记录每个步骤的token统计
+        """Generate multiple candidate SQLs and aggregate them"""
+        # Record the token statistics for each step
         step_tokens = {
             "candidates": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "aggregator": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
             "refine": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
         }
         
-        # 加载schema linking的结果
+        # Load the schema linking result
         if not schema_linking_output:
             prev_result = self.load_previous_result(query_id)
             formatted_schema = prev_result["output"]["formatted_linked_schema"]
@@ -44,7 +44,7 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
                 prev_result = self.load_previous_result(query_id)
                 formatted_schema = prev_result["output"]["formatted_linked_schema"]
                 
-        # 获取evidence
+        # Get evidence
         data_file = self.data_file
         dataset_examples = load_json(data_file)
         curr_evidence = ""
@@ -53,19 +53,19 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
                 curr_evidence = item.get("evidence", "")
                 break
                 
-        # 1. 生成多个候选SQL
+        # 1. Generate multiple candidate SQLs
         candidates = []
-        candidates_gen_temperature = 1.0  # 生成候选SQL时使用较高的temperature以获得多样性
+        candidates_gen_temperature = 1.0  # Use higher temperature to generate diverse candidates
         
-        # 保存原始temperature
+        # Save the original temperature
         original_temperature = self.temperature
         
         try:
-            # 临时修改temperature为高温
+            # NOTE: Temporarily modify the temperature to a high value
             self.temperature = candidates_gen_temperature
             
             for i in range(self.n_candidates):
-                # 直接调用父类的generate_sql方法生成候选
+                # Call the generate_sql method of the parent class to generate candidates
                 raw_output = await super().generate_sql(
                     query=query,
                     schema_linking_output=schema_linking_output,
@@ -77,21 +77,21 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
                 if sql:
                     candidates.append(sql)
                     
-                # 累加candidates阶段的token统计
+                # Add the token statistics for the candidates stage
                 if hasattr(self, '_last_result'):
                     step_tokens["candidates"]["input_tokens"] += self._last_result["input_tokens"]
                     step_tokens["candidates"]["output_tokens"] += self._last_result["output_tokens"]
                     step_tokens["candidates"]["total_tokens"] += self._last_result["total_tokens"]
                     
         finally:
-            # 恢复原始temperature
+            # NOTE: Restore the original temperature
             self.temperature = original_temperature
                 
         if not candidates:
-            self.logger.error(f"未能生成有效的候选SQL! Question ID: {query_id}")
-            return "```sql\nSELECT 1;\n```"  # 返回一个简单的fallback SQL
+            self.logger.error(f"Failed to generate valid candidate SQLs! Question ID: {query_id}")
+            return "```sql\nSELECT 1;\n```"  # Return a simple fallback SQL
             
-        # 2. 聚合候选SQL (使用原始的低temperature)
+        # 2. Aggregate candidate SQLs (use the original low temperature)
         candidates_str = "\n".join(f"# Candidate {i+1}:\n{sql}" for i, sql in enumerate(candidates))
         
         messages = [
@@ -108,12 +108,12 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
         result = await self.llm.call_llm(
             messages,
             self.model,
-            temperature=self.temperature,  # 聚合使用原始的低temperature
+            temperature=self.temperature,  # Aggregate using the original low temperature
             max_tokens=self.max_tokens,
             module_name=self.name
         )
         
-        # 记录aggregator阶段的token统计
+        # Record the token statistics for the aggregator stage
         step_tokens["aggregator"]["input_tokens"] = result["input_tokens"]
         step_tokens["aggregator"]["output_tokens"] = result["output_tokens"]
         step_tokens["aggregator"]["total_tokens"] = result["total_tokens"]
@@ -139,20 +139,20 @@ class OSRefinerAggregationSQLGenerator(OSRefinerSQLGenerator):
         extracted_refined_sql = self.extractor.extract_sql(refiner_raw_output)
 
 
-        # 计算总token
+        # Calculate the total token
         total_tokens = {
             "input_tokens": sum(step["input_tokens"] for step in step_tokens.values()),
             "output_tokens": sum(step["output_tokens"] for step in step_tokens.values()),
             "total_tokens": sum(step["total_tokens"] for step in step_tokens.values())
         }
-        # # 计算总token使用量
+        # # Calculate the total token usage
         # total_tokens = {
         #     "input_tokens": step_tokens["candidates"]["input_tokens"] + step_tokens["aggregator"]["input_tokens"],
         #     "output_tokens": step_tokens["candidates"]["output_tokens"] + step_tokens["aggregator"]["output_tokens"],
         #     "total_tokens": step_tokens["candidates"]["total_tokens"] + step_tokens["aggregator"]["total_tokens"]
         # }
         
-        # 保存中间结果
+        # Save the intermediate result
         self.save_intermediate(
             input_data={
                 "query": query,

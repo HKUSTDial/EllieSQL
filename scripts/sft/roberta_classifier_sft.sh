@@ -4,25 +4,26 @@
 
 # Specify the labeled source dataset (for SFT dataset preparation) path
 SFT_DATASET="bird_train_full_roberta"
-# SFT_DATASET="bird_dev_full"
+
 # Specify the SFT dataset directory
 LABELED_FILE="data/labeled/bird_train_pipeline_label.jsonl"
-# LABELED_FILE="data/labeled/bird_dev_pipeline_label.jsonl"
+
 # Specify the SFT config file
-SFT_CONFIG="roberta_config"  # 使用 config/roberta_config.yaml
+SFT_CONFIG="roberta_config"
+
 # Specify training mode (lora or full)
 TRAINING_MODE="lora"
 
-# 运行数据处理脚本
+# Run data processing script
 python -m src.sft.prepare_classifier_sft_data \
     --sft_dataset ${SFT_DATASET} \
     --labeled_file ${LABELED_FILE}
 
-# 设置环境变量
+# Set environment variables
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
 
-# 在多卡RTX 4090上分布式训练
+# Train on multi-card RTX 4090 in parallel
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 torchrun --nproc_per_node=4 --master_port=29500 \
     -m src.sft.roberta_classifier_sft \
@@ -30,9 +31,9 @@ torchrun --nproc_per_node=4 --master_port=29500 \
     --sft_dataset ${SFT_DATASET} \
     --training_mode ${TRAINING_MODE}
 
-# 推理示例
+# Inference example
 echo -e "\n\n----------------- Inference example of RoBERTa Classifier SFT -----------------\n"
 python -m src.sft.roberta_classifier_inference
 
-# tensorboard可视化
+# Tensorboard visualization
 # tensorboard --logdir logs/sft/roberta_classifier 

@@ -10,13 +10,13 @@ from .modules.post_processing.skip_post_processing import SkipPostProcessor
 from .pipeline import ElephantSQLPipeline
 
 class PipelineLevel(Enum):
-    """Pipeline级别枚举"""
-    BASIC = "basic"                 # 基础pipeline
-    INTERMEDIATE = "intermediate"   # 中级pipeline
-    ADVANCED = "advanced"           # 高级pipeline
+    """Pipeline level enumeration"""
+    BASIC = "basic"                 # Basic pipeline
+    INTERMEDIATE = "intermediate"   # Intermediate pipeline
+    ADVANCED = "advanced"           # Advanced pipeline
 
 class PipelineFactory:
-    """Pipeline工厂类, 用于创建和管理不同级别的pipeline"""
+    """Pipeline factory class, used to create and manage different levels of pipelines"""
     
     def __init__(self, llm: LLMBase, backbone_model: str = "gpt-4o-mini-2024-07-18", temperature: float = 0.0, max_retries: int = 10):
         self.llm = llm
@@ -26,7 +26,7 @@ class PipelineFactory:
         self._pipelines: Dict[PipelineLevel, ElephantSQLPipeline] = {}
         
     def _create_schema_linker(self):
-        """创建共用的schema linker"""
+        """Create a shared schema linker"""
         return EnhancedSchemaLinker(
             self.llm,
             model=self.backbone_model,
@@ -36,12 +36,12 @@ class PipelineFactory:
         )
         
     def get_pipeline(self, level: PipelineLevel) -> ElephantSQLPipeline:
-        """获取指定级别的pipeline, 如果不存在则创建"""
+        """Get a pipeline of a specific level, create it if it doesn't exist"""
         if level not in self._pipelines:
             schema_linker = self._create_schema_linker()
             
             if level == PipelineLevel.BASIC:
-                # 基础pipeline：使用简单的GPT生成
+                # Basic pipeline: use a simple GPT generator
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
                     sql_generator=GPTSQLGenerator(
@@ -55,7 +55,7 @@ class PipelineFactory:
                 )
                 
             elif level == PipelineLevel.INTERMEDIATE:
-                # 中级pipeline：使用DC+Refiner
+                # Intermediate pipeline: use DC+Refiner
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
                     sql_generator=DCRefinerSQLGenerator(
@@ -69,7 +69,7 @@ class PipelineFactory:
                 )
                 
             elif level == PipelineLevel.ADVANCED:
-                # 高级pipeline：使用DC+OS+Refiner (EnhancedSQLGenerator)
+                # Advanced pipeline: use DC+OS+Refiner (EnhancedSQLGenerator)
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
                     sql_generator=EnhancedSQLGenerator(

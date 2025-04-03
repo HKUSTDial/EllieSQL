@@ -9,7 +9,7 @@ from ..core.utils import load_jsonl
 import argparse
 
 class CascadeDataProcessor:
-    """为级联式分类器准备二分类数据集"""
+    """Prepare binary classification data for the cascade classifier"""
     
     def __init__(self, cascade_dataset: str, seed: int = 42):
         self.config = Config()
@@ -18,26 +18,25 @@ class CascadeDataProcessor:
         self.templates = PipelineClassificationTemplates()
         self.seed = seed
         
-        # 设置随机种子
+        # Set the random seed
         np.random.seed(self.seed)
         
     def prepare_data(self, labeled_file: str, balance_config: Dict[str, bool], train_ratio: float = 0.8):
-        """准备三个pipeline的二分类数据集
+        """Prepare the binary classification data for the three pipelines
         
-        Args:
-            labeled_file: 标注数据文件路径
-            balance_config: 配置每个pipeline是否需要平衡数据，如{"basic": False, "intermediate": True, "advanced": True}
-            train_ratio: 训练集比例
+        :param labeled_file: The path to the labeled data file
+        :param balance_config: Configure whether to balance the data for each pipeline, e.g. {"basic": False, "intermediate": True, "advanced": True}
+        :param train_ratio: The ratio of the training set
         """
-        # 加载数据
+        # Load the data
         data = load_jsonl(labeled_file)
         
-        # 为每个pipeline准备数据
+        # Prepare the data for each pipeline
         basic_samples = self._prepare_basic_samples(data)
         intermediate_samples = self._prepare_intermediate_samples(data)
         advanced_samples = self._prepare_advanced_samples(data)
         
-        # 为每个pipeline划分并保存数据
+        # Split and save the data for each pipeline
         self._process_pipeline_data("basic", basic_samples, train_ratio, 
                                   need_balance=balance_config["basic"])
         self._process_pipeline_data("intermediate", intermediate_samples, train_ratio, 
@@ -46,14 +45,14 @@ class CascadeDataProcessor:
                                   need_balance=balance_config["advanced"])
         
     def _prepare_basic_samples(self, data: List[Dict]) -> List[Dict]:
-        """准备basic pipeline的二分类样本"""
+        """Prepare the binary classification samples for the basic pipeline"""
         samples = []
         for item in data:
             input_text = self.templates.create_classifier_prompt(
                 question=item["question"],
                 schema=item["enhanced_linked_schema_wo_info"]
             )
-            # basic标签的问题标记为1，其他标记为0
+            # The question with basic label is marked as 1, others are marked as 0
             label = 1 if item["label"] == 1 else 0
             
             samples.append({
@@ -66,10 +65,10 @@ class CascadeDataProcessor:
         return samples
         
     def _prepare_intermediate_samples(self, data: List[Dict]) -> List[Dict]:
-        """准备intermediate pipeline的二分类样本"""
+        """Prepare the binary classification samples for the intermediate pipeline"""
         samples = []
         for item in data:
-            # 忽略basic标签的问题
+            # Ignore the questions with basic label
             if item["label"] == 1:
                 continue
                 
@@ -77,7 +76,7 @@ class CascadeDataProcessor:
                 question=item["question"],
                 schema=item["enhanced_linked_schema_wo_info"]
             )
-            # intermediate标签的问题标记为1，advanced和unsolved标记为0
+            # The question with intermediate label is marked as 1, others are marked as 0
             label = 1 if item["label"] == 2 else 0
             
             samples.append({
@@ -90,10 +89,10 @@ class CascadeDataProcessor:
         return samples
         
     def _prepare_advanced_samples(self, data: List[Dict]) -> List[Dict]:
-        """准备advanced pipeline的二分类样本"""
+        """Prepare the binary classification samples for the advanced pipeline"""
         samples = []
         for item in data:
-            # 忽略basic和intermediate标签的问题
+            # Ignore the questions with basic and intermediate labels
             if item["label"] in [1, 2]:
                 continue
                 
@@ -101,7 +100,7 @@ class CascadeDataProcessor:
                 question=item["question"],
                 schema=item["enhanced_linked_schema_wo_info"]
             )
-            # advanced标签的问题标记为1，unsolved标记为0
+            # The question with advanced label is marked as 1, others are marked as 0
             label = 1 if item["label"] == 3 else 0
             
             samples.append({
@@ -114,14 +113,14 @@ class CascadeDataProcessor:
         return samples
         
     def _balance_samples(self, pipeline: str, samples: List[Dict]) -> List[Dict]:
-        """通过分层下采样实现数据平衡"""
-        # 统计正负样本
+        """Balance the data through stratified undersampling"""
+        # Count the positive and negative samples
         pos_samples = [s for s in samples if s["label"] == 1]
         neg_samples = [s for s in samples if s["label"] == 0]
         pos_count = len(pos_samples)
         neg_count = len(neg_samples)
         
-        # 确定多数类和少数类
+        # Determine the majority and minority classes
         if pos_count > neg_count:
             majority_samples = pos_samples
             minority_samples = neg_samples
@@ -133,7 +132,7 @@ class CascadeDataProcessor:
         
         minority_count = len(minority_samples)
         
-        # 对多数类按原始标签分组
+        # Group the majority class by the original label
         majority_by_original = {}
         for s in majority_samples:
             original_label = s["original_label"]
@@ -141,15 +140,15 @@ class CascadeDataProcessor:
                 majority_by_original[original_label] = []
             majority_by_original[original_label].append(s)
         
-        # 计算每个原始标签应该采样的数量
-        # 使总的多数类样本数量等于少数类数量，同时保持原始标签的比例
+        # Calculate the number of samples to sample for each original label
+        # Make the total number of majority class samples equal to the number of minority samples, while maintaining the original label ratio
         total_majority = len(majority_samples)
         sampled_majority = []
         for label, samples_of_label in majority_by_original.items():
-            # 按原比例计算应采样数量
+            # Calculate the number of samples to sample for each original label
             ratio = len(samples_of_label) / total_majority
             sample_size = int(minority_count * ratio)
-            if sample_size > 0:  # 确保至少采样一个
+            if sample_size > 0:  # Ensure at least one sample is sampled
                 sampled = np.random.choice(
                     samples_of_label,
                     size=min(sample_size, len(samples_of_label)),
@@ -157,11 +156,11 @@ class CascadeDataProcessor:
                 ).tolist()
                 sampled_majority.extend(sampled)
         
-        # 合并样本并打乱
+        # Merge samples and shuffle
         balanced_samples = minority_samples + sampled_majority
         np.random.shuffle(balanced_samples)
         
-        # 打印分布信息
+        # Print the distribution information
         print("\n" + "="*50)
         print(f"Balancing details for {pipeline.upper()} pipeline")
         print("="*50)
@@ -182,28 +181,28 @@ class CascadeDataProcessor:
         return balanced_samples
         
     def _process_pipeline_data(self, pipeline: str, samples: List[Dict], train_ratio: float, need_balance: bool):
-        """处理单个pipeline的数据：划分训练集和验证集，保存并分析分布"""
-        # 准备分层采样的标签
+        """Process the data for a single pipeline: split the training set and validation set, save and analyze the distribution"""
+        # Prepare the labels for stratified sampling
         labels = [s["label"] for s in samples]
         
-        # 使用分层采样划分数据集
+        # Use stratified sampling to split the dataset
         sss = StratifiedShuffleSplit(
             n_splits=1,
             test_size=1-train_ratio,
             random_state=self.seed
         )
         
-        # 获取划分索引
+        # Get the split indices
         indices = np.arange(len(labels))
         for train_idx, valid_idx in sss.split(indices, labels):
             train_samples = [samples[i] for i in train_idx]
             valid_samples = [samples[i] for i in valid_idx]
         
-        # 如果需要平衡，只对训练集进行平衡
+        # If balance is needed, only balance the training set
         if need_balance == True:
             train_samples = self._balance_samples(pipeline, train_samples)
             
-        # 保存数据集
+        # Save the dataset
         train_file = self.cascade_dataset_dir / f"{pipeline}_train.json"
         valid_file = self.cascade_dataset_dir / f"{pipeline}_valid.json"
         
@@ -212,7 +211,7 @@ class CascadeDataProcessor:
         with open(valid_file, 'w', encoding='utf-8') as f:
             json.dump(valid_samples, f, ensure_ascii=False, indent=2)
             
-        # 分析并打印分布
+        # Analyze and print the distribution
         if need_balance == False:
             print("="*50)
         print(f"{pipeline.upper()} Pipeline Train/Val Data Distribution")
@@ -222,7 +221,7 @@ class CascadeDataProcessor:
         print(f"Training samples: {len(train_samples)}")
         print(f"Validation samples: {len(valid_samples)}")
         
-        # 分析标签分布
+        # Analyze and print the label distribution
         def get_label_dist(samples):
             total = len(samples)
             pos_count = sum(1 for s in samples if s["label"] == 1)
@@ -250,7 +249,7 @@ def main():
                        help='Name of the specified cascade dataset directory under data/cascade/')
     parser.add_argument('--labeled_file', type=str, required=True,
                        help='Path to the labeled data file')
-    # 添加数据平衡选项，使用type=lambda x: x.lower() == 'true'来转换为布尔值
+    # Add data balance options, use type=lambda x: x.lower() == 'true' to convert to a boolean value
     parser.add_argument('--basic_balance', type=lambda x: x.lower() == 'true', default=False,
                        choices=[True, False],
                        help='Whether to balance basic pipeline data (True/False)')
@@ -262,7 +261,7 @@ def main():
                        help='Whether to balance advanced pipeline data (True/False)')
     args = parser.parse_args()
     
-    # 构建balance配置
+    # Build the balance configuration
     balance_config = {
         "basic": args.basic_balance,
         "intermediate": args.intermediate_balance,

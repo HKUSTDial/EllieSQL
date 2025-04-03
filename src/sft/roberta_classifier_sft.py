@@ -22,11 +22,11 @@ from pathlib import Path
 import yaml
 import argparse
 
-# 设置多进程启动方式为spawn
+# Set the multiprocessing start method to spawn
 multiprocessing.set_start_method('spawn', force=True)
 
 def setup_distributed():
-    """设置分布式训练环境"""
+    """Set up the distributed training environment"""
     if 'LOCAL_RANK' not in os.environ:
         return False
     
@@ -36,12 +36,12 @@ def setup_distributed():
     return True
 
 def cleanup_distributed():
-    """清理分布式训练环境"""
+    """Clean up the distributed training environment"""
     if torch.distributed.is_initialized():
         torch.distributed.destroy_process_group()
 
 def load_sft_config(config_name: str):
-    """加载SFT配置"""
+    """Load the SFT configuration"""
     config_path = Path("config") / f"{config_name}.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"找不到配置文件: {config_path}")
@@ -60,27 +60,27 @@ class RoBERTaClassifierTrainer:
         self.local_rank = int(os.environ.get('LOCAL_RANK', 0))
         self.log_file = None
         
-        # 加载指定的配置文件
+        # Load the specified configuration file
         self.sft_config = load_sft_config(sft_config)
         if self.local_rank == 0:
             print(f"Using SFT config: {sft_config}")
             print(f"Training mode: {training_mode}")
             
     def _log_to_file(self, message: str):
-        """写入日志到文件"""
-        if self.log_file and self.local_rank == 0:  # 只在主进程写日志
+        """Write the log to the file"""
+        if self.log_file and self.local_rank == 0:  # Only write the log in the main process
             with open(self.log_file, "a", encoding="utf-8") as f:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 f.write(f"[{timestamp}] {message}\n")
                 
     def load_model_and_tokenizer(self):
-        """加载模型和分词器"""
+        """Load the model and tokenizer"""
         self.tokenizer = RobertaTokenizer.from_pretrained(
             self.model_path,
             padding_side="right"
         )
         
-        # 加载分类模型
+        # Load the classification model
         self.model = RobertaForSequenceClassification.from_pretrained(
             self.model_path,
             num_labels=3,  # Basic, Intermediate, Advanced
@@ -88,9 +88,9 @@ class RoBERTaClassifierTrainer:
         )
         
         if self.training_mode == 'lora':
-            # 配置LoRA
+            # Configure LoRA
             lora_config = LoraConfig(
-                task_type=TaskType.SEQ_CLS,  # 使用序列分类任务类型
+                task_type=TaskType.SEQ_CLS,  # Use the sequence classification task type
                 r=self.sft_config["lora_r"],
                 lora_alpha=self.sft_config["lora_alpha"],
                 lora_dropout=self.sft_config["lora_dropout"],
@@ -98,12 +98,12 @@ class RoBERTaClassifierTrainer:
                 bias="none",
             )
             
-            # 准备模型
+            # Prepare the model
             self.model = get_peft_model(self.model, lora_config)
             
             if self.local_rank == 0:
                 print("Using LoRA fine-tuning")
-                # 打印参数训练状态
+                # Print the parameter training status
                 print("\nParameter training status:")
                 print("Classifier parameters:")
                 for name, param in self.model.classifier.named_parameters():
@@ -113,7 +113,7 @@ class RoBERTaClassifierTrainer:
                 print("Using full parameter fine-tuning")
         
     def prepare_dataset(self):
-        """准备数据集"""
+        """Prepare the dataset"""
         dataset = load_dataset(
             'json',
             data_files={
@@ -130,9 +130,9 @@ class RoBERTaClassifierTrainer:
                 max_length=self.sft_config["max_length"],
                 return_tensors=None
             )
-            # 确保标签是正确的类型和范围
+            # Ensure the labels are of the correct type and range
             labels = [int(label) for label in examples["label"]]
-            # 验证标签范围并打印异常值
+            # Verify the label range and print the abnormal values
             for i, label in enumerate(labels):
                 if not (0 <= label < 3):
                     print(f"Warning: Invalid label {label} at index {i}")
@@ -150,17 +150,17 @@ class RoBERTaClassifierTrainer:
         return tokenized_datasets
         
     def compute_metrics(self, eval_pred):
-        """计算评估指标, 对于将复杂问题错误分类到简单pipeline的情况增加惩罚"""
+        """Compute the evaluation metrics, adding a penalty for incorrectly classifying complex questions into simpler pipelines"""
         predictions = eval_pred.predictions[0] if isinstance(eval_pred.predictions, tuple) else eval_pred.predictions
-        predictions = predictions.argmax(-1)  # 转换为0-based标签
-        labels = eval_pred.label_ids  # 0-based标签
+        predictions = predictions.argmax(-1)  # Convert to 0-based labels
+        labels = eval_pred.label_ids  # 0-based labels
         
         total = len(labels)
         correct = 0
         penalty = 0
-        penalty_factor = self.sft_config["penalty_factor"]  # 惩罚因子
+        penalty_factor = self.sft_config["penalty_factor"]  # Penalty factor
         
-        # 计算每个类别的统计信息
+        # Calculate the statistics for each class
         class_correct = {i: 0 for i in range(3)}
         class_total = {i: 0 for i in range(3)}
         pred_dist = {i: 0 for i in range(3)}
@@ -173,13 +173,13 @@ class RoBERTaClassifierTrainer:
                 correct += 1
                 class_correct[label] += 1
             elif label > pred and pred == 0:
-                # 惩罚将Intermediate和Advanced分类到Basic的情况
+                # Penalize the case of classifying Intermediate and Advanced into Basic
                 penalty += 1 * penalty_factor
         
-        # 计算带惩罚的准确率
+        # Calculate the penalized accuracy
         penalized_accuracy = (correct - penalty) / total
         
-        # 计算每个类别的准确率
+        # Calculate the accuracy for each class
         class_accuracy = {}
         for i in range(3):
             if class_total[i] > 0:
@@ -187,7 +187,7 @@ class RoBERTaClassifierTrainer:
             else:
                 class_accuracy[f"class_{i}_accuracy"] = 0.0
         
-        # 计算分布百分比
+        # Calculate the percentage of distribution
         pred_dist_pct = {
             f"pred_dist_{i}": float(count) / total 
             for i, count in pred_dist.items()
@@ -197,16 +197,16 @@ class RoBERTaClassifierTrainer:
             for i in range(3)
         }
         
-        # 记录惩罚信息
+        # Record the penalty information
         penalty_info = {
             "penalty": float(penalty),
             "raw_accuracy": float(correct) / total,
             "penalized_accuracy": float(penalized_accuracy)
         }
         
-        # 返回所有指标
+        # Return all metrics
         return {
-            "accuracy": penalized_accuracy,  # 使用带惩罚的准确率
+            "accuracy": penalized_accuracy,  # Use the penalized accuracy
             **class_accuracy,
             **pred_dist_pct,
             **true_dist_pct,
@@ -218,19 +218,19 @@ class RoBERTaClassifierTrainer:
             self.load_model_and_tokenizer()
             tokenized_datasets = self.prepare_dataset()
             
-            # 设置checkpoint和训练日志保存路径
+            # Set the checkpoint and training log save path
             checkpoint_dir = self.save_dir / f"roberta_classifier_checkpoints_{self.training_mode}"
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             self.log_file = checkpoint_dir / "training.log"
             
-            # 记录训练开始信息
+            # Record the training start information
             self._log_to_file(
                 f"Training started with:\n"
                 f"- Number of training samples: {len(tokenized_datasets['train'])}\n"
                 f"- Number of validation samples: {len(tokenized_datasets['validation'])}\n"
             )
             
-            # 配置训练参数
+            # Configure the training parameters
             training_args = TrainingArguments(
                 output_dir=str(checkpoint_dir),
                 per_device_train_batch_size=self.sft_config["per_device_train_batch_size"],
@@ -241,28 +241,28 @@ class RoBERTaClassifierTrainer:
                 lr_scheduler_type=self.sft_config["lr_scheduler_type"],
                 fp16=self.sft_config["fp16"] if self.training_mode == 'lora' else False,
                 
-                # 评估策略配置
+                # Evaluation strategy configuration
                 eval_strategy=self.sft_config["eval_strategy"],
                 eval_steps=self.sft_config.get("eval_steps", None),
                 
-                # 保存策略配置
+                # Save strategy configuration
                 save_strategy=self.sft_config["save_strategy"],
                 save_steps=self.sft_config.get("save_steps", None),
                 
-                # 日志相关配置
+                # Log related configuration
                 logging_dir=str(self.config.logs_dir / "sft" / f"roberta_classifier_{self.training_mode}"),
                 logging_strategy=self.sft_config["logging_strategy"],
                 logging_steps=self.sft_config.get("logging_steps", None),
                 logging_first_step=self.sft_config["logging_first_step"],
                 report_to=["tensorboard"],
                 
-                # checkpoint相关配置
+                # Checkpoint related configuration
                 load_best_model_at_end=self.sft_config["load_best_model_at_end"],
                 metric_for_best_model=self.sft_config["metric_for_best_model"],
                 greater_is_better=self.sft_config["greater_is_better"],
                 save_total_limit=self.sft_config["save_total_limit"],
                 
-                # 其他配置
+                # Other configuration
                 ddp_find_unused_parameters=self.sft_config["ddp_find_unused_parameters"],
                 local_rank=self.local_rank,
                 dataloader_num_workers=self.sft_config["dataloader_num_workers"],
@@ -272,7 +272,7 @@ class RoBERTaClassifierTrainer:
                 max_grad_norm=self.sft_config["max_grad_norm"]
             )
             
-            # 创建trainer
+            # Create the trainer
             trainer = Trainer(
                 model=self.model,
                 args=training_args,
@@ -282,24 +282,24 @@ class RoBERTaClassifierTrainer:
                 callbacks=[TrainingCallback(self._log_to_file)]
             )
             
-            # 开始训练
+            # Start training
             train_result = trainer.train()
             
-            # 最终评估
+            # Final evaluation
             final_metrics = trainer.evaluate()
             
-            # 记录最终评估结果
+            # Record the final evaluation results
             self._log_to_file("\nFinal Evaluation Results:")
             for metric_name, value in final_metrics.items():
                 self._log_to_file(f"{metric_name}: {value:.4f}")
             
-            # 保存最终模型和结果
+            # Save the final model and results
             if self.local_rank == 0:
-                # 保存最终模型
+                # Save the final model
                 final_model_dir = self.save_dir / f"final_model_roberta_{self.training_mode}"
                 trainer.save_model(final_model_dir)
                 
-                # 保存分类头配置和权重
+                # Save the classifier head configuration and weights
                 classifier_config = {
                     "num_labels": 3,
                     "hidden_size": self.model.config.hidden_size,
@@ -315,7 +315,7 @@ class RoBERTaClassifierTrainer:
                 
                 torch.save(classifier_save, final_model_dir / "classifier.pt")
                 
-                # 保存训练结果
+                # Save the training results
                 results_file = checkpoint_dir / "training_results.json"
                 results_data = {
                     "train_results": train_result.metrics,
@@ -344,7 +344,7 @@ class RoBERTaClassifierTrainer:
             raise e
 
 class TrainingCallback(TrainerCallback):
-    """用于记录训练过程的回调"""
+    """The callback for recording the training process"""
     def __init__(self, log_func):
         self.log_func = log_func
         
@@ -352,7 +352,7 @@ class TrainingCallback(TrainerCallback):
         self.log_func(f"\n\n<< Epoch {state.epoch:.2f} started >>")
         
     def on_evaluate(self, args, state, control, metrics, **kwargs):
-        # 提取指标
+        # Extract metrics
         penalized_accuracy = metrics.get('eval_accuracy', 'N/A')
         raw_accuracy = metrics.get('eval_raw_accuracy', 'N/A')
         penalty = metrics.get('eval_penalty', 'N/A')
@@ -372,7 +372,7 @@ class TrainingCallback(TrainerCallback):
             for i in range(3)
         ]
         
-        # 构建评估日志
+        # Build the evaluation log
         eval_log = (
             f"Evaluation at Step {state.global_step} (epoch {state.epoch:.2f}):\n"
             f"[Raw Accuracy      ] {raw_accuracy:.5f}\n"
@@ -391,7 +391,7 @@ class TrainingCallback(TrainerCallback):
         self.log_func(eval_log)
         
     def on_log(self, args, state, control, logs, **kwargs):
-        # 记录训练损失等信息
+        # Record the training loss and other information
         if "loss" in logs:
             self.log_func(
                 f"Step {state.global_step}: "

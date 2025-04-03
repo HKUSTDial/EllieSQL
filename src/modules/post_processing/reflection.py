@@ -5,7 +5,7 @@ from .prompts.reflection_prompts import REFLECTION_SYSTEM, REFLECTION_USER
 import re
 
 class ReflectionPostProcessor(PostProcessorBase):
-    """使用自反思机制的SQL后处理器"""
+    """SQL post-processor using self-reflection mechanism"""
     
     def __init__(self, 
                 llm: LLMBase, 
@@ -21,14 +21,13 @@ class ReflectionPostProcessor(PostProcessorBase):
         
     async def process_sql(self, sql: str, query_id: str = None) -> str:
         """
-        对生成的SQL进行自反思检查和优化
+        Run, self-reflect, and optimize the generated SQL
         
-        Args:
-            sql: 原始SQL语句
-            query_id: 查询ID，用于关联中间结果
+        :param sql: The original SQL statement
+        :param query_id: The query ID, used to associate intermediate results
         """
             
-        # 加载SQL生成的结果
+        # Load the SQL generated result
         prev_result = self.load_previous_result(query_id)
         original_query = prev_result["input"]["query"]
         
@@ -48,7 +47,7 @@ class ReflectionPostProcessor(PostProcessorBase):
         raw_output = result["response"]
         processed_sql = self.extractor.extract_sql(raw_output)
         
-        # 保存中间结果
+        # Save the intermediate result
         self.save_intermediate(
             input_data={
                 "original_query": original_query,

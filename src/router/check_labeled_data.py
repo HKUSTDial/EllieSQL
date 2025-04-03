@@ -8,16 +8,16 @@ from ..core.utils import load_jsonl
 from .labeler import PipelineType
 
 class LabeledDataChecker:
-    """用于检查标记数据集的分布并采样查看样本"""
+    """Check the distribution of labeled data and sample examples"""
     
     @staticmethod
     def load_labeled_data(file_path: str) -> List[Dict]:
-        """加载标记数据"""
+        """Load the labeled data"""
         return load_jsonl(file_path)
     
     @staticmethod
     def analyze_distribution(data: List[Dict]) -> Dict:
-        """分析数据分布"""
+        """Analyze the data distribution"""
         total = len(data)
         stats = {
             "total": total,
@@ -33,12 +33,12 @@ class LabeledDataChecker:
             source = item["source"]
             difficulty = item["difficulty"]
             
-            # 基本统计
+            # Basic statistics
             stats["labels"][label] += 1
             stats["sources"][source] += 1
             stats["difficulties"][difficulty] += 1
             
-            # 交叉统计
+            # Cross-statistics
             stats["source_label"][source][label] += 1
             stats["difficulty_label"][difficulty][label] += 1
             
@@ -46,38 +46,38 @@ class LabeledDataChecker:
     
     @staticmethod
     def print_distribution(stats: Dict):
-        """打印分布统计信息"""
+        """Print the distribution statistics"""
         print("\n" + "="*80)
-        print("数据分布统计")
+        print("Data Distribution Statistics")
         print("="*80)
         
-        # 总体统计
-        print(f"\n总样本数: {stats['total']}")
+        # Total statistics
+        print(f"\nTotal number of samples: {stats['total']}")
         
-        # 标签分布
-        print("\n标签分布:")
+        # Label distribution
+        print("\nLabel Distribution:")
         for label in sorted(stats["labels"].keys()):
             count = stats["labels"][label]
             percentage = count / stats["total"] * 100
             label_name = PipelineType(label).name
             print(f"  {label_name}: {count} ({percentage:.2f}%)")
             
-        # 来源分布
-        print("\n来源分布:")
+        # Source distribution
+        print("\nSource Distribution:")
         for source in sorted(stats["sources"].keys()):
             count = stats["sources"][source]
             percentage = count / stats["total"] * 100
             print(f"  {source}: {count} ({percentage:.2f}%)")
             
-        # 难度分布
-        print("\n难度分布:")
+        # Difficulty distribution
+        print("\nDifficulty Distribution:")
         for difficulty in sorted(stats["difficulties"].keys()):
             count = stats["difficulties"][difficulty]
             percentage = count / stats["total"] * 100
             print(f"  {difficulty}: {count} ({percentage:.2f}%)")
             
-        # 来源-标签交叉分布
-        print("\n来源-标签交叉分布:")
+        # Source-label cross-distribution
+        print("\nSource-label cross-distribution:")
         for source in sorted(stats["source_label"].keys()):
             print(f"\n{source}:")
             source_total = sum(stats["source_label"][source].values())
@@ -87,8 +87,8 @@ class LabeledDataChecker:
                 label_name = PipelineType(label).name
                 print(f"  {label_name}: {count} ({percentage:.2f}%)")
                 
-        # 难度-标签交叉分布
-        print("\n难度-标签交叉分布:")
+        # Difficulty-label cross-distribution
+        print("\nDifficulty-label cross-distribution:")
         for difficulty in sorted(stats["difficulty_label"].keys()):
             print(f"\n{difficulty}:")
             difficulty_total = sum(stats["difficulty_label"][difficulty].values())
@@ -102,7 +102,7 @@ class LabeledDataChecker:
     
     @staticmethod
     def sample_by_label(data: List[Dict], label: int, sample_size: int) -> List[Dict]:
-        """从指定标签的数据中随机采样"""
+        """Sample from the data of the specified label"""
         labeled_data = [item for item in data if item["label"] == label]
         if len(labeled_data) <= sample_size:
             return labeled_data
@@ -110,7 +110,7 @@ class LabeledDataChecker:
     
     @staticmethod
     def print_samples(samples: List[Dict]):
-        """打印采样结果"""
+        """Print the sampling results"""
         for i, sample in enumerate(samples, 1):
             print("\n" + "="*80)
             print(f"[Sample {i}/{len(samples)}] Question ID: {sample['question_id']}; Difficulty: {sample['difficulty']}; Pipeline Label: {sample['label']}")
@@ -145,19 +145,19 @@ def main():
     if args.sample_only and args.distribution_only:
         parser.error("Cannot specify both --sample_only and --distribution_only")
     
-    # 设置随机种子
+    # Set the random seed
     random.seed(args.seed)
     
-    # 加载数据
+    # Load data
     checker = LabeledDataChecker()
     data = checker.load_labeled_data(args.file_path)
     
     if args.sample_only:
-        # 只进行采样
+        # Only sample
         if args.label is None:
             parser.error("Must specify --label when using --sample_only")
             
-        # 计算该标签的总数
+        # Calculate the total number of the specified label
         label_count = sum(1 for item in data if item["label"] == args.label)
         label_name = PipelineType(args.label).name
         
@@ -168,11 +168,11 @@ def main():
         
         print(f"\nShowed {len(samples)} samples out of {label_count} {label_name} examples")
     else:
-        # 分析并打印分布
+        # Analyze and print the distribution
         stats = checker.analyze_distribution(data)
         checker.print_distribution(stats)
         
-        # 如果不是只看分布且指定了标签，则采样并打印样本
+        # If not only showing distribution and specified label, then sample and print samples
         if not args.distribution_only and args.label is not None:
             label_name = PipelineType(args.label).name
             total_count = stats["labels"][args.label]

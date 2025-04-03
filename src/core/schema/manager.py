@@ -6,7 +6,7 @@ from .extractor import SchemaExtractor
 from ..config import Config
 
 class SchemaManager:
-    """管理数据库schema的单例类"""
+    """Class for managing database schema"""
     _instance = None
     _lock = Lock()
     _schema_cache: Dict[str, DatabaseSchema] = {}
@@ -20,14 +20,10 @@ class SchemaManager:
     
     def get_schema(self, db_id: str, db_path: str) -> DatabaseSchema:
         """
-        获取数据库schema，优先从缓存获取
-        
-        Args:
-            db_id: 数据库ID
-            db_path: 数据库文件路径
-            
-        Returns:
-            DatabaseSchema: 数据库schema
+        Get database schema, prioritize to get from cache
+        :param db_id: database ID
+        :param db_path: database file path
+        :return: database schema
         """
         if db_id not in self._schema_cache:
             with self._lock:
@@ -37,16 +33,12 @@ class SchemaManager:
     
     def get_formatted_enriched_schema(self, db_id: str, source: str) -> str:
         """
-        根据数据库ID和来源获取格式化的schema字符串
-        
-        Args:
-            db_id: 数据库ID
-            source: 数据库来源
-            
-        Returns:
-            str: 格式化的schema字符串
+        Get formatted schema string by database ID and source
+        :param db_id: database ID
+        :param source: database source
+        :return: formatted schema string
         """
-        # 构建数据库路径
+        # Build database path
         db_folder = f"{source}_{db_id}"
         db_file = f"{db_id}.sqlite"
         db_path = Config().database_dir / db_folder / db_file
@@ -55,17 +47,17 @@ class SchemaManager:
             schema = self.get_schema(db_id, str(db_path))
             schema_dict = schema.to_dict()
             
-            # 格式化schema信息
+            # Format schema information
             result = []
             
-            # 添加数据库名称
+            # Add database name
             result.append(f"Database: {schema_dict['database']}\n")
             
-            # 格式化每个表的信息
+            # Format each table information
             for table in schema_dict['tables']:
                 result.append(f"Table name: {table['table']}")
                 
-                # 添加列信息
+                # Add column information
                 result.append("Columns:")
                 for col_name, col_info in table['columns'].items():
                     col_desc = []
@@ -85,13 +77,13 @@ class SchemaManager:
                     else:
                         result.append(f"  - {col_name} ({col_info['type']})")
                         
-                # 添加主键信息
+                # Add primary key information
                 if table['primary_keys']:
                     result.append(f"Primary key: {', '.join(table['primary_keys'])}")
                     
-                result.append("")  # 添加空行分隔
+                result.append("")  # Add empty line for separation
                 
-            # 添加外键关系
+            # Add foreign key relationship
             if schema_dict.get('foreign_keys'):
                 result.append("Foreign keys:")
                 for fk in schema_dict['foreign_keys']:
@@ -107,52 +99,45 @@ class SchemaManager:
     
     def get_db_schema_by_id_source(self, db_id: str, source: str) -> Dict:
         """
-        根据数据库ID和来源获取包含补充信息的schema
+        Get database schema with additional information by database ID and source
         
-        Args:
-            db_id: 数据库ID
-            source: 数据库来源
-            
-        Returns:
-            Dict: 包含补充信息的schema字典
+        :param db_id: database ID
+        :param source: database source
+        :return: schema dictionary with additional information
         """
-        # 构建数据库路径
-        db_folder = f"{source}_{db_id}"  # 例如: spider_dev_academic
-        db_file = f"{db_id}.sqlite"      # 例如: academic.sqlite
+        # Build database path
+        db_folder = f"{source}_{db_id}"  # e.g. spider_dev_academic
+        db_file = f"{db_id}.sqlite"      # e.g. academic.sqlite
         db_path = str(Config().database_dir / db_folder / db_file)
         
         try:
-            # 获取schema并转换为字典格式
+            # Get schema and convert to dictionary format
             schema = self.get_schema(db_id, db_path)
             return schema.to_dict()
         except Exception as e:
             raise ValueError(f"Access schema failure: {str(e)}")
     
     def clear_cache(self):
-        """清除缓存"""
+        """Clear cache"""
         with self._lock:
             self._schema_cache.clear() 
     
     def format_enriched_db_schema(self, schema: Dict) -> str:
         """
-        格式化增强的数据库schema信息，用于SQL生成模块的提示词
-        
-        Args:
-            schema: 数据库schema字典
-            
-        Returns:
-            str: 格式化后的schema字符串
+        Format enriched database schema information for SQL generation module prompt
+        :param schema: database schema dictionary
+        :return: formatted schema string
         """
         result = []
         
-        # 添加数据库名称
+        # Add database name
         result.append(f"Database: {schema['database']}\n")
         
-        # 格式化每个表的信息
+        # Format each table information
         for table in schema['tables']:
             result.append(f"Table name: {table['table']}")
             
-            # 添加列信息
+            # Add column information
             result.append("Columns:")
             for col_name, col_info in table['columns'].items():
                 col_desc = []
@@ -172,13 +157,13 @@ class SchemaManager:
                 else:
                     result.append(f"  - {col_name} ({col_info['type']})")
                     
-            # 添加主键信息
+            # Add primary key information
             if table['primary_keys']:
                 result.append(f"Primary key: {', '.join(table['primary_keys'])}")
                 
-            result.append("")  # 添加空行分隔
+            result.append("")  # Add empty line for separation
             
-        # 添加外键关系
+        # Add foreign key relationship
         if schema.get('foreign_keys'):
             result.append("Foreign keys:")
             for fk in schema['foreign_keys']:
@@ -191,38 +176,34 @@ class SchemaManager:
     
     def format_linked_schema(self, linked_schema: Dict) -> str:
         """
-        格式化linked schema为SQL生成模块使用的格式，用于SQL生成模块的提示词
-        
-        Args:
-            linked_schema: Schema Linking后的schema
-            
-        Returns:
-            str: 格式化后的schema字符串
+        Format linked schema for SQL generation module prompt
+        :param linked_schema: schema after Schema Linking
+        :return: formatted schema string
         """
         result = []
         
-        # 格式化每个表的信息
+        # Format each table information
         for table in linked_schema["tables"]:
             table_name = table["table"]
             columns = table.get("columns", [])
             columns_info = table.get("columns_info", {})
             
-            # 添加表信息
+            # Add table information
             result.append(f"Table: {table_name}")
             
-            # 添加列信息（包含补充信息）
+            # Add column information (with additional information)
             if columns:
                 result.append("Columns:")
                 for col in columns:
                     col_info = columns_info.get(col, {})
                     col_desc = []
                     
-                    # 添加列的类型
+                    # Add column type
                     col_type = col_info.get("type", "")
                     if col_type:
                         col_desc.append(f"Type: {col_type}")
                     
-                    # 添加其他补充信息
+                    # Add other additional information
                     if col_info.get("expanded_name"):
                         col_desc.append(f"Meaning: {col_info['expanded_name']}")
                     if col_info.get("description"):
@@ -239,11 +220,11 @@ class SchemaManager:
                     else:
                         result.append(f"  - {col}")
             
-            # 添加主键信息
+            # Add primary key information
             if "primary_keys" in table:
                 result.append(f"Primary key: {', '.join(table['primary_keys'])}")
             
-            # 添加外键信息
+            # Add foreign key information
             if "foreign_keys" in table:
                 result.append("Foreign keys:")
                 for fk in table["foreign_keys"]:
@@ -252,6 +233,6 @@ class SchemaManager:
                         f"{fk['referenced_table']}.{fk['referenced_column']}"
                     )
             
-            result.append("")  # 添加空行分隔
+            result.append("")  # Add empty line for separation
             
         return "\n".join(result) 

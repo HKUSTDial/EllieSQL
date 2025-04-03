@@ -3,20 +3,20 @@ from typing import List, Dict, Any, Tuple, Optional
 
 @dataclass
 class ColumnSchema:
-    """列的schema定义"""
+    """Column schema definition"""
     name: str
     type: str
     description: str = ""
-    expanded_name: str = ""  # 扩展的列名（更易理解的名称）
-    value_description: str = ""  # 值的描述
-    data_format: str = ""  # 数据格式
+    expanded_name: str = ""  # Extended column name (more understandable name)
+    value_description: str = ""  # Value description
+    data_format: str = ""  # Data format
     value_examples: List[str] = field(default_factory=list)
     is_primary_key: bool = False
     foreign_keys: List[Tuple[str, str]] = field(default_factory=list)  # [(target_table, target_column)]
-    referenced_by: List[Tuple[str, str]] = field(default_factory=list)  # 被哪些表引用
+    referenced_by: List[Tuple[str, str]] = field(default_factory=list)  # Referenced by which tables
     
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式"""
+        """Convert to dictionary format"""
         return {
             "name": self.name,
             "type": self.type,
@@ -32,13 +32,13 @@ class ColumnSchema:
 
 @dataclass
 class TableSchema:
-    """表的schema定义"""
+    """Table schema definition"""
     name: str
     columns: Dict[str, ColumnSchema]
     primary_keys: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式"""
+        """Convert to dictionary format"""
         return {
             "table": self.name,
             "columns": {name: col.to_dict() for name, col in self.columns.items()},
@@ -47,13 +47,13 @@ class TableSchema:
 
 @dataclass
 class DatabaseSchema:
-    """数据库schema定义"""
+    """Database schema definition"""
     database: str
     tables: Dict[str, TableSchema]
     foreign_keys: List[Dict[str, List[str]]] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式"""
+        """Convert to dictionary format"""
         return {
             "database": self.database,
             "tables": [table.to_dict() for table in self.tables.values()],
@@ -69,26 +69,23 @@ class DatabaseSchema:
                      add_value_description: bool = True,
                      add_examples: bool = True) -> str:
         """
-        生成数据库的DDL语句
-        
-        Args:
-            add_expanded_name: 是否添加扩展列名
-            add_description: 是否添加列描述
-            add_value_description: 是否添加值描述
-            add_examples: 是否添加示例值
-            
-        Returns:
-            str: DDL语句
+        Generate DDL statements for the database
+
+        :param add_expanded_name: whether to add extended column name
+        :param add_description: whether to add column description
+        :param add_value_description: whether to add value description
+        :param add_examples: whether to add example values
+        :return: DDL statements
         """
         ddl_statements = []
         for table in self.tables.values():
             ddl = f"CREATE TABLE `{table.name}` (\n"
             
-            # 添加列定义
+            # Add column definitions
             for col_name, column in table.columns.items():
                 col_def = f"\t`{col_name}` {column.type}"
                 
-                # 添加注释
+                # Add comments
                 comments = []
                 if add_expanded_name and column.expanded_name:
                     comments.append(f"Column Meaning: {column.expanded_name}")
@@ -104,16 +101,16 @@ class DatabaseSchema:
                 col_def += ",\n"
                 ddl += col_def
             
-            # 添加主键约束
+            # Add primary key constraints
             if table.primary_keys:
                 ddl += f"\tPRIMARY KEY ({', '.join(f'`{pk}`' for pk in table.primary_keys)}),\n"
             
-            # 添加外键约束
+            # Add foreign key constraints
             for col_name, column in table.columns.items():
                 for fk_table, fk_column in column.foreign_keys:
                     ddl += f"\tFOREIGN KEY (`{col_name}`) REFERENCES `{fk_table}`(`{fk_column}`),\n"
             
-            # 移除最后的逗号和换行符
+            # Remove the last comma and newline
             ddl = ddl.rstrip(",\n") + "\n);\n"
             ddl_statements.append(ddl)
             

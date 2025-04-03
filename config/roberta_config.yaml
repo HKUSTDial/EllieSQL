@@ -39,4 +39,4 @@ max_length: 512
 lora_r: 64
 lora_alpha: 128
 lora_dropout: 0.1
-target_modules: ["query", "value"]  # RoBERTa的attention模块名称
+target_modules: ["query", "value"]  # RoBERTa's attention module name
