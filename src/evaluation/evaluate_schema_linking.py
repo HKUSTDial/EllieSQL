@@ -6,26 +6,26 @@ import os
 from pathlib import Path
 
 def calculate_precision(golden_files, dev_file):
-    # 加载文件内容
+    # Load file content
     golden_data_spider_dev = load_json(golden_files[0])
     golden_data_spider_test = load_json(golden_files[1])
     golden_data_bird_dev = load_json(golden_files[2])
     
     dev_data = load_jsonl(dev_file)
     
-    correct_links = 0  # 预测正确的表/列数
-    total_predictions = 0  # 预测的表/列总数
+    correct_links = 0  # Number of correct table/column predictions
+    total_predictions = 0  # Total number of table/column predictions
 
-    # 遍历每个问题
+    # Iterate over each question
     cnt = 0
 
     for dev in (dev_data):
-        # 获取 Dev 的表和列
+        # Get the tables and columns of Dev
         dev_links = set(
             (table["table"].lower(), col.lower()) 
             for table in dev["tables"] 
             for col in table["columns"]
-            if col is not None  # 添加空值检查
+            if col is not None  # Add empty value check
         )
 
         query_id = dev["query_id"]
@@ -42,9 +42,9 @@ def calculate_precision(golden_files, dev_file):
             gold_query_id = query_id - 3182
 
         if(gold_query_id < 0):
-            print("gold_query_id < 0，出现异常")
+            print("gold_query_id < 0, an exception occurred")
 
-        # 通过gold_query_id，在golden_data中遍历找到对应的对象
+        # Iterate over golden_data to find the corresponding object through gold_query_id
         for golden in golden_data:
             if golden["id"] == gold_query_id:
                 # is_count_star = "count(*)" in golden["gold_sql"].lower()
@@ -53,43 +53,43 @@ def calculate_precision(golden_files, dev_file):
                     table_name = table["table"].lower()
                     #if not is_count_star or table["columns"]:  # 仅当没有 COUNT(*) 或列非空时才记录
                     golden_links.update((table_name, col.lower()) for col in table["columns"])
-                        # 如果是 COUNT(*)，所有 dev_links 都视为正确
+                        # if COUNT(*), all dev_links are considered correct
                 # if is_count_star:
                 #     correct_links += len(dev_links)
-                # else: # 统计正确预测和总预测
-                correct_links += len(golden_links & dev_links)  # 交集的数量
-                total_predictions += len(dev_links)  # Dev 预测的数量
+                # else: # Count the correct predictions and total predictions
+                correct_links += len(golden_links & dev_links)  # Number of intersections
+                total_predictions += len(dev_links)  # Number of Dev predictions
                 
                 cnt+=1
                 if(cnt %100 == 34) :
-                    print(f'处理了{cnt}个, correct links {correct_links}, total prediction links {total_predictions}')
+                    print(f'Processed {cnt} questions, correct links {correct_links}, total prediction links {total_predictions}')
                 break
-    # 计算精确度
+    # Calculate precision
     precision = correct_links / total_predictions if total_predictions > 0 else 0
     return precision    
 
 
 def calculate_recall(golden_file, dev_file):
-    # 加载文件内容
+    # Load file content
     golden_data_spider_dev = load_json(golden_files[0])
     golden_data_spider_test = load_json(golden_files[1])
     golden_data_bird_dev = load_json(golden_files[2])
     
     dev_data = load_jsonl(dev_file)
     
-    correct_links = 0  # 预测正确的表/列数
-    total_golden_links = 0  # 实际相关的表/列总数
+    correct_links = 0  # the number of correct table/column predictions
+    total_golden_links = 0  # the total number of table/column related to the actual answer
 
-    # 遍历每个问题
+    # Iterate over each question
     cnt = 0
 
     for dev in (dev_data):
-        # 获取 Dev 的表和列
+        # Get the tables and columns of Dev
         dev_links = set(
             (table["table"].lower(), col.lower()) 
             for table in dev["tables"] 
             for col in table["columns"]
-            if col is not None  # 添加空值检查
+            if col is not None  # Add empty value check
         )
 
         query_id = dev["query_id"]
@@ -106,41 +106,41 @@ def calculate_recall(golden_file, dev_file):
             gold_query_id = query_id - 3182
 
         if(gold_query_id < 0):
-            print("gold_query_id < 0，出现异常")
+            print("gold_query_id < 0, an exception occurred")
 
-        # 通过gold_query_id，在golden_data中遍历找到对应的对象
+        # Iterate over golden_data to find the corresponding object through gold_query_id
         for golden in golden_data:
             if golden["id"] == gold_query_id:
-                # 检查是否存在 COUNT(*)
+                # Check if COUNT(*) exists
                 # is_count_star = "count(*)" in golden["gold_sql"].lower()
-                # 获取 Golden 的表和列，并标准化为小写
+                # Get the tables and columns of Golden, and standardize to lowercase
                 golden_links = set()
                 for table in golden["tables"]:
                     table_name = table["table"].lower()
-                    #if not is_count_star or table["columns"]:  # 仅当没有 COUNT(*) 或列非空时才记录
+                    #if not is_count_star or table["columns"]:  # Only record when there is no COUNT(*) or the column is not empty
                     golden_links.update((table_name, col.lower()) for col in table["columns"])
 
-                # 如果是 COUNT(*)，只考虑表级别
+                # If COUNT(*), only consider the table level
                 # if is_count_star:
-                #     correct_links += len(dev_links)  # 所有 dev_links 视为正确
-                #     total_golden_links += len(dev_links)  # 认为 golden 中也有同等数量的列
+                #     correct_links += len(dev_links)  # All dev_links are considered correct
+                #     total_golden_links += len(dev_links)  # Consider the same number of columns in golden
                 # else:
-                # 统计正确预测和标准答案
-                correct_links += len(golden_links & dev_links)  # 交集的数量
-                total_golden_links += len(golden_links)  # Golden 的总数
+                # Count the correct predictions and standard answers
+                correct_links += len(golden_links & dev_links)  # Number of intersections
+                total_golden_links += len(golden_links)  # Number of Golden
 
                 cnt+=1
                 if(cnt %100 == 34) :
-                    print(f'处理了{cnt}个, correct links {correct_links}, total golden links {total_golden_links}')
+                    print(f'Processed {cnt} questions, correct links {correct_links}, total golden links {total_golden_links}')
                 break
-    # 计算召回率
+    # Calculate recall
     recall = correct_links / total_golden_links if total_golden_links > 0 else 0
     return recall
 
 
 def calculate_f1(precision, recall):
     if precision + recall == 0:
-        return 0  # 避免除以零
+        return 0  # Avoid division by zero
     return 2 * (precision * recall) / (precision + recall)
 
 
@@ -163,9 +163,9 @@ def count_origin_columns(dev_file):
 
 def count_total_columns(db_path):
     """
-    统计 SQLite 数据库中所有表的列总数。
-    :param db_path: SQLite 数据库文件路径
-    :return: 数据库中的总列数
+    Count the total number of columns in all tables of the SQLite database.
+    :param db_path: The path to the SQLite database file
+    :return: The total number of columns in the database
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -185,26 +185,26 @@ def count_total_columns(db_path):
 
 
 def calculate_nsr_srr(golden_files, dev_file):
-    # 加载文件内容
+    # Load file content
     golden_data_spider_dev = load_json(golden_files[0])
     golden_data_spider_test = load_json(golden_files[1])
     golden_data_bird_dev = load_json(golden_files[2])
     
     dev_data = load_jsonl(dev_file)
     
-    total_correct_links = 0  # 预测正确的表/列数 (用于 NSR)
-    total_golden_links = 0  # 真实 schema 元素总数 (用于 NSR)
-    total_strict_correct = 0  # 严格召回成功的个数 (用于 SRR)
-    total_questions = len(dev_data)  # 问题总数 (用于 SRR)
+    total_correct_links = 0  # the number of correct table/column predictions (for NSR)
+    total_golden_links = 0  # the total number of actual schema elements (for NSR)
+    total_strict_correct = 0  # the number of strict recall successes (for SRR)
+    total_questions = len(dev_data)  # the total number of questions (for SRR)
 
-    # 遍历每个问题
+    # Iterate over each question
     for dev in dev_data:
-        # 获取 Dev 预测的表和列
+        # Get the tables and columns of Dev
         dev_links = set(
             (table["table"].lower(), col.lower()) 
             for table in dev["tables"] 
             for col in table["columns"]
-            if col is not None  # 过滤掉 None 值
+            if col is not None  # Filter out None values
         )
 
         query_id = dev["query_id"]
@@ -221,33 +221,33 @@ def calculate_nsr_srr(golden_files, dev_file):
             gold_query_id = query_id - 3182
 
         if gold_query_id < 0:
-            print("gold_query_id < 0，出现异常")
+            print("gold_query_id < 0, an exception occurred")
             continue
 
-        # 在 golden_data 中找到对应的问题
+        # Find the corresponding question in golden_data
         for golden in golden_data:
             if golden["id"] == gold_query_id:
-                # 真实的 schema 元素集合
+                # The actual schema element set
                 golden_links = set(
                     (table["table"].lower(), col.lower()) 
                     for table in golden["tables"] 
                     for col in table["columns"]
                 )
 
-                # NSR 计算
-                total_correct_links += len(golden_links & dev_links)  # 交集
-                total_golden_links += len(golden_links)  # 标准答案总数
+                # NSR calculation
+                total_correct_links += len(golden_links & dev_links)  # Intersection
+                total_golden_links += len(golden_links)  # Number of standard answers
 
-                # SRR 计算
-                if golden_links.issubset(dev_links):  # 如果 golden_links ⊆ dev_links
+                # SRR calculation
+                if golden_links.issubset(dev_links):  # If golden_links ⊆ dev_links
                     total_strict_correct += 1
 
-                break  # 找到对应的 golden 数据就停止
+                break  # Stop after finding the corresponding golden data
 
-    # 计算 NSR
+    # Calculate NSR
     nsr = total_correct_links / total_golden_links if total_golden_links > 0 else 0
 
-    # 计算 SRR
+    # Calculate SRR
     srr = total_strict_correct / total_questions if total_questions > 0 else 0
 
     return nsr, srr
@@ -281,12 +281,12 @@ if __name__ == '__main__':
     print(f"F1 Score: {f1_score:.4f}")
 
     origin_columns = count_origin_columns(dev_file_count_origin)
-    print(f"每个问题对应的数据库原始共有 {origin_columns} 列")
+    print(f"The number of columns in the database corresponding to each question is {origin_columns}")
 
     nsr, srr = calculate_nsr_srr(golden_files, dev_file)
 
-    print(f"nsr(非严格召回率)： {nsr:.4f}")
-    print(f"srr(严格召回率)： {srr:.4f}")
+    print(f"nsr(non-strict recall rate): {nsr:.4f}")
+    print(f"srr(strict recall rate): {srr:.4f}")
 
 
 

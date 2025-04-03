@@ -6,12 +6,13 @@ Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Co
 [![Homepage](https://img.shields.io/badge/🏠-Homepage-blue)](https://elliesql.github.io/)
 [![arXiv](https://img.shields.io/badge/arXiv-2503.22402-<COLOR>.svg)](https://arxiv.org/abs/2503.22402)
 [![Checkpoints](https://img.shields.io/badge/🤗-Checkpoints-orange)](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
+[![Python](https://img.shields.io/badge/Python-3.12.7-3776AB.svg?style=flat)](https://www.python.org/downloads/release/python-3127/)
 
 ![teaser](asserts/teaser.png)
 
 ## 📢News
 
-[March 25, 2025] 🐘EllieSQL is publicly released!
+[Apr. 03, 2025] 🐘EllieSQL is publicly released!
 
 ## 📖Overview
 
@@ -54,7 +55,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 1. Create and activate a conda environment:
 
    ```bash
-   conda create --name elliesql python=3.12
+   conda create --name elliesql python=3.12.7
    conda activate elliesql
    cd EllieSQL
    pip install -r requirements.txt
@@ -145,7 +146,7 @@ bash scripts/exp/run_base.sh
 bash scripts/exp/run_routing.sh
 ```
 
-Note: Remember to specify the correct GPU device in the scripts according to your setup.
+Note: Remember to specify the correct GPU in the scripts according to your device.
 
 ## ⚗️Training Routers
 
@@ -162,6 +163,8 @@ bash scripts/sft/roberta_classifier_sft.sh
 ```
 
 You can also change hyperparameters in fine-tuning by editing SFT configs in  `config/`.
+
+Note: Remember to specify the correct GPU in the scripts according to your device.
 
 ## ✏️Citation
 

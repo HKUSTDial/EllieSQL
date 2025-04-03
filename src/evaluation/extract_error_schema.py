@@ -18,22 +18,22 @@ if __name__ == "__main__":
     linked_schema_path=args.linked_schema_path
     error_schema_results=args.error_schema_results
 
-# # 文件路径
-# error_sql_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"       # error sql路径
-# linked_schema_path = "results/raw_results/qwen_classifier_sft/linked_schema_results.jsonl"     # linked schema 路径
-# error_schema_results = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"      # 输出文件路径（文件3）
+    # # Path to the files
+    # error_sql_path = "results/raw_results/qwen_classifier_sft/error_sql_results.jsonl"       # error sql path
+    # linked_schema_path = "results/raw_results/qwen_classifier_sft/linked_schema_results.jsonl"     # linked schema path
+    # error_schema_results = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"      # output file path (file3)
 
-    # 先读取文件2，将所有对象存入字典，以 query_id 为 key 方便查找
+    # Read the file2, store all objects in a dictionary, and use query_id as the key for easy lookup
     query_mapping = {}
     with open(linked_schema_path, "r", encoding="utf-8") as f2:
         for line in f2:
-            if line.strip():  # 排除空行
+            if line.strip():  # Exclude empty lines
                 obj = json.loads(line)
                 query_id = obj.get("query_id")
                 if query_id is not None:
                     query_mapping[query_id] = obj
 
-    # 遍历文件1，根据 question_id 查找文件2中对应的对象，并写入输出文件
+    # Iterate over file1, find the corresponding object in file2, and write to the output file
     with open(error_sql_path, "r", encoding="utf-8") as f1, open(error_schema_results, "w", encoding="utf-8") as fout:
         for line in f1:
             if line.strip():

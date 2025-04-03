@@ -5,17 +5,16 @@ from ..core.config import Config
 
 def get_sql_result(db_path, sql, timeout=10):
     """
-    get the ex results for a sql.
+    Get the EX results for a SQL query.
     
-    Args:
-        db_path: The path to the .sqlite file.
-        sql: The sql.
-    Returns:
+    :param db_path: The path to the .sqlite file.
+    :param sql: The sql.
+    :return:
         0 for sql success (nonempty result),
         1 for SQL fail, 
         2 for sql success but empty result.
     """
-    # 执行第一个 SQL 语句
+    # Execute the first SQL statement
     result1 = execute_sql_with_timeout(db_path, sql, timeout)
     if result1 is None:
         return 1
@@ -28,7 +27,7 @@ def get_sql_result(db_path, sql, timeout=10):
 
 def count_empty_sql_result(dataset_file: str, output_file: str):
     """
-    统计一个数据集中，goldsql结果为空的对象的数量，并将该对象的id和错误类型存在txt文件里。
+    Count the number of objects in a dataset where the goldsql result is empty, and save the object id and error type to a txt file.
     """
     dataset_data = load_json(dataset_file)
 
@@ -52,16 +51,16 @@ def count_empty_sql_result(dataset_file: str, output_file: str):
                 gold_correct_cnt += 1
             elif(curr_res == 1):
                 gold_fail_cnt += 1
-                error_msg = f"id {question_id}: gold SQL 执行失败!!!! 请检查错误信息。\n"
+                error_msg = f"id {question_id}: gold SQL execution failed!!!! Please check the error information.\n"
                 print(error_msg.strip())
                 f.write(error_msg)
             elif(curr_res == 2):
                 gold_empty_cnt += 1
-                error_msg = f"id {question_id}: gold SQL 执行成功但结果为空。\n"
+                error_msg = f"id {question_id}: gold SQL execution success but the result is empty.\n"
                 print(error_msg.strip())
                 f.write(error_msg)
 
-    print(f"统计结果：gold SQL 执行成功但结果非空: {gold_correct_cnt}，gold SQL 执行失败: {gold_fail_cnt}，gold SQL 执行成功但结果为空: {gold_empty_cnt}")
+    print(f"Statistics: gold SQL execution success but the result is not empty: {gold_correct_cnt}, gold SQL execution failed: {gold_fail_cnt}, gold SQL execution success but the result is empty: {gold_empty_cnt}")
 
 
 if __name__ == "__main__":

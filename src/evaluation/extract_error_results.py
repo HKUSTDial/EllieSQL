@@ -115,8 +115,6 @@ def main():
     """
     Extract the objects whose generation results are wrong from the result file.  
     """
-
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--result_path', type=str, required=True,
                        help='the generated_sql_results.jsonl file')

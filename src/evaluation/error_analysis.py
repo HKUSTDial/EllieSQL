@@ -14,76 +14,75 @@ import argparse
 
 
 
-# 1. 加载错误的结果文件
+# 1. Load the error results file
 def update_error_value(file_path):
     """
-    遍历指定的 JSON Lines 文件，对每个对象新增一个键 "error_value"，默认值为1，
-    并将更新后的对象写回到原文件中。
+    Traverse the specified JSON Lines file, add a key "error_value" to each object, with a default value of 1,
+    and write the updated objects back to the original file.
 
-    参数：
-        file_path (str): JSON Lines 文件路径。
+    :param file_path: The path to the JSON Lines file.
     """
-    # 读取文件中的所有行
+    # Read all lines from the file
     with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    # 遍历每一行，更新 JSON 对象
+    # Traverse each line, update the JSON object
     updated_lines = []
     for line in lines:
         line = line.strip()
         if not line:
-            continue  # 跳过空行
+            continue  # Skip empty lines
         obj = json.loads(line)
-        obj["error_value"] = 1  # 新增 "error_value" 键，默认值为1
+        obj["error_value"] = 1  # Add the "error_value" key, with a default value of 1
         updated_lines.append(json.dumps(obj, ensure_ascii=False))
     
-    # 将更新后的对象写回原文件
+    # Write the updated objects back to the original file
     with open(file_path, "w", encoding="utf-8") as f:
         for line in updated_lines:
             f.write(line + "\n")
 
 
-# 2.1 判断有没有schema linking错误
+# 2.1 Check if there is a schema linking error
 def check_sl_error(golden_file_bird_dev, error_sl_file, error_results_file):
 
-    # 读取 schema 文件中的所有 JSON 对象
+    # Read all JSON objects from the schema file
     with open(error_sl_file, 'r', encoding='utf-8') as f:
         schema_results = [json.loads(line) for line in f if line.strip()]
     
-    # 读取 sql 文件中的所有 JSON 对象
+    # Read all JSON objects from the sql file
     with open(error_results_file, 'r', encoding='utf-8') as f:
         sql_results = [json.loads(line) for line in f if line.strip()]
 
-    # 构造一个字典，方便根据 question_id 快速查找 sql 对象
+    # Construct a dictionary for quick lookup of sql objects by question_id
     sql_dict = {obj["question_id"]: obj for obj in sql_results}
 
     error_cnt = 0
 
-    # 遍历 schema 文件中的每个对象
+    # Traverse each object in the schema file
     for schema_obj in schema_results:
-        # 调用已有处理函数
+        # Call the existing processing function
         result = check_sl_function(golden_file_bird_dev, schema_obj)
-        # 如果返回值为 1，则进行更新
+        # If the return value is 1, update
         if result == 1:
             query_id = schema_obj.get("query_id")
             if query_id in sql_dict:
-                # 更新 error_value（乘以 2）
+                # Update error_value (multiply by 2)
                 if sql_dict[query_id]["error_value"] == 1:
                     error_cnt += 1
                     sql_dict[query_id]["error_value"] *= 2
     
-    # 更新 sql_results 列表（如果需要保持原有顺序）
+    # Update sql_results list (if you need to keep the original order)
     updated_sql_results = []
     for obj in sql_results:
-        # 根据 question_id 从字典中获取更新后的对象
+        # Get the updated object from the dictionary
         updated_sql_results.append(sql_dict[obj["question_id"]])
     
-    # 将更新后的 sql 对象写回文件，每个对象占一行 JSON
+    # Write the updated sql objects back to the file, each object on a line JSON
     with open(error_results_file, 'w', encoding='utf-8') as f:
         for obj in updated_sql_results:
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
-    print(f"schema linking错误：{error_cnt}个")
+    print(f"Schema linking errors: {error_cnt}个")
 
 
 def check_sl_function(golden_file_bird_dev, schema_obj):
@@ -92,7 +91,7 @@ def check_sl_function(golden_file_bird_dev, schema_obj):
         (table["table"].lower(), col.lower()) 
         for table in schema_obj["tables"] 
         for col in table["columns"]
-        if col is not None  # 过滤掉 None 值
+        if col is not None  # Filter out None values
     )
 
     query_id = schema_obj["query_id"]
@@ -102,37 +101,38 @@ def check_sl_function(golden_file_bird_dev, schema_obj):
     gold_query_id = query_id - 3182
 
     if gold_query_id < 0:
-        print("gold_query_id < 0，出现异常")
+        print("gold_query_id < 0, an exception occurred")
         return 1
     
-    # 在 golden_data 中找到对应的问题
+    # Find the corresponding question in golden_data
     for golden in golden_data:
         if golden["id"] == gold_query_id:
-            # 真实的 schema 元素集合
+            # The actual schema element set
             golden_links = set(
                 (table["table"].lower(), col.lower()) 
                 for table in golden["tables"] 
                 for col in table["columns"]
             )
             # SRR 计算
-            if golden_links.issubset(dev_links):  # 如果 golden_links ⊆ dev_links
+            if golden_links.issubset(dev_links):  # If golden_links ⊆ dev_links
                 return 0
             
             return 1
-            break  # 找到对应的 golden 数据就停止
+            break  # Stop after finding the corresponding golden data
 
 
-# 2.2 判断有没有语法错误
+# 2.2 Check if there is a syntax error
 def check_valid_error(merge_dev_demo_file, error_results_path):
     """
-    遍历文件中的每个 JSON 对象。如果对象的 "error_value" 为 1，
-    则调用已有的处理函数。如果处理函数返回值为 3，则将 "error_value" 乘以 3，
-    最后将所有对象保存回原文件（假设每行一个 JSON 对象）。
+    Traverse each JSON object in the file. If the object's "error_value" is 1,
+    call the existing processing function. If the processing function returns 3,
+    multiply "error_value" by 3, and finally save all objects back to the original file
+    (assuming each line is a JSON object).
     """
     updated_objects = []
     valid_cnt = 0
 
-    # 读取文件中的每一行，并解析成 JSON 对象
+    # Read each line of the file and parse it as a JSON object
     with open(error_results_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
@@ -141,10 +141,10 @@ def check_valid_error(merge_dev_demo_file, error_results_path):
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError as e:
-                print(f"解析 JSON 出错: {e}")
+                print(f"Error parsing JSON: {e}")
                 continue
 
-            # 如果 error_value 为 1，则调用已有处理函数
+            # If error_value is 1, call the existing processing function
             if obj.get("error_value") == 1:
                 qid =obj["question_id"]
                 db_path = ""
@@ -161,96 +161,94 @@ def check_valid_error(merge_dev_demo_file, error_results_path):
                 result = check_sql_run(db_path, obj["generated_sql"])
                 if result == 3:
                     valid_cnt += 1
-                    # 将 error_value 乘以 3
+                    # Multiply error_value by 3
                     obj["error_value"] = obj["error_value"] * 3
             updated_objects.append(obj)
 
-    # 将更新后的对象写回到原文件，每行一个 JSON 对象
+    # Write the updated objects back to the original file, each object on a line JSON
     with open(error_results_path, 'w', encoding='utf-8') as f:
         for obj in updated_objects:
             f.write(json.dumps(obj, ensure_ascii=False) + '\n')
 
-    print(f"语法错误：{valid_cnt}个")
+    print(f"Syntax errors: {valid_cnt}个")
 
 
 def check_sql_run(db_path, sql2, timeout=10):
     """
     Check whether sql can run.
-    Args:
-        db_path: The path to the .sqlite file.
-        sql2: The generated sql.
-    Returns:
-        1 for can run, 3 for not runnable.
+    :param db_path: The path to the .sqlite file.
+    :param sql2: The generated sql.
+    :return: 1 for can run, 3 for not runnable.
     """
-    # 执行第二个 SQL 语句
+    # Execute the second SQL statement
     result2 = execute_sql_with_timeout(db_path, sql2, timeout)
     if result2 is None:
-        # print("generated SQL 没有产生结果对象。")
+        # print("generated SQL did not produce any result object.")
         return 3
 
     if result2.result_type == SQLExecutionResultType.TIMEOUT:
-        # print(f"generated SQL 运行超时。错误信息如下：{result2.error_message}")
+        # print(f"generated SQL run timeout. Error information: {result2.error_message}")
         return 3
     if result2.result_type == SQLExecutionResultType.ERROR:
-        # print(f"generated SQL 运行出现报错。错误信息如下：{result2.error_message}")
+        # print(f"generated SQL run error. Error information: {result2.error_message}")
         return 3
 
     if result2.result is None:
-        # print("generated SQL 执行成功但结果为空。")
+        # print("generated SQL executed successfully but the result is empty.")
         return 3
     
-    # 比较结果
+    # Compare the results
     return 1
 
 
 async def check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_results_path, model, temperature, max_tokens, name):
     """
-    并发处理错误分析，每次最多允许 10 个并发任务运行
+    Process error analysis concurrently, with a maximum of 10 concurrent tasks running at a time
     """
     llm = LLMBase()
     extractor = TextExtractor()
 
-    # 计数列表，索引对应各类别
+    # Count list, index corresponding to each category
     my_list = [-1, -1, -1, -1, -1, 0, -1, 0, -1, -1, -1, 0, -1, 0]
 
-    # 读取开发集和 schema 数据
+    # Read the development set and schema data
     with open(merge_dev_demo_file, 'r', encoding='utf-8') as f:
         dev_data = json.load(f)
 
     with open(golden_file_bird_dev, 'r', encoding='utf-8') as f:
         golden_data_bird_dev = json.load(f)
 
-    # 读取 error_results 文件中的所有非空行
+    # Read all non-empty lines from the error_results file
     with open(error_results_path, 'r', encoding='utf-8') as f:
         lines = [line.strip() for line in f if line.strip()]
 
     updated_objects = []
 
-    # 定义并发控制信号量，限制并发数为 10
+    # Define a concurrency control semaphore, limit the concurrency to 10
     semaphore = asyncio.Semaphore(20)
 
     async def process_obj(obj):
         async with semaphore:
-            # 仅对 error_value 为 1 的记录进行处理
+            # Process only records with error_value 1
             if obj.get("error_value") == 1:
                 oid = obj["question_id"]
                 question = ""
                 gold_sql = ""
-                # 在开发集数据中查找对应记录
+                # Find the corresponding record in the development set data
                 for item in dev_data:
                     if item.get("question_id") == oid:
                         question = item.get("question", "")
                         gold_sql = item.get("gold_SQL")
                         break
 
-                # 在 golden 数据中查找对应 schema（注意：这里假设 id 与 question_id 之间存在一定偏移）
+                # Find the corresponding schema in the golden data (note: here we assume that id and question_id have a certain offset)
                 gold_schema = None
                 for i in golden_data_bird_dev:
                     if i.get("id") == oid - 3182:
                         gold_schema = i.get("tables")
                         break
 
-                # 构造调用 llm 的 prompt
+                # Construct the prompt for calling the llm
                 check_error_prompt = [
                     {"role": "system", "content": ERROR_ANALYSIS_SYSTEM},
                     {"role": "user", "content": ERROR_ANALYSIS_USER.format(
@@ -261,7 +259,7 @@ async def check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_res
                     )}
                 ]
 
-                # 异步调用 llm 接口
+                # Asynchronously call the llm interface
                 check_error_result = await llm.call_llm(
                     check_error_prompt,
                     model,
@@ -270,40 +268,40 @@ async def check_other_error(golden_file_bird_dev, merge_dev_demo_file, error_res
                     module_name=name
                 )
 
-                # 提取错误分类
+                # Extract error classification
                 category_list = extractor.extract_sub_questions(check_error_result['response'])
                 try:
                     category = int(category_list[0])
                 except (IndexError, ValueError):
-                    print("提取错误分类失败")
+                    print("Failed to extract error classification")
                     print(check_error_result)
                     return obj
 
                 if category not in (5, 7, 11, 13):
-                    print(f"错误分类错误 {category}")
+                    print(f"Error classification error {category}")
                 else:
                     my_list[category] += 1
                     obj["error_value"] *= category
             return obj
 
-    # 为每个 JSON 对象创建一个任务
+    # Create a task for each JSON object
     tasks = [asyncio.create_task(process_obj(json.loads(line))) for line in lines]
 
-    # 使用 tqdm 显示进度，并等待所有任务完成
-    for future in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="处理分析进度"):
+    # Use tqdm to display progress and wait for all tasks to complete
+    for future in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing analysis progress"):
         updated_obj = await future
         updated_objects.append(updated_obj)
 
-    # 将所有更新后的对象写回文件
+    # Write all updated objects back to the file
     with open(error_results_path, 'w', encoding='utf-8') as f:
         for obj in updated_objects:
             f.write(json.dumps(obj, ensure_ascii=False) + '\n')
 
-    print("错误分析分类完成")
-    print(f"JOIN 相关错误 {my_list[5]} 个")
-    print(f"GROUP BY 相关错误 {my_list[7]} 个")
-    print(f"嵌套查询和集合操作错误 {my_list[11]} 个")
-    print(f"其他错误 {my_list[13]} 个")
+    print("Error analysis classification completed")
+    print(f"JOIN related errors {my_list[5]}个")
+    print(f"GROUP BY related errors {my_list[7]}个")
+    print(f"Nested queries and set operation errors {my_list[11]}个")
+    print(f"Other errors {my_list[13]}个")
 
 
 
@@ -329,16 +327,16 @@ if __name__ == "__main__":
 
     update_error_value(error_sql_path)
 
-# 2.2 判断有没有语法错误
+    # 2.2 Check if there is a syntax error
     check_valid_error(merge_dev_demo_file, error_sql_path)
 
-# 2.1 判断有没有schema linking错误
+    # 2.1 Check if there is a schema linking error
     # error_schema_results = "results/raw_results/qwen_classifier_sft/error_schema_results.jsonl"
     golden_file_bird_dev = str(Config().gold_schema_linking_dir / "bird_dev_gold_schema_linking.json")
     check_sl_error(golden_file_bird_dev, error_schema_results, error_sql_path)
 
 
-# 2.3 判断有没有其他错误
+    # 2.3 Check if there is any other error
     model = "gpt-4o-mini-2024-07-18"
     temperature = 0.0
     max_tokens = 10000

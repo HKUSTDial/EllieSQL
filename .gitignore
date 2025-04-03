@@ -48,7 +48,7 @@ data/dpo/**
 data/pairwise/**
 data/cascade/**
 
-# Do not ignore config files examples and training config files
+# Do not ignore config files examples and fine-tuning config files
 !config/config_example.yaml
 !config/sft_config.yaml
 !config/dpo_config.yaml

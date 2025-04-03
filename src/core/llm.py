@@ -8,7 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import asyncio
 
 class LLMMetrics:
-    """用于记录LLM调用的指标"""
+    """Metrics for LLM calls"""
     def __init__(self):
         self.total_calls = 0
         self.model_calls = {}
