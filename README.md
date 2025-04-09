@@ -32,6 +32,9 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 ├── data/                       # Data files and databases
 ├── examples/                   # Examples for usage
 ├── scripts/                    # Bash scripts
+│   ├── exp                     # Scripts for experiments: run base/routing experiments
+│   ├── sft                     # Scripts for router SFT
+│   └── eval                    # Scripts for evaluation (e.g., compute EX)
 ├── src/                        # Source code for the project
 │   ├── core/                   # Core functionalities and utilities
 │   ├── evaluation/             # Evaluation scripts
@@ -40,7 +43,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 │   │   ├── sql_generation/     # SQL generation modules
 │   │   ├── post_processing/    # Post-processing modules
 │   │   └── base.py             # Base classes for modules
-│   ├── router/                 # Implementation of Routers
+│   ├── router/                 # Implementation of various routers
 │   ├── sft/                    # Data preparation for SFT and implementation of SFT
 │   ├── dpo/                    # Data preparation for DPO and implementation of DPO
 │   ├── pipeline.py             # Pipeline management for processing queries
