@@ -99,6 +99,8 @@ class IntermediateResult:
                 "output_tokens": 0,
                 "total_tokens": 0
             },
+            "total_duration_seconds": 0,
+            "max_workers": None,
             "models": {},
             "modules": {}
         })
@@ -109,6 +111,11 @@ class IntermediateResult:
         stats["total_cost"]["output_tokens"] += model_info["output_tokens"]
         stats["total_cost"]["total_tokens"] += (model_info["input_tokens"] + 
                                               model_info["output_tokens"])
+        
+        # Update total duration
+        start_time = datetime.strptime(stats["start_time"], "%Y-%m-%d %H:%M:%S")
+        current_time = datetime.now()
+        stats["total_duration_seconds"] = (current_time - start_time).total_seconds()
         
         # Update model statistics
         model_name = model_info["model"]
@@ -153,6 +160,27 @@ class IntermediateResult:
         
         # Update the last modified time
         stats["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._save_json(self.stats_file, stats)
+        
+    def set_max_workers(self, max_workers: int = None):
+        """Set and record the number of parallel workers"""
+        stats = self._load_json(self.stats_file, {
+            "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_calls": 0,
+            "total_cost": {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0
+            },
+            "total_duration_seconds": 0,
+            "max_workers": None,
+            "models": {},
+            "modules": {}
+        })
+        
+        if max_workers is not None and max_workers > 1:
+            stats["max_workers"] = max_workers
+        
         self._save_json(self.stats_file, stats)
         
     def _load_json(self, file_path: str, default: Dict) -> Dict:

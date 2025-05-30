@@ -19,6 +19,7 @@ __pycache__/
 
 # Ignore .specstory
 .specstory/**
+.cursorindexingignore
 
 # Ignore config files
 config/*

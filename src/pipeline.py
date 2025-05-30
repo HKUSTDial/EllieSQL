@@ -125,6 +125,9 @@ class ElephantSQLPipeline:
                 
         self.post_processor.set_data_file(data_file)
 
+        # Set the number of parallel workers
+        self.intermediate.set_max_workers(max_workers)
+        
         # Prepare data
         queries = self.prepare_queries(data_file)
         total_queries = len(queries)
@@ -204,10 +207,38 @@ class ElephantSQLPipeline:
             self.logger.warning(f"LLM API total calls: {stats['total_calls']}")
             self.logger.warning(f"Total input tokens: {stats['total_cost']['input_tokens']}; Total output tokens: {stats['total_cost']['output_tokens']}")
             
+            # Display processing mode and duration information
+            if stats.get('max_workers') is not None and stats['max_workers'] > 1:
+                self.logger.warning(f"Processing mode: Parallel (max_workers={stats['max_workers']})")
+            else:
+                self.logger.warning(f"Processing mode: Serial")
+                
+            # Display total duration information if available
+            if 'total_duration_seconds' in stats:
+                total_seconds = stats['total_duration_seconds']
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                seconds = int(total_seconds % 60)
+                self.logger.warning(f"Total API duration: {hours} Hours {minutes} Minutes {seconds} Seconds")
+            
             # Detailed statistics information written to the statistics log
             self.stats_logger.info("="*50)
             self.stats_logger.info("Detailed API call statistics")
             self.stats_logger.info("="*50)
+            
+            # Log processing mode
+            if stats.get('max_workers') is not None and stats['max_workers'] > 1:
+                self.stats_logger.info(f"Processing mode: Parallel (max_workers={stats['max_workers']})")
+            else:
+                self.stats_logger.info(f"Processing mode: Serial")
+            
+            # Log total duration information if available
+            if 'total_duration_seconds' in stats:
+                total_seconds = stats['total_duration_seconds']
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                seconds = int(total_seconds % 60)
+                self.stats_logger.info(f"Total API duration: {hours} Hours {minutes} Minutes {seconds} Seconds")
             
             self.stats_logger.info("Model statistics:")
             for model, model_stats in stats['models'].items():
