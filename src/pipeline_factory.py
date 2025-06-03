@@ -6,6 +6,8 @@ from .modules.sql_generation.gpt_generator import GPTSQLGenerator
 from .modules.sql_generation.dc_refiner_generator import DCRefinerSQLGenerator
 from .modules.sql_generation.online_synthesis_refiner_generator import OSRefinerSQLGenerator
 from .modules.sql_generation.enhanced_generator import EnhancedSQLGenerator
+from .modules.sql_generation.direct_dc_refiner_generator import DirectDCRefineSQLGenerator
+from .modules.sql_generation.direct_dc_os_refiner_generator import DirectDCOSRefineSQLGenerator
 from .modules.post_processing.skip_post_processing import SkipPostProcessor
 from .pipeline import ElephantSQLPipeline
 
@@ -58,7 +60,8 @@ class PipelineFactory:
                 # Intermediate pipeline: use DC+Refiner
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
-                    sql_generator=DCRefinerSQLGenerator(
+                    # sql_generator=DCRefinerSQLGenerator(
+                    sql_generator=DirectDCRefineSQLGenerator(
                         self.llm,
                         model=self.backbone_model,
                         temperature=self.temperature,
@@ -72,7 +75,8 @@ class PipelineFactory:
                 # Advanced pipeline: use DC+OS+Refiner (EnhancedSQLGenerator)
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
-                    sql_generator=EnhancedSQLGenerator(
+                    # sql_generator=EnhancedSQLGenerator(
+                    sql_generator=DirectDCOSRefineSQLGenerator(
                         self.llm,
                         model=self.backbone_model,
                         temperature=self.temperature,

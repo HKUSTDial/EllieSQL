@@ -38,7 +38,7 @@ class OnlineSynthesiser():
             {"role": "system", "content": SQL_GENERATION_SYSTEM},
             {"role": "user", "content": ONLINE_SYNTHESIS_PROMPT.format(
                 TARGET_DATABASE_SCHEMA=formatted_schema,
-                k=8  # Adjust as needed
+                k=5  # Adjust as needed
             )}
         ]
         

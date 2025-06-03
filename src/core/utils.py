@@ -50,6 +50,13 @@ class TextExtractor:
         return matches[-1].strip() if matches else text.strip()
     
     @staticmethod
+    def extract_sql_xml(text: str) -> str:
+        """Extract the SQL code block from the text, take the last <sql></sql> block"""
+        sql_pattern = r"<sql>\s*(.*?)\s*</sql>"
+        matches = re.findall(sql_pattern, text, re.DOTALL)
+        return matches[-1].strip() if matches else text.strip()
+    
+    @staticmethod
     def extract_code_block(text: str, language: str = None) -> str:
         """
         Extract the content of the code block from the text, support specifying the language or extracting the code block of any language
