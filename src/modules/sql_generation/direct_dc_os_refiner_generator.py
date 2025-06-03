@@ -52,7 +52,7 @@ class DirectDCOSRefineSQLGenerator(SQLGeneratorBase):
         }
 
 
-        # 1. 先online synthesis
+        # 1. First, online synthesis
         # Use the wrapped method to generate online synthesis examples
         online_synthesiser = OnlineSynthesiser(llm=self.llm, 
                 model=self.model,

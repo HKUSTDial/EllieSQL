@@ -24,96 +24,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
     # Initialize LLM and modules
     llm = LLMBase()
     
-    # pipeline_v = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=GPTSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_vr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=VanillaRefineSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_ddcr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=DirectDCRefineSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_ddcosr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=DirectDCOSRefineSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-
-    # pipeline_dcr = ElephantSQLPipeline(
-    #     schema_linker=EnhancedSchemaLinker(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     sql_generator=DCRefinerSQLGenerator(
-    #         llm, 
-    #         model=backbone_model, 
-    #         temperature=0.0, 
-    #         max_tokens=10000,
-    #         max_retries=10
-    #     ),
-    #     post_processor=SkipPostProcessor()
-    # )
-    pipeline_dcr = ElephantSQLPipeline(
+    pipeline_v = ElephantSQLPipeline(
         schema_linker=EnhancedSchemaLinker(
             llm, 
             model=backbone_model, 
@@ -121,7 +32,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
             max_tokens=10000,
             max_retries=10
         ),
-        sql_generator=EnhancedSQLGenerator(
+        sql_generator=GPTSQLGenerator(
             llm, 
             model=backbone_model, 
             temperature=0.0, 
@@ -130,12 +41,15 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
         ),
         post_processor=SkipPostProcessor()
     )
-    
-    # Run pipeline, set parallel number
-    await pipeline_dcr.run_pipeline_parallel(
-        # data_file="./data/formatted_spider_dev.json", #现在跑的是realstic
-        # data_file="./data/formatted_spider_realistic.json",
-        # data_file="./data/formatted_spider_syn.json",
+
+    """
+    Run different datasets:
+     - Spider dev: ./data/formatted_spider_dev.json
+     - Spider realistic: ./data/formatted_spider_realistic.json
+     - Spider syn: ./data/formatted_spider_syn.json
+     - Bird dev: ./data/formatted_bird_dev.json
+    """
+    await pipeline_v.run_pipeline_parallel(
         data_file="./data/formatted_bird_dev.json",
         max_workers=100
     )
@@ -154,10 +68,7 @@ if __name__ == "__main__":
     loop.set_default_executor(ThreadPoolExecutor(max_workers=300))
 
     # 3. Run and close
-    # loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
-    # loop.run_until_complete(main(backbone_model="gpt-4o-mini-2024-07-18"))
-    # loop.run_until_complete(main(backbone_model="gpt-4o-2024-08-06"))
-    loop.run_until_complete(main(backbone_model="gpt-4"))
+    loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
     loop.close() 
 
     # python -m examples.main

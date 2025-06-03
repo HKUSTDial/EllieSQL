@@ -8,8 +8,14 @@ export NCCL_IB_DISABLE=1
 export CUDA_VISIBLE_DEVICES=7
 
 # Basic parameters
-TEST_FILE="./data/formatted_bird_dev.json"
 MAX_WORKERS=64
+
+# Run different datasets:
+# - Spider dev: ./data/formatted_spider_dev.json
+# - Spider realistic: ./data/formatted_spider_realistic.json
+# - Spider syn: ./data/formatted_spider_syn.json
+# - Bird dev: ./data/formatted_bird_dev.json
+TEST_FILE="./data/formatted_bird_dev.json"
 
 # GB pipeline
 echo "Running GB pipeline..."

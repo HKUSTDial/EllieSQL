@@ -61,7 +61,7 @@ class PipelineFactory:
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
                     # sql_generator=DCRefinerSQLGenerator(
-                    sql_generator=DirectDCRefineSQLGenerator(
+                    sql_generator=DirectDCRefineSQLGenerator( # New implementation of Divide and Conquer
                         self.llm,
                         model=self.backbone_model,
                         temperature=self.temperature,
@@ -76,7 +76,7 @@ class PipelineFactory:
                 self._pipelines[level] = ElephantSQLPipeline(
                     schema_linker=schema_linker,
                     # sql_generator=EnhancedSQLGenerator(
-                    sql_generator=DirectDCOSRefineSQLGenerator(
+                    sql_generator=DirectDCOSRefineSQLGenerator( # New implementation of Divide and Conquer
                         self.llm,
                         model=self.backbone_model,
                         temperature=self.temperature,
