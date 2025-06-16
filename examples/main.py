@@ -30,14 +30,14 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
             model=backbone_model, 
             temperature=0.0, 
             max_tokens=10000,
-            max_retries=10
+            max_retries=1
         ),
         sql_generator=GPTSQLGenerator(
             llm, 
             model=backbone_model, 
             temperature=0.0, 
             max_tokens=10000,
-            max_retries=10
+            max_retries=1
         ),
         post_processor=SkipPostProcessor()
     )
@@ -47,6 +47,7 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
      - Spider dev: ./data/formatted_spider_dev.json
      - Spider realistic: ./data/formatted_spider_realistic.json
      - Spider syn: ./data/formatted_spider_syn.json
+     - Spider test: ./data/formatted_spider_test.json
      - Bird dev: ./data/formatted_bird_dev.json
     """
     await pipeline_v.run_pipeline_parallel(
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     loop.set_default_executor(ThreadPoolExecutor(max_workers=300))
 
     # 3. Run and close
-    loop.run_until_complete(main(backbone_model="gpt-3.5-turbo"))
+    loop.run_until_complete(main(backbone_model="gpt-4o-mini-2024-07-18"))
     loop.close() 
 
     # python -m examples.main

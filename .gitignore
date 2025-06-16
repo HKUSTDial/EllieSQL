@@ -36,6 +36,9 @@ results/**
 # Ignore log files
 logs/
 
+# Ignore test scripts
+scripts/exp/routing_single.sh
+
 # Ignore databases and some files in data
 # Especially large files
 data/bird_dev_gold_empty_count.txt
