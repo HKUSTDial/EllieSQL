@@ -30,14 +30,14 @@ async def main(backbone_model: str = 'gpt-4o-mini-2024-07-18'):
             model=backbone_model, 
             temperature=0.0, 
             max_tokens=10000,
-            max_retries=1
+            max_retries=10
         ),
         sql_generator=GPTSQLGenerator(
             llm, 
             model=backbone_model, 
             temperature=0.0, 
             max_tokens=10000,
-            max_retries=1
+            max_retries=10
         ),
         post_processor=SkipPostProcessor()
     )
