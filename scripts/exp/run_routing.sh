@@ -16,6 +16,7 @@ TRAIN_FILE="./data/labeled/bird_train_pipeline_label.jsonl"
 # - Spider dev: ./data/formatted_spider_dev.json
 # - Spider realistic: ./data/formatted_spider_realistic.json
 # - Spider syn: ./data/formatted_spider_syn.json
+# - Spider test: ./data/formatted_spider_test.json
 # - Bird dev: ./data/formatted_bird_dev.json
 TEST_FILE="./data/formatted_bird_dev.json"
 
