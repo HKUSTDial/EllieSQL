@@ -1,27 +1,35 @@
 <h1 align="center">🐘EllieSQL: Cost-Efficient Text-to-SQL <br> with Complexity-Aware Routing</h1>
-<h4 align="center">🚧 Please note that this repository is still under construction! 🚧</h4>
+
+<div align="center">
 
 Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Complexity-Aware Routing"*.
 
 [![Homepage](https://img.shields.io/badge/🏠-Homepage-blue)](https://elliesql.github.io/)
-[![arXiv](https://img.shields.io/badge/arXiv-2503.22402-<COLOR>.svg)](https://arxiv.org/abs/2503.22402)
+[![COLM 2025](https://img.shields.io/badge/COLM-2025-green.svg)](https://colmweb.org/)
+[![arXiv](https://img.shields.io/badge/arXiv-2503.22402-b31b1b.svg)](https://arxiv.org/abs/2503.22402)
 [![Checkpoints](https://img.shields.io/badge/🤗-Checkpoints-orange)](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
 [![Python](https://img.shields.io/badge/Python-3.12.7-3776AB.svg?style=flat)](https://www.python.org/downloads/release/python-3127/)
 
+🚧 Please note that this repository is still under construction! 🚧
+
+</div>
+
 ![teaser](asserts/teaser.png)
 
-## 📢News
+
+## 📢 News
+[Jul. 08, 2025] 🐘EllieSQL is accepted into COLM2025!
 
 [Apr. 03, 2025] 🐘EllieSQL is publicly released!
 
-## 📖Overview
+## 📖 Overview
 
 Text-to-SQL automatically translates natural language queries to SQL, allowing non-technical users to retrieve data from databases without specialized SQL knowledge. Despite the success of advanced LLM-based Text-to-SQL approaches on leaderboards, their unsustainable computational costs—often overlooked—stand as the "elephant in the room" in current leaderboard-driven research, limiting their economic practicability for real-world deployment and widespread adoption. 
 
 To tackle this, we exploratively propose EllieSQL, a complexity-aware routing framework that assigns queries to suitable SQL generation pipelines based on estimated complexity. We investigate multiple routers to direct simple queries to efficient approaches while reserving computationally intensive methods for complex cases. Drawing from economics, we introduce the Token Elasticity of Performance (TEP) metric, capturing cost-efficiency by quantifying the responsiveness of performance gains relative to token investment in SQL generation. Experiments show that compared to always using the most advanced methods in our study, EllieSQL with the Qwen2.5-0.5B-DPO router reduces token use by over 40% without compromising performance on Bird development set, achieving more than a 2× boost in TEP over non-routing approaches. This not only advances the pursuit of cost-efficient Text-to-SQL but also invites the community to weigh resource efficiency alongside performance, contributing to progress in sustainable Text-to-SQL.
 
 
-## 📂Project Structure
+## 📂 Project Structure
 
 ```
 🐘EllieSQL/
@@ -53,7 +61,7 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
 └── README.md                   # This Readme
 ```
 
-## ⚙Environment Setup
+## ⚙ Environment Setup
 
 1. Create and activate a conda environment:
 
@@ -123,12 +131,12 @@ To tackle this, we exploratively propose EllieSQL, a complexity-aware routing fr
      dpo_save_dir: "/path/to/saves/Qwen2.5-0.5B-router/dpo"
    ```
 
-## 💻Hardware Requirements
+## 💻 Hardware Requirements
 
 - Training: 4 × NVIDIA RTX 4090
 - Inference: 1 × NVIDIA RTX 4090
 
-## 🧪Running Experiments
+## 🧪 Running Experiments
 
 ### Base Methods
 
@@ -151,7 +159,7 @@ bash scripts/exp/run_routing.sh
 
 Note: Remember to specify the correct GPU in the scripts according to your device.
 
-## ⚗️Training Routers
+## ⚗️ Training Routers
 
 We provide scripts for training different types of routers:
 
@@ -169,7 +177,7 @@ You can also change hyperparameters in fine-tuning by editing SFT configs in  `c
 
 Note: Remember to specify the correct GPU in the scripts according to your device.
 
-## ✏️Citation
+## 📝 Citation
 
 If you find our work useful or inspiring, please kindly cite:
 
