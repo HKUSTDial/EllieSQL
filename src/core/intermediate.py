@@ -76,12 +76,12 @@ class IntermediateResult:
         """Load the result of the previous module"""
         prev_file = os.path.join(self.pipeline_dir, f"{previous_module}.jsonl")
         if not os.path.exists(prev_file):
-            raise FileNotFoundError(f"找不到上一个模块的结果文件: {prev_file}")
+            raise FileNotFoundError(f"Cannot find the result file of the previous module: {prev_file}")
             
         with open(prev_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
             if not lines:
-                raise ValueError(f"结果文件为空: {prev_file}")
+                raise ValueError(f"Result file is empty: {prev_file}")
             # Return the last result
             return json.loads(lines[-1])
             
