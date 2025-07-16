@@ -10,7 +10,6 @@ Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Co
 [![Checkpoints](https://img.shields.io/badge/🤗-Checkpoints-orange)](https://huggingface.co/derrickzhu/EllieSQL_Router_Checkpoints)
 [![Python](https://img.shields.io/badge/Python-3.12.7-3776AB.svg?style=flat)](https://www.python.org/downloads/release/python-3127/)
 
-🚧 Please note that this repository is still under construction! 🚧
 
 </div>
 
@@ -18,7 +17,7 @@ Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Co
 
 
 ## 📢 News
-[Jul. 08, 2025] 🐘EllieSQL is accepted into COLM2025!
+[Jul. 08, 2025] 🎉EllieSQL is accepted by COLM 2025!
 
 [Apr. 03, 2025] 🐘EllieSQL is publicly released!
 
