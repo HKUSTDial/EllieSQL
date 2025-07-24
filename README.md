@@ -17,7 +17,7 @@ Official repository for the paper *"EllieSQL: Cost-Efficient Text-to-SQL with Co
 
 
 ## 📢 News
-[Jul. 08, 2025] 🎉EllieSQL is accepted by COLM 2025!
+[Jul. 08, 2025] 🎉EllieSQL is accepted by [COLM 2025](https://colmweb.org)!
 
 [Apr. 03, 2025] 🐘EllieSQL is publicly released!
 
